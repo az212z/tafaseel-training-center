@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "@/components/site-image";
-import Link from "next/link";
+import Link from "@/components/version-link";
 import { Breadcrumbs, ContactBanner } from "@/components/ui";
 import { tracks } from "@/lib/courses";
 import { ArrowUpLeft } from "@/components/icons";

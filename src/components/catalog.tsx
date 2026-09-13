@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/version-link";
 import { courses, tracks, arabicNumber, type TrackId } from "@/lib/courses";
 import { CourseCard } from "./ui";
 import { MagnifyingGlass, X, ArrowLeft, BookOpen } from "./icons";
@@ -17,9 +17,11 @@ const normalize = (text: string) =>
 export function Catalog({
   featured = false,
   track,
+  variant,
 }: {
   featured?: boolean;
   track?: TrackId;
+  variant?: "v2";
 }) {
   const [selected, setSelected] = useState<TrackId | "all">(track ?? "all");
   const [query, setQuery] = useState("");
@@ -35,12 +37,13 @@ export function Catalog({
     "achievement-test",
     "english-foundation",
     "drawing-fine-arts",
+    ...(variant === "v2" ? ["ielts", "professional-development"] : []),
   ];
   const visible =
     featured && selected === "all"
       ? courses.filter((course) => featuredSlugs.includes(course.slug))
       : featured
-        ? matches.slice(0, 4)
+        ? matches.slice(0, variant === "v2" ? 6 : 4)
         : matches;
   return (
     <div className="catalog">
@@ -124,6 +127,7 @@ export function Catalog({
               key={course.slug}
               course={course}
               headingLevel={featured ? "h3" : "h2"}
+              variant={variant}
             />
           ))}
         </div>

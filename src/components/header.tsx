@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/version-link";
 import { Brand } from "./brand";
 import { List, X, MagnifyingGlass, Moon, Sun, ArrowUpLeft } from "./icons";
 
 export function Header() {
-  const pathname = usePathname();
+  const currentPath = usePathname();
+  const isV2 = currentPath === "/v2" || currentPath.startsWith("/v2/");
+  const pathname = isV2 ? currentPath.slice(3) || "/" : currentPath;
   const [open, setOpen] = useState(false);
   const [dark, setDark] = useState(false);
   const menuRef = useRef<HTMLButtonElement>(null);
@@ -51,7 +53,7 @@ export function Header() {
     { href: "/contact/", title: "تواصل معنا" },
   ];
   return (
-    <header className="site-header">
+    <header className="site-header" data-version={isV2 ? "v2" : undefined}>
       <div className="header-inner container">
         <Link
           href="/"

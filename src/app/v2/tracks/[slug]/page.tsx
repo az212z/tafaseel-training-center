@@ -4,10 +4,10 @@ export {
   generateStaticParams,
 } from "@/components/track-page";
 export const dynamicParams = false;
-export default function Page({
+export default function V2Page({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  return <TrackPage params={params} />;
+  return <TrackPage params={params} variant="v2" />;
 }

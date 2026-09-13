@@ -1,7 +1,8 @@
-import Link from "next/link";
+import Link from "@/components/version-link";
 import Image from "@/components/site-image";
 import { ArrowLeft, CaretLeft, WhatsappLogo } from "./icons";
 import { courses, getTrack, type Course, faqs } from "@/lib/courses";
+import { CourseCover } from "./course-cover";
 
 export function ButtonLink({
   href,
@@ -33,9 +34,11 @@ export function ButtonLink({
 export function CourseCard({
   course,
   headingLevel = "h3",
+  variant,
 }: {
   course: Course;
   headingLevel?: "h2" | "h3";
+  variant?: "v2";
 }) {
   const Heading = headingLevel;
   return (
@@ -46,14 +49,18 @@ export function CourseCard({
         tabIndex={-1}
         aria-hidden="true"
       >
-        <Image
-          src={`/images/${course.image}`}
-          alt={course.imageAlt}
-          width={600}
-          height={400}
-          sizes="(max-width: 600px) 100vw, (max-width: 1000px) 50vw, 33vw"
-          style={{ objectFit: course.imageFit ?? "cover" }}
-        />
+        {variant === "v2" ? (
+          <CourseCover course={course} />
+        ) : (
+          <Image
+            src={`/images/${course.image}`}
+            alt={course.imageAlt}
+            width={600}
+            height={400}
+            sizes="(max-width: 600px) 100vw, (max-width: 1000px) 50vw, 33vw"
+            style={{ objectFit: course.imageFit ?? "cover" }}
+          />
+        )}
       </Link>
       <div className="course-body">
         <p className="course-category">{getTrack(course.track)?.shortTitle}</p>
@@ -139,7 +146,13 @@ export function ContactBanner() {
   );
 }
 
-export function RelatedCourses({ course }: { course: Course }) {
+export function RelatedCourses({
+  course,
+  variant,
+}: {
+  course: Course;
+  variant?: "v2";
+}) {
   const related = courses
     .filter((c) => c.track === course.track && c.slug !== course.slug)
     .slice(0, 3);
@@ -153,7 +166,7 @@ export function RelatedCourses({ course }: { course: Course }) {
       </div>
       <div className="course-grid">
         {related.map((c) => (
-          <CourseCard key={c.slug} course={c} />
+          <CourseCard key={c.slug} course={c} variant={variant} />
         ))}
       </div>
     </section>

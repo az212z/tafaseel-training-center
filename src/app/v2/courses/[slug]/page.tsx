@@ -4,10 +4,10 @@ export {
   generateStaticParams,
 } from "@/components/course-page";
 export const dynamicParams = false;
-export default function Page({
+export default function V2Page({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  return <CoursePage params={params} />;
+  return <CoursePage params={params} variant="v2" />;
 }

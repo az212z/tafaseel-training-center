@@ -14,7 +14,11 @@ import { ArrowLeft, WhatsappLogo, CheckCircle, NotePencil } from "./icons";
 
 export function BookingForm() {
   const search = useSearchParams();
-  const initial = getCourse(search.get("course") ?? "")?.slug ?? "";
+  const requested = search.get("course") ?? "";
+  const initial =
+    requested === assistanceOption
+      ? assistanceOption
+      : (getCourse(requested)?.slug ?? "");
   return <BookingFields key={initial} initial={initial} />;
 }
 

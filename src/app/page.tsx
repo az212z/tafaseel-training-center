@@ -1,6 +1,6 @@
 import Image from "@/components/site-image";
 import { Brand } from "@/components/brand";
-import Link from "next/link";
+import Link from "@/components/version-link";
 import { tracks, courses, arabicNumber, courseCountLabel } from "@/lib/courses";
 import { Catalog } from "@/components/catalog";
 import { ButtonLink, ContactBanner, FaqList } from "@/components/ui";

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/version-link";
 import { Breadcrumbs, FaqList } from "@/components/ui";
 import { internationalPhone, phoneDisplay } from "@/lib/contact";
 import {
