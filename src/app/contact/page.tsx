@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, FaqList } from "@/components/ui";
-import { internationalPhone, phoneDisplay, whatsappUrl } from "@/lib/contact";
+import { internationalPhone, phoneDisplay } from "@/lib/contact";
 import {
   WhatsappLogo,
   Phone,
@@ -19,20 +19,15 @@ export default function ContactPage() {
         <p>استفسر عن دورة، أو اطلب مساعدة في اختيار المسار المناسب لك.</p>
       </header>
       <section className="contact-options">
-        <a
-          href={whatsappUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="contact-option primary-contact"
-        >
+        <Link href="/booking/" className="contact-option primary-contact">
           <WhatsappLogo size={38} weight="light" />
           <h2>عبر واتساب</h2>
-          <p>للاستفسار عن الدورات واستلام التفاصيل وتأكيد الحجز.</p>
+          <p>عبّئ بياناتك في النموذج، ثم أرسل طلبك في رسالة واتساب.</p>
           <bdi>{phoneDisplay}</bdi>
           <span>
-            بدء المحادثة <ArrowUpLeft size={22} />
+            تعبئة نموذج التواصل <ArrowUpLeft size={22} />
           </span>
-        </a>
+        </Link>
         <a href={`tel:+${internationalPhone}`} className="contact-option">
           <Phone size={38} weight="light" />
           <h2>اتصل بنا</h2>

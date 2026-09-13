@@ -270,16 +270,14 @@ ul {
   display: block;
   width: 76px;
   height: 76px;
-  background: var(--brand-logo) 58.58% 20.15%/172.04% 152.69%
-    no-repeat;
+  background: var(--brand-logo) 58.58% 20.15%/172.04% 152.69% no-repeat;
   flex-shrink: 0;
 }
 .brand-wordmark {
   display: block;
   width: 204px;
   aspect-ratio: 756/132;
-  background: var(--brand-logo) 58.78% 84.26%/169.31% 860.606%
-    no-repeat;
+  background: var(--brand-logo) 58.78% 84.26%/169.31% 860.606% no-repeat;
 }
 .main-nav {
   display: flex;
@@ -400,8 +398,7 @@ ul {
   flex-shrink: 0;
   width: 270px;
   aspect-ratio: 756/899;
-  background: var(--brand-logo) 58.78% 33.33%/169.31% 126.3626%
-    no-repeat;
+  background: var(--brand-logo) 58.78% 33.33%/169.31% 126.3626% no-repeat;
   box-shadow: 0 0 0 22px #fcfcfb;
   z-index: 1;
 }
@@ -1199,18 +1196,27 @@ ul {
 .booking-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 100px;
+  grid-template-areas: "intro form" "help form";
+  grid-template-rows: auto 1fr;
+  gap: 0 100px;
   padding-block: 55px 90px;
   align-items: start;
 }
 .booking-intro {
+  grid-area: intro;
   padding-top: 14px;
+}
+.booking-help {
+  grid-area: help;
+}
+.booking-layout > .form-shell {
+  grid-area: form;
 }
 .booking-intro h1 {
   font-size: 60px;
   margin-bottom: 19px;
 }
-.booking-intro > p:not(.eyebrow) {
+.booking-intro-copy > p:not(.eyebrow) {
   font-size: 17px;
   max-width: 440px;
   line-height: 2;
@@ -1278,6 +1284,34 @@ ul {
 }
 .form-field {
   margin-bottom: 22px;
+}
+.form-step {
+  display: block;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 18px;
+}
+.field-hint,
+.field-error {
+  font-size: 12px;
+  line-height: 1.8;
+  margin-top: 7px;
+}
+.field-hint {
+  color: var(--muted);
+}
+.field-error {
+  color: #a52b32;
+}
+[data-theme="dark"] .field-error {
+  color: #ffb4b9;
+}
+.form-field [aria-invalid="true"] {
+  border-color: #a52b32;
+}
+[data-theme="dark"] .form-field [aria-invalid="true"] {
+  border-color: #ffb4b9;
 }
 .form-field label {
   display: block;
@@ -2301,6 +2335,8 @@ ul {
   }
   .booking-layout {
     grid-template-columns: 1fr;
+    grid-template-areas: "intro" "form" "help";
+    grid-template-rows: auto;
     gap: 32px;
     padding-block: 28px 55px;
   }
@@ -2315,7 +2351,7 @@ ul {
     font-size: 47px;
     margin-bottom: 16px;
   }
-  .booking-intro > p:not(.eyebrow) {
+  .booking-intro-copy > p:not(.eyebrow) {
     font-size: 16px;
   }
   .check-list {

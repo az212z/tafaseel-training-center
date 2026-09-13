@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Brand } from "./brand";
 import { tracks } from "@/lib/courses";
-import { phoneDisplay, internationalPhone, whatsappUrl } from "@/lib/contact";
+import { phoneDisplay, internationalPhone } from "@/lib/contact";
 import { Phone, WhatsappLogo, ArrowUpLeft } from "./icons";
 
 export function Footer() {
@@ -52,14 +52,9 @@ export function Footer() {
               <Phone size={19} />
               <bdi>{phoneDisplay}</bdi>
             </a>
-            <a
-              className="text-link"
-              href={whatsappUrl()}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <Link className="text-link" href="/booking/">
               تواصل عبر واتساب <ArrowUpLeft size={17} />
-            </a>
+            </Link>
             <p>
               تفاصيل الدورات وتأكيد الحجز
               <br />
@@ -81,15 +76,13 @@ export function Footer() {
           </div>
         </div>
       </footer>
-      <a
+      <Link
         className="floating-whatsapp"
-        href={whatsappUrl()}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="تواصل مع مركز تفاصيل عبر واتساب"
+        href="/booking/"
+        aria-label="نموذج التواصل مع مركز تفاصيل عبر واتساب"
       >
         <WhatsappLogo size={28} weight="regular" />
-      </a>
+      </Link>
     </>
   );
 }

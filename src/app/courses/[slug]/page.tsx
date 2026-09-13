@@ -3,7 +3,6 @@ import Image from "@/components/site-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { courses, getCourse, getTrack } from "@/lib/courses";
-import { courseWhatsapp } from "@/lib/contact";
 import { Breadcrumbs, ButtonLink, RelatedCourses } from "@/components/ui";
 import {
   ArrowLeft,
@@ -106,15 +105,13 @@ export default async function CoursePage({
               يرسل لك فريق المركز محتوى الدورة والمواعيد والمدة والرسوم وطريقة
               الحضور عبر واتساب.
             </p>
-            <a
+            <Link
               className="button button-primary full-width"
-              href={courseWhatsapp(course.title)}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={`/booking/?course=${course.slug}`}
             >
               <WhatsappLogo size={21} />
               استفسر عن الدورة
-            </a>
+            </Link>
             <div className="aside-note">
               <CheckCircle size={20} />
               <span>يتم تأكيد الحجز بعد استكمال الإجراءات مع فريق المركز.</span>

@@ -2,7 +2,6 @@ import Link from "next/link";
 import Image from "@/components/site-image";
 import { ArrowLeft, CaretLeft, WhatsappLogo } from "./icons";
 import { courses, getTrack, type Course, faqs } from "@/lib/courses";
-import { whatsappUrl } from "@/lib/contact";
 
 export function ButtonLink({
   href,
@@ -133,7 +132,7 @@ export function ContactBanner() {
         <h2>نساعدك تختار البداية المناسبة.</h2>
         <p>حدثنا عن هدفك، ودعنا نرشدك إلى الدورة الأقرب إليه.</p>
       </div>
-      <ButtonLink href={whatsappUrl()} whatsapp>
+      <ButtonLink href="/booking/" whatsapp>
         تحدث معنا عبر واتساب
       </ButtonLink>
     </section>

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Breadcrumbs, ButtonLink } from "@/components/ui";
-import { whatsappUrl } from "@/lib/contact";
 export const metadata: Metadata = { title: "آلية الحجز" };
 export default function BookingPolicyPage() {
   return (
@@ -16,6 +15,10 @@ export default function BookingPolicyPage() {
         والمدة والمواعيد والرسوم وطريقة الحضور عبر واتساب قبل تأكيد الحجز.
       </p>
       <h2>طلب الحجز وتأكيده</h2>
+      <p>
+        عبّئ اسمك ورقم جوالك واختر الدورة في نموذج الطلب. تتحول البيانات إلى
+        رسالة يمكنك مراجعتها وتعديلها قبل فتح واتساب وإرسالها إلى المركز.
+      </p>
       <p>
         فتح رابط واتساب أو إرسال طلب من خلاله لا يعني تأكيد الحجز تلقائيًا. يتم
         التأكيد بواسطة فريق المركز بعد استكمال الإجراءات وإبلاغك بذلك عبر
@@ -33,7 +36,7 @@ export default function BookingPolicyPage() {
         بالدورة قبل استكمال الحجز. تُناقش الطلبات المتعلقة بحجز قائم مباشرة عبر
         واتساب المركز.
       </p>
-      <ButtonLink href={whatsappUrl()} whatsapp>
+      <ButtonLink href="/booking/" whatsapp>
         استفسر عن الحجز
       </ButtonLink>
     </div>
