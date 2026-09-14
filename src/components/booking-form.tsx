@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { courses, getCourse, tracks } from "@/lib/courses";
+import { programs, getProgramCourses } from "@/lib/v2-courses";
 import { whatsappUrl } from "@/lib/contact";
 import {
   applicantMessage,
@@ -23,6 +24,17 @@ export function BookingForm() {
 }
 
 function BookingFields({ initial }: { initial: string }) {
+  const pathname = usePathname();
+  const isV2 = pathname === "/v2" || pathname.startsWith("/v2/");
+  const courseGroups = isV2
+    ? programs.map((program) => ({
+        ...program,
+        courses: getProgramCourses(program.id),
+      }))
+    : tracks.map((track) => ({
+        ...track,
+        courses: courses.filter((course) => course.track === track.id),
+      }));
   const [applicant, setApplicant] = useState<Applicant>({
     name: "",
     mobile: "",
@@ -194,15 +206,13 @@ function BookingFields({ initial }: { initial: string }) {
           <option value="" disabled>
             اختر الدورة
           </option>
-          {tracks.map((track) => (
+          {courseGroups.map((track) => (
             <optgroup key={track.id} label={track.title}>
-              {courses
-                .filter((c) => c.track === track.id)
-                .map((c) => (
-                  <option key={c.slug} value={c.slug}>
-                    {c.title}
-                  </option>
-                ))}
+              {track.courses.map((c) => (
+                <option key={c.slug} value={c.slug}>
+                  {c.title}
+                </option>
+              ))}
             </optgroup>
           ))}
           <option value={assistanceOption}>

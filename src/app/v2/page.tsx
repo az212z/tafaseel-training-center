@@ -104,11 +104,7 @@ export default function V2Home() {
       <section className="v2-tracks container" aria-labelledby="tracks-heading">
         <div className="v2-tracks-intro">
           <span className="eyebrow">ابدأ من هدفك</span>
-          <h2 id="tracks-heading">
-            للطموح
-            <br />
-            أكثر من مسار.
-          </h2>
+          <h2 id="tracks-heading">للطموح أكثر من مسار.</h2>
         </div>
         <nav aria-label="استكشف المسارات التدريبية">
           {programs.map((track, i) => {
