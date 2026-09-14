@@ -30,7 +30,5 @@ export function applicantMessage(applicant: Applicant, courseTitle: string) {
     ...(applicant.note.trim()
       ? ["", `ملاحظات واستفسارات: ${applicant.note.trim()}`]
       : []),
-    "",
-    "أرجو تزويدي بمحتوى الدورة والمواعيد والمدة والرسوم وطريقة الحضور وخطوات تأكيد الحجز.",
   ].join("\n");
 }
