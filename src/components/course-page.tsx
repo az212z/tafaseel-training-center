@@ -3,6 +3,7 @@ import Image from "@/components/site-image";
 import Link from "@/components/version-link";
 import { notFound } from "next/navigation";
 import { courses, getCourse, getTrack } from "@/lib/courses";
+import { getV2Course, getCourseProgram } from "@/lib/v2-courses";
 import { Breadcrumbs, ButtonLink, RelatedCourses } from "@/components/ui";
 import { CourseCover } from "@/components/course-cover";
 import {
@@ -35,9 +36,12 @@ export default async function CoursePage({
   params: Promise<{ slug: string }>;
   variant?: "v2";
 }) {
-  const course = getCourse((await params).slug);
+  const slug = (await params).slug;
+  const course = variant === "v2" ? getV2Course(slug) : getCourse(slug);
   if (!course) notFound();
-  const track = getTrack(course.track)!;
+  const track = (
+    variant === "v2" ? getCourseProgram(slug) : getTrack(course.track)
+  )!;
   return (
     <>
       <div className="container">

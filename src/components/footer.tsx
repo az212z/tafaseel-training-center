@@ -1,6 +1,6 @@
 import Link from "@/components/version-link";
 import { Brand } from "./brand";
-import { tracks } from "@/lib/courses";
+import { FooterTrackLinks } from "./footer-track-links";
 import { phoneDisplay, internationalPhone } from "@/lib/contact";
 import { Phone, WhatsappLogo, ArrowUpLeft } from "./icons";
 
@@ -21,13 +21,7 @@ export function Footer() {
           </div>
           <div>
             <h2>المسارات التدريبية</h2>
-            <ul>
-              {tracks.map((track) => (
-                <li key={track.id}>
-                  <Link href={`/tracks/${track.id}/`}>{track.title}</Link>
-                </li>
-              ))}
-            </ul>
+            <FooterTrackLinks />
           </div>
           <div>
             <h2>المركز</h2>

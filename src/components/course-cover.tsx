@@ -1,5 +1,6 @@
 import Image from "@/components/site-image";
-import { getTrack, type Course } from "@/lib/courses";
+import { type Course } from "@/lib/courses";
+import { getCourseProgram } from "@/lib/v2-courses";
 
 // Clean photographic alternatives to branded promotional posters in the comparison.
 const photographs: Record<string, { image: string; alt: string }> = {
@@ -43,7 +44,7 @@ export function CourseCover({
           }
         />
         <span className="v2-cover-category">
-          {getTrack(course.track)?.shortTitle}
+          {getCourseProgram(course.slug)?.shortTitle}
         </span>
       </div>
       <div className="v2-cover-label" aria-hidden="true">

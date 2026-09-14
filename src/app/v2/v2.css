@@ -872,3 +872,294 @@
     transition: none !important;
   }
 }
+
+/* V2 program hierarchy: program overview → associated courses → registration. */
+.v2-view .v2-tracks {
+  grid-template-columns: 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.v2-view .v2-tracks-intro h2 br {
+  display: none;
+}
+.v2-view .v2-tracks nav {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.v2-view .v2-track {
+  gap: 14px;
+}
+.v2-view .v2-track strong {
+  font-size: 15px;
+}
+.v2-program-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 28px;
+}
+.v2-program-card {
+  grid-column: span 2;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+}
+.v2-program-card:nth-last-child(-n + 2) {
+  grid-column: span 3;
+}
+.v2-program-photo {
+  position: relative;
+  display: block;
+  aspect-ratio: 1.9;
+  overflow: hidden;
+  background: var(--soft);
+}
+.v2-program-card:nth-last-child(-n + 2) .v2-program-photo {
+  aspect-ratio: 2.65;
+}
+.v2-program-photo img {
+  object-fit: cover;
+  transition: transform 0.4s var(--ease);
+}
+.v2-program-photo:hover img {
+  transform: scale(1.035);
+}
+.v2-program-photo > span {
+  position: absolute;
+  bottom: 16px;
+  inset-inline-start: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 5px 13px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.v2-program-body {
+  position: relative;
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.v2-program-number {
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+.v2-program-body h3 {
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 1.65;
+  margin-bottom: 12px;
+}
+.v2-program-body > p {
+  font-size: 14px;
+  line-height: 1.95;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+.v2-program-body > .text-link {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  justify-content: space-between;
+}
+.v2-course-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: auto;
+}
+.v2-course-actions .button {
+  padding: 11px 8px;
+  min-height: 46px;
+  font-size: 12px;
+  gap: 6px;
+  border-radius: 9px;
+  white-space: normal;
+  text-align: center;
+}
+.v2-course-actions .button-primary {
+  box-shadow: none;
+}
+.v2-view .course-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.v2-view .course-description {
+  line-height: 1.95;
+}
+.v2-catalog-controls {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.v2-program-filter label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.v2-program-filter select {
+  width: 100%;
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 14px;
+}
+.v2-catalog-group {
+  padding-block: 45px 58px;
+  border-top: 1px solid var(--line);
+}
+.v2-catalog-group:last-child {
+  padding-bottom: 0;
+}
+.v2-group-heading {
+  display: flex;
+  gap: 28px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+.v2-group-heading > div {
+  max-width: 750px;
+}
+.v2-group-heading h2 {
+  font-size: clamp(25px, 2.5vw, 34px);
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+.v2-group-heading p:not(.eyebrow) {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.9;
+}
+.v2-group-heading > .text-link {
+  flex-shrink: 0;
+}
+.v2-program-hero .button {
+  margin-top: 25px;
+}
+.v2-program-courses {
+  padding-block: 40px 65px;
+  scroll-margin-top: 120px;
+}
+.v2-program-overview {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 40px;
+  padding-block: 40px;
+  border-top: 1px solid var(--line);
+}
+.v2-program-overview h2 {
+  font-size: 30px;
+  font-weight: 500;
+}
+.v2-program-overview p {
+  line-height: 2;
+  color: var(--muted);
+}
+.v2-program-note {
+  font-size: 13px;
+  margin-top: 18px;
+}
+@media (min-width: 1001px) {
+  .v2-view [data-program="aptitude"] .course-grid,
+  .v2-view .v2-program-courses .course-grid:has(> :only-child) {
+    grid-template-columns: minmax(0, 850px);
+  }
+  .v2-view [data-program="aptitude"] .course-card,
+  .v2-view .v2-program-courses .course-grid > :only-child {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+}
+@media (max-width: 1000px) {
+  .v2-view .v2-tracks nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .v2-program-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+  }
+  .v2-program-card,
+  .v2-program-card:nth-last-child(-n + 2) {
+    grid-column: auto;
+  }
+  .v2-program-card:last-child {
+    grid-column: 1 / -1;
+  }
+  .v2-program-card:nth-last-child(-n + 2) .v2-program-photo {
+    aspect-ratio: 1.9;
+  }
+  .v2-program-card:last-child .v2-program-photo {
+    aspect-ratio: 3;
+  }
+  .v2-group-heading {
+    align-items: flex-start;
+  }
+}
+@media (max-width: 760px) {
+  .v2-view .v2-tracks nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .v2-view .v2-track:last-child {
+    grid-column: 1 / -1;
+  }
+  .v2-view .v2-track:last-child .v2-track-top {
+    display: none;
+  }
+  .v2-view .v2-track:last-child {
+    flex-direction: row;
+    align-items: center;
+  }
+  .v2-view .v2-track:last-child .v2-track-bottom {
+    gap: 20px;
+  }
+  .v2-catalog-controls,
+  .v2-program-overview {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .v2-program-filter {
+    margin-bottom: 22px;
+  }
+  .v2-catalog-controls .catalog-search {
+    margin-bottom: 0;
+  }
+  .v2-group-heading {
+    flex-direction: column;
+    gap: 15px;
+  }
+  .v2-program-body {
+    padding: 22px;
+  }
+  .v2-program-body h3 {
+    font-size: 22px;
+  }
+  .v2-program-courses {
+    padding-top: 20px;
+  }
+}
+@media (max-width: 600px) {
+  .v2-program-grid {
+    grid-template-columns: 1fr;
+  }
+  .v2-program-card:last-child {
+    grid-column: auto;
+  }
+  .v2-program-card:last-child .v2-program-photo {
+    aspect-ratio: 1.9;
+  }
+  .v2-course-actions .button {
+    font-size: 13px;
+  }
+}

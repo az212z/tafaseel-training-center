@@ -1,8 +1,10 @@
 import Image from "@/components/site-image";
 import Link from "@/components/version-link";
-import { Catalog } from "@/components/catalog";
+import { ProgramGrid } from "@/components/program-grid";
 import { ButtonLink, ContactBanner, FaqList } from "@/components/ui";
-import { tracks, courses, courseCountLabel, arabicNumber } from "@/lib/courses";
+import { arabicNumber } from "@/lib/courses";
+import { programCourseCount } from "@/lib/v2-courses";
+import { programs } from "@/lib/v2-courses";
 import {
   ArrowLeft,
   ArrowUpLeft,
@@ -16,6 +18,7 @@ import {
 } from "@/components/icons";
 
 const icons = {
+  aptitude: GraduationCap,
   exams: GraduationCap,
   english: Translate,
   development: Briefcase,
@@ -56,8 +59,8 @@ export default function V2Home() {
               <span>دورة تدريبية</span>
             </div>
             <div>
-              <strong>٤</strong>
-              <span>مسارات لطموحك</span>
+              <strong>{arabicNumber(programs.length)}</strong>
+              <span>أقسام تدريبية</span>
             </div>
             <p>
               <ChatCircleText size={24} weight="light" />
@@ -108,7 +111,7 @@ export default function V2Home() {
           </h2>
         </div>
         <nav aria-label="استكشف المسارات التدريبية">
-          {tracks.map((track, i) => {
+          {programs.map((track, i) => {
             const Icon = icons[track.id];
             return (
               <Link
@@ -120,13 +123,9 @@ export default function V2Home() {
                   <Icon size={29} weight="light" />
                   <span>{arabicNumber(i + 1).padStart(2, "٠")}</span>
                 </span>
-                <strong>{track.title}</strong>
+                <strong>{track.shortTitle}</strong>
                 <span className="v2-track-bottom">
-                  <small>
-                    {courseCountLabel(
-                      courses.filter((c) => c.track === track.id).length,
-                    )}
-                  </small>
+                  <small>{programCourseCount(track.courseSlugs.length)}</small>
                   <ArrowUpLeft size={19} />
                 </span>
               </Link>
@@ -138,15 +137,15 @@ export default function V2Home() {
       <section className="section container v2-programs">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">تعلّم له وجهة</p>
-            <h2>ما خطوتك القادمة؟</h2>
-            <p>استكشف الدورات، واختر ما يقرّبك من هدفك.</p>
+            <p className="eyebrow">البرامج التدريبية</p>
+            <h2>اختر مجالك، ثم دورتك.</h2>
+            <p>تعرّف على برامجنا، واستعرض الدورات التابعة لكل برنامج.</p>
           </div>
           <Link className="text-link" href="/courses/">
             جميع الدورات <ArrowLeft size={19} />
           </Link>
         </div>
-        <Catalog featured variant="v2" />
+        <ProgramGrid />
       </section>
 
       <section className="v2-statement">

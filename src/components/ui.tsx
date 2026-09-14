@@ -3,6 +3,7 @@ import Image from "@/components/site-image";
 import { ArrowLeft, CaretLeft, WhatsappLogo } from "./icons";
 import { courses, getTrack, type Course, faqs } from "@/lib/courses";
 import { CourseCover } from "./course-cover";
+import { getCourseProgram, getProgramCourses } from "@/lib/v2-courses";
 
 export function ButtonLink({
   href,
@@ -63,23 +64,46 @@ export function CourseCard({
         )}
       </Link>
       <div className="course-body">
-        <p className="course-category">{getTrack(course.track)?.shortTitle}</p>
+        <p className="course-category">
+          {variant === "v2"
+            ? getCourseProgram(course.slug)?.shortTitle
+            : getTrack(course.track)?.shortTitle}
+        </p>
         <Heading>
           <Link href={`/courses/${course.slug}/`}>{course.title}</Link>
         </Heading>
         <p className="course-description">{course.description}</p>
-        <div className="course-bottom">
-          <span lang="en" dir="ltr">
-            {course.englishTitle}
-          </span>
-          <Link
-            href={`/courses/${course.slug}/`}
-            className="circle-link"
-            aria-label={`اكتشف دورة ${course.title}`}
-          >
-            <ArrowUpLeftIcon />
-          </Link>
-        </div>
+        {variant === "v2" ? (
+          <div className="v2-course-actions">
+            <Link
+              href={`/courses/${course.slug}/`}
+              className="button button-secondary"
+              aria-label={`عرض تفاصيل ${course.title}`}
+            >
+              عرض التفاصيل
+            </Link>
+            <Link
+              href={`/booking/?course=${course.slug}`}
+              className="button button-primary"
+              aria-label={`طلب التسجيل في ${course.title}`}
+            >
+              طلب التسجيل <ArrowLeft size={16} />
+            </Link>
+          </div>
+        ) : (
+          <div className="course-bottom">
+            <span lang="en" dir="ltr">
+              {course.englishTitle}
+            </span>
+            <Link
+              href={`/courses/${course.slug}/`}
+              className="circle-link"
+              aria-label={`اكتشف دورة ${course.title}`}
+            >
+              <ArrowUpLeftIcon />
+            </Link>
+          </div>
+        )}
       </div>
     </article>
   );
@@ -153,15 +177,27 @@ export function RelatedCourses({
   course: Course;
   variant?: "v2";
 }) {
-  const related = courses
-    .filter((c) => c.track === course.track && c.slug !== course.slug)
+  const program = variant === "v2" ? getCourseProgram(course.slug) : undefined;
+  const related = (program ? getProgramCourses(program.id) : courses)
+    .filter(
+      (c) => (program || c.track === course.track) && c.slug !== course.slug,
+    )
     .slice(0, 3);
+  if (!related.length) return null;
   return (
     <section className="section container">
       <div className="section-heading">
-        <h2>اكتشف أيضًا في هذا المسار</h2>
-        <Link className="text-link" href={`/tracks/${course.track}/`}>
-          عرض المسار <ArrowLeft size={18} />
+        <h2>
+          {variant === "v2"
+            ? "دورات أخرى في البرنامج"
+            : "اكتشف أيضًا في هذا المسار"}
+        </h2>
+        <Link
+          className="text-link"
+          href={`/tracks/${program?.id ?? course.track}/`}
+        >
+          {variant === "v2" ? "عرض البرنامج" : "عرض المسار"}{" "}
+          <ArrowLeft size={18} />
         </Link>
       </div>
       <div className="course-grid">

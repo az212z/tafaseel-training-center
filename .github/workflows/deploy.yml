@@ -29,6 +29,7 @@ jobs:
       - run: npm run lint
       - run: npm run test:booking
       - run: npm run build
+      - run: python3 scripts/verify-v2-catalog.py
       - run: npm run typecheck
       - uses: actions/upload-pages-artifact@v4
         with:
