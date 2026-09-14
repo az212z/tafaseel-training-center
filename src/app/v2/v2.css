@@ -1163,3 +1163,7 @@
     font-size: 13px;
   }
 }
+
+.v2-view #course-search::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
