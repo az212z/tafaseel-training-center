@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import Link from "@/components/version-link";
 import { Breadcrumbs, FaqList } from "@/components/ui";
-import { internationalPhone, phoneDisplay } from "@/lib/contact";
+import {
+  internationalPhone,
+  phoneDisplay,
+  whatsappDisplay,
+} from "@/lib/contact";
 import {
   WhatsappLogo,
   Phone,
@@ -23,7 +27,7 @@ export default function ContactPage() {
           <WhatsappLogo size={38} weight="light" />
           <h2>عبر واتساب</h2>
           <p>عبّئ بياناتك في النموذج، ثم أرسل طلبك في رسالة واتساب.</p>
-          <bdi>{phoneDisplay}</bdi>
+          <bdi>{whatsappDisplay}</bdi>
           <span>
             تعبئة نموذج التواصل <ArrowUpLeft size={22} />
           </span>

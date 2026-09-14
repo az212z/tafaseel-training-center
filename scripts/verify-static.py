@@ -80,7 +80,7 @@ for file in pages:
             paths.add(unquote(url.path))
         if url.netloc == "wa.me":
             whatsapp_numbers.add(url.path)
-            if url.path != "/966558815053":
+            if url.path != "/966544552366":
                 errors.append([route, "incorrect WhatsApp number", ref])
         if url.scheme == "tel" and url.path != "+966558815053":
             errors.append([route, "incorrect phone number", ref])

@@ -45,7 +45,7 @@ test("All supplied applicant data survives WhatsApp URL encoding", () => {
   );
   const url = new URL(whatsappUrl(message));
   assert.equal(url.origin, "https://wa.me");
-  assert.equal(url.pathname, "/966558815053");
+  assert.equal(url.pathname, "/966544552366");
   assert.equal(url.searchParams.get("text"), message);
   assert.match(message, /الاسم الكامل: متقدم تجريبي/);
   assert.match(message, /رقم الجوال: \u200e\+966501234567\u200e/);
