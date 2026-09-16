@@ -1,4 +1,28 @@
 import { courses, arabicNumber, type Course } from "./courses";
+import { facilityPhotos } from "./facility-photos";
+
+function centerPhoto(id: string) {
+  const photo = facilityPhotos.find((item) => item.id === id);
+  if (!photo) throw new Error(`Unknown center photograph: ${id}`);
+  return { image: `facility/${photo.id}.webp`, imageAlt: photo.alt };
+}
+
+// Match the subject to a real space without implying a photographed class took place.
+const coursePhotos: Record<string, string> = {
+  "general-aptitude": "daylight-classroom",
+  "achievement-test": "classroom-display",
+  "educational-competencies": "workshop-display",
+  "english-foundation": "small-classroom",
+  step: "main-training-room",
+  ielts: "meeting-room",
+  toefl: "daylight-classroom",
+  "self-development": "workshop-room",
+  "professional-development": "meeting-room",
+  "arabic-calligraphy": "small-classroom",
+  "interior-design": "green-lounge",
+  "drawing-fine-arts": "workshop-room",
+  "digital-art": "interactive-display",
+};
 
 export type ProgramId =
   "aptitude" | "english" | "exams" | "development" | "arts";
@@ -24,8 +48,7 @@ export const programs: Program[] = [
       "استعداد لاختبار القدرات العامة في الجانبين الكمي واللفظي، لتنمية مهارات الفهم والاستدلال والتعامل مع أسئلة الاختبار.",
     overview:
       "برنامج موجّه لطلاب وطالبات المرحلة الثانوية المقبلين على اختبار القدرات العامة. يركّز على بناء الاستعداد للمهارات التي يقيسها الاختبار، وربط المفاهيم بطريقة التفكير في السؤال. تعرّف على الدورة وتواصل مع المركز لاختيار البداية المناسبة لمستواك.",
-    image: "course-aptitude.webp",
-    imageAlt: "دفتر يحمل غلاف دورة القدرات العامة",
+    ...centerPhoto("daylight-classroom"),
     courseSlugs: ["general-aptitude"],
   },
   {
@@ -36,8 +59,7 @@ export const programs: Program[] = [
       "من تأسيس اللغة للمبتدئين إلى الاستعداد لاختباري IELTS وTOEFL؛ دورات تختار منها ما يناسب مستواك وهدفك الدراسي أو المهني.",
     overview:
       "تجمع هذه الدورات بين بناء الأساس في اللغة الإنجليزية والتحضير لاختباراتها الدولية. إذا كنت في بداية التعلّم، ابدأ بالدورة التأسيسية. وإذا كان هدفك اختبارًا محددًا، اطّلع على دورات آيلتس وتوفل وناقش متطلباتك اللغوية مع فريق المركز قبل الحجز.",
-    image: "course-english.webp",
-    imageAlt: "متعلّمة تتابع دراستها باستخدام الحاسب المحمول",
+    ...centerPhoto("small-classroom"),
     courseSlugs: ["english-foundation", "ielts", "toefl"],
   },
   {
@@ -48,8 +70,7 @@ export const programs: Program[] = [
       "دورات للاستعداد للاختبار التحصيلي، واختبار كفايات اللغة الإنجليزية STEP، واختبار الكفايات التعليمية، بحسب الاختبار الذي تستهدفه.",
     overview:
       "اختر الدورة بحسب متطلباتك: التحصيلي للاستعداد الأكاديمي، وستيب لاختبار كفايات اللغة الإنجليزية، والكفايات التعليمية للمهتمين بالمجال التعليمي. لكل اختبار هدف مختلف؛ يساعدك فريق المركز في تحديد الدورة الملائمة قبل إتمام الحجز.",
-    image: "course-achievement.webp",
-    imageAlt: "طالب سعودي يراجع ملاحظاته استعدادًا للاختبار",
+    ...centerPhoto("classroom-display"),
     courseSlugs: ["achievement-test", "step", "educational-competencies"],
   },
   {
@@ -60,8 +81,7 @@ export const programs: Program[] = [
       "دورات لتنمية المهارات الشخصية وتعزيز الاستعداد لبيئة العمل؛ للمقبلين على بداية مهنية والراغبين في تطوير أدائهم.",
     overview:
       "يجمع هذا المجال بين تطوير المهارات الشخصية والتقدّم في المسار المهني. اختر تطوير الذات إذا كان هدفك تنمية قدراتك الشخصية، أو التطوير المهني إذا كنت ترغب في تعزيز جاهزيتك للعمل وتوسيع مهاراتك الوظيفية.",
-    image: "course-professional.webp",
-    imageAlt: "مناقشة المهارات والخبرات خلال مقابلة مهنية",
+    ...centerPhoto("meeting-room"),
     courseSlugs: ["self-development", "professional-development"],
   },
   {
@@ -72,8 +92,7 @@ export const programs: Program[] = [
       "دورات في الخط العربي، وأساسيات الديكور والتصميم، والرسم والفن التشكيلي، والفن الرقمي؛ لاستكشاف اهتمامك وتنمية مهارتك البصرية.",
     overview:
       "مساحة للمهتمين بالفنون والتصميم، تجمع التعبير بالحرف والرسم وتنسيق المساحات والإبداع الرقمي. اطّلع على التعريف بكل دورة والفئة المناسبة لها، ثم تواصل مع المركز لمعرفة التفاصيل واختيار ما يلائم خبرتك واهتمامك.",
-    image: "course-drawing.webp",
-    imageAlt: "متعلّمتان تناقشان لوحة في مساحة فنية",
+    ...centerPhoto("workshop-room"),
     courseSlugs: [
       "arabic-calligraphy",
       "interior-design",
@@ -196,6 +215,8 @@ const introductions: Record<
 export const v2Courses: Course[] = courses.map((course) => ({
   ...course,
   ...introductions[course.slug],
+  ...centerPhoto(coursePhotos[course.slug]),
+  imageFit: "cover",
 }));
 export const getProgram = (id: string) =>
   programs.find((program) => program.id === id);

@@ -26,4 +26,4 @@ Sharp was used only to encode the completed edits as WebP/JPEG and create smalle
 
 The expanded gallery contains 15 selected photographs. The second edit batch also requested removal of temporary protective wrapping from corridor seats and a small packing bag and floor debris at the edge of the green lounge photo, without changing the actual furnishings. Screen images retain their original content.
 
-The existing course covers remain illustrative course imagery. These new facility photographs are used only in V2's home, about, and gallery sections. The original logo files and V1 content are unchanged.
+V2 also uses these owner-provided photographs for all 13 course covers and all five program covers. The mapping in `src/lib/v2-courses.ts` pairs classrooms with exams and language, shared tables with workshops, the meeting room with professional development, interior details with design, and the interactive display with digital art. Images depict the center's spaces and equipment, not documented sessions of the named courses. Cards use existing small WebP previews; detail-page covers use the full WebP images. The original logo files and V1 content are unchanged.

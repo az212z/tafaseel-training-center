@@ -55,7 +55,8 @@ export default async function V2ProgramPage({
             alt={program.imageAlt}
             width={600}
             height={340}
-            priority
+            preload
+            style={{ objectPosition: "center 62%" }}
           />
         </header>
         <section

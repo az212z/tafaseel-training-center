@@ -17,10 +17,11 @@ export function ProgramGrid() {
             aria-hidden="true"
           >
             <Image
-              src={`/images/${program.image}`}
+              src={`/images/${program.image.replace(/\.webp$/, "-thumb.webp")}`}
               alt={program.imageAlt}
               fill
               sizes="(max-width: 600px) 100vw, (max-width: 1000px) 50vw, 40vw"
+              style={{ objectPosition: "center 62%" }}
             />
             <span>{programCourseCount(program.courseSlugs.length)}</span>
           </Link>

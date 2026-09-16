@@ -2,14 +2,6 @@ import Image from "@/components/site-image";
 import { type Course } from "@/lib/courses";
 import { getCourseProgram } from "@/lib/v2-courses";
 
-// Clean photographic alternatives to branded promotional posters in the comparison.
-const photographs: Record<string, { image: string; alt: string }> = {
-  ielts: {
-    image: "v2-ielts.webp",
-    alt: "طلاب يراجعون ويتدرّبون في فصل لتعلّم اللغة",
-  },
-};
-
 export function CourseCover({
   course,
   large = false,
@@ -17,10 +9,6 @@ export function CourseCover({
   course: Course;
   large?: boolean;
 }) {
-  const photo = photographs[course.slug] ?? {
-    image: course.image,
-    alt: course.imageAlt,
-  };
   return (
     <div
       className={`v2-cover ${large ? "v2-cover-large" : ""}`}
@@ -28,8 +16,8 @@ export function CourseCover({
     >
       <div className="v2-cover-photo">
         <Image
-          src={`/images/${photo.image}`}
-          alt={photo.alt}
+          src={`/images/${large ? course.image : course.image.replace(/\.webp$/, "-thumb.webp")}`}
+          alt={course.imageAlt}
           fill
           sizes={
             large
@@ -37,11 +25,7 @@ export function CourseCover({
               : "(max-width: 600px) 100vw, (max-width: 1000px) 50vw, 33vw"
           }
           preload={large}
-          style={
-            course.slug === "step"
-              ? { objectFit: "contain", background: "#fff" }
-              : undefined
-          }
+          style={{ objectPosition: "center 62%" }}
         />
         <span className="v2-cover-category">
           {getCourseProgram(course.slug)?.shortTitle}
