@@ -8,6 +8,7 @@
     "start": "node scripts/serve.mjs",
     "typecheck": "tsc --noEmit",
     "test:booking": "node --test tests/booking.test.mjs",
+    "test:interest": "node --test tests/course-interest.test.mjs",
     "lint": "eslint .",
     "preview": "node scripts/serve.mjs",
     "format": "prettier --write src scripts next.config.ts eslint.config.mjs tsconfig.json package.json"

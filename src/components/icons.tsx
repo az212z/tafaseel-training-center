@@ -30,4 +30,5 @@ export {
   House,
   SealCheck,
   Target,
+  Question,
 } from "@phosphor-icons/react/dist/ssr";
