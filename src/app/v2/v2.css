@@ -89,19 +89,6 @@
   color: var(--muted);
   font-size: 12px;
 }
-.v2-hero-facts > p {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  border-inline-start: 1px solid var(--line);
-  padding-inline-start: 25px;
-  font-size: 12px;
-  line-height: 1.9;
-}
-.v2-hero-facts svg {
-  flex-shrink: 0;
-  color: var(--brand);
-}
 .v2-hero-visual {
   position: relative;
   height: 540px;
@@ -566,10 +553,6 @@
   .v2-hero-facts {
     gap: 22px;
   }
-  .v2-hero-facts > p {
-    padding-inline-start: 16px;
-    gap: 8px;
-  }
   .v2-hero-visual {
     height: 495px;
   }
@@ -603,9 +586,6 @@
     grid-template-columns: 1fr;
   }
   .v2-tracks-intro h2 br {
-    display: none;
-  }
-  .v2-hero-facts > p {
     display: none;
   }
   .v2-hero-actions {
@@ -656,16 +636,8 @@
   .v2-hero-facts strong {
     font-size: 28px;
   }
-  .v2-hero-facts > div > span,
-  .v2-hero-facts > p {
+  .v2-hero-facts > div > span {
     font-size: 11px;
-  }
-  .v2-hero-facts > p {
-    gap: 8px;
-    padding-inline-start: 20px;
-  }
-  .v2-hero-facts > p > svg {
-    width: 20px;
   }
   .v2-hero-visual {
     height: 390px;
@@ -827,12 +799,6 @@
   }
   .v2-hero-facts {
     gap: 18px;
-  }
-  .v2-hero-facts > p {
-    padding-inline-start: 14px;
-  }
-  .v2-hero-facts > p > svg {
-    display: none;
   }
   .v2-hero-visual {
     height: 335px;
@@ -1544,13 +1510,9 @@
   color: var(--paper);
   border-color: var(--ink);
 }
-.facility-result-count {
-  font-size: 13px;
-  color: var(--muted);
-  margin-block: 20px 30px;
-}
 .facility-gallery-grid {
   display: grid;
+  margin-top: 30px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 35px 26px;
 }

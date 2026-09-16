@@ -64,14 +64,6 @@ export default function V2Home() {
               <strong>{arabicNumber(programs.length)}</strong>
               <span>أقسام تدريبية</span>
             </div>
-            <p>
-              <ChatCircleText size={24} weight="light" />
-              <span>
-                تواصل مباشر
-                <br />
-                وتأكيد الحجز عبر واتساب
-              </span>
-            </p>
           </div>
         </div>
         <div className="v2-hero-visual">

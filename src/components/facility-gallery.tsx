@@ -61,12 +61,6 @@ export function FacilityGallery() {
           </button>
         ))}
       </div>
-      <p className="facility-result-count" role="status" aria-live="polite">
-        {visible.length === 2
-          ? "صورتان"
-          : `${arabicNumber(visible.length)} صور`}{" "}
-        · اضغط على الصورة لعرضها كاملة
-      </p>
       <div className="facility-gallery-grid">
         {visible.map((item) => (
           <figure className="facility-card" id={item.id} key={item.id}>
