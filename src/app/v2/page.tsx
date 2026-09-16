@@ -1,6 +1,8 @@
 import Image from "@/components/site-image";
 import Link from "@/components/version-link";
 import { ProgramGrid } from "@/components/program-grid";
+import { FacilityPreview } from "@/components/facility-preview";
+import { facilityImage } from "@/lib/facility-photos";
 import { ButtonLink, ContactBanner, FaqList } from "@/components/ui";
 import { arabicNumber } from "@/lib/courses";
 import { programCourseCount } from "@/lib/v2-courses";
@@ -78,26 +80,28 @@ export default function V2Home() {
           </div>
           <figure className="v2-main-photo">
             <Image
-              src="/images/course-achievement.webp"
-              alt="متعلم سعودي يراجع ملاحظاته على الحاسب"
+              src={facilityImage("main-training-room")}
+              alt="قاعة مركز تفاصيل بطاولات جماعية وكراسٍ زرقاء وشاشة عرض"
               fill
               sizes="(max-width: 760px) 90vw, 48vw"
               preload
             />
             <figcaption>
-              <span>خطوة اليوم، فرصة الغد.</span>
-              <ArrowUpLeft size={24} weight="light" />
+              <Link href="/gallery/">
+                <span>من قاعات مركز تفاصيل.</span>
+                <ArrowUpLeft size={24} weight="light" />
+              </Link>
             </figcaption>
           </figure>
           <figure className="v2-detail-photo">
             <Image
-              src="/images/course-english.webp"
-              alt="متعلّمة تستخدم حاسبها المحمول"
+              src={facilityImage("lounge", true)}
+              alt="جلسة جانبية من داخل مركز تفاصيل"
               fill
               sizes="(max-width: 760px) 32vw, 200px"
             />
           </figure>
-          <span className="v2-photo-note">صور توضيحية لبيئات التعلّم</span>
+          <span className="v2-photo-note">صور من داخل المركز</span>
         </div>
       </section>
 
@@ -182,6 +186,8 @@ export default function V2Home() {
           </div>
         </div>
       </section>
+
+      <FacilityPreview />
 
       <section className="section container v2-booking-steps">
         <div className="section-heading">

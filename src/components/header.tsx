@@ -50,6 +50,7 @@ export function Header() {
     { href: "/", title: "الرئيسية" },
     { href: "/courses/", title: "الدورات التدريبية" },
     { href: "/about/", title: "عن المركز" },
+    ...(isV2 ? [{ href: "/gallery/", title: "صور المركز" }] : []),
     { href: "/contact/", title: "تواصل معنا" },
   ];
   return (

@@ -1,6 +1,7 @@
 import Link from "@/components/version-link";
 import { Brand } from "./brand";
 import { FooterTrackLinks } from "./footer-track-links";
+import { GalleryFooterLink } from "./gallery-footer-link";
 import { phoneDisplay, internationalPhone } from "@/lib/contact";
 import { Phone, WhatsappLogo, ArrowUpLeft } from "./icons";
 
@@ -29,6 +30,7 @@ export function Footer() {
               <li>
                 <Link href="/about/">عن مركز تفاصيل</Link>
               </li>
+              <GalleryFooterLink />
               <li>
                 <Link href="/courses/">جميع الدورات</Link>
               </li>

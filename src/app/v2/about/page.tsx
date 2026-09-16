@@ -3,6 +3,7 @@ import Image from "@/components/site-image";
 import Link from "@/components/version-link";
 import { Breadcrumbs, ContactBanner } from "@/components/ui";
 import { programs } from "@/lib/v2-courses";
+import { facilityImage } from "@/lib/facility-photos";
 import { ArrowUpLeft } from "@/components/icons";
 export const metadata: Metadata = {
   title: "عن المركز",
@@ -21,12 +22,18 @@ export default function AboutPage() {
         </header>
         <div className="about-page-image">
           <Image
-            src="/brand/pattern-blue.webp"
-            alt="النمط البصري الأصلي لهوية مركز تفاصيل للتدريب"
+            src={facilityImage("reception")}
+            alt="منطقة الاستقبال والجلسات داخل مركز تفاصيل للتدريب"
             fill
             priority
             sizes="100vw"
           />
+        </div>
+        <div className="facility-about-link">
+          <span>من داخل مركز تفاصيل</span>
+          <Link href="/gallery/" className="text-link">
+            شاهد جميع صور المركز <ArrowUpLeft size={19} />
+          </Link>
         </div>
         <section className="about-story section">
           <h2>
