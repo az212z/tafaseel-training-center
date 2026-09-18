@@ -24,6 +24,7 @@ class Page(HTMLParser):
         self.h1 = 0
         self.description = ""
         self.references = []
+        self.designer_links = []
         self.images_without_alt = 0
         self.direction = ""
         self.language = ""
@@ -41,6 +42,8 @@ class Page(HTMLParser):
             self.description = attrs.get("content", "")
         if tag == "img" and "alt" not in attrs:
             self.images_without_alt += 1
+        if tag == "a" and "footer-designer-link" in attrs.get("class", "").split():
+            self.designer_links.append(attrs.get("href", ""))
         if tag in ("a", "link", "script", "img"):
             ref = attrs.get("href") or attrs.get("src")
             if ref:
@@ -63,12 +66,14 @@ for file in pages:
     route = route.rstrip("/") + "/"
     page = Page()
     page.feed(file.read_text())
+    expected_designer_links = ["https://wa.me/966505989304"] if route.startswith("/v2/") else []
     for condition, issue in [
         (page.title and page.title not in titles, "missing or duplicate title"),
         (page.h1 == 1, "expected one h1"),
         (bool(page.description), "missing description"),
         (page.direction == "rtl" and page.language == "ar", "Arabic RTL missing"),
         (page.images_without_alt == 0, "image missing alt attribute"),
+        (page.designer_links == expected_designer_links, "incorrect designer credit destination or scope"),
     ]:
         if not condition:
             errors.append([route, issue])
@@ -80,7 +85,7 @@ for file in pages:
             paths.add(unquote(url.path))
         if url.netloc == "wa.me":
             whatsapp_numbers.add(url.path)
-            if url.path != "/966544552366":
+            if ref not in page.designer_links and url.path != "/966544552366":
                 errors.append([route, "incorrect WhatsApp number", ref])
         if url.scheme == "tel" and url.path != "+966558815053":
             errors.append([route, "incorrect phone number", ref])

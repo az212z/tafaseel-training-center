@@ -2,6 +2,7 @@ import Link from "@/components/version-link";
 import { Brand } from "./brand";
 import { FooterTrackLinks } from "./footer-track-links";
 import { GalleryFooterLink } from "./gallery-footer-link";
+import { DesignerCredit } from "./designer-credit";
 import { phoneDisplay, internationalPhone } from "@/lib/contact";
 import { Phone, WhatsappLogo, ArrowUpLeft } from "./icons";
 
@@ -71,6 +72,7 @@ export function Footer() {
             <Link href="/booking-policy/">آلية الحجز</Link>
           </div>
         </div>
+        <DesignerCredit />
       </footer>
       <Link
         className="floating-whatsapp"

@@ -4,6 +4,32 @@
   --v2-blue: #608fa3;
   --v2-cream: #f3f0e9;
 }
+.footer-credit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding-bottom: 16px;
+  color: var(--muted);
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  line-height: 1.6;
+}
+.footer-designer-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 44px;
+  border-radius: 4px;
+  color: var(--accent);
+  font-weight: 600;
+  text-underline-offset: 4px;
+}
+.footer-designer-link:hover {
+  text-decoration: underline;
+}
 .site-header[data-version="v2"] {
   border-bottom-color: transparent;
 }
