@@ -1,4 +1,6 @@
 User-agent: *
+Disallow: /communications
+Disallow: /mail/
 Allow: /
 Disallow: /api/
 Disallow: /login

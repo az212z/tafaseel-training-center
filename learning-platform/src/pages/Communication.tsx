@@ -197,6 +197,7 @@ export function Notifications() {
   );
 }
 const serviceLabels: Record<string, string> = {
+  email: "البريد الرسمي وإشعارات التدريب",
   moyasar: "بوابة ميسر للدفع",
   sms: "SMS لإشعارات الغياب",
   zoom: "لقاءات زوم المباشرة",

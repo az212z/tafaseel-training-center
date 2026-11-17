@@ -172,12 +172,22 @@ function integrationStatuses(): array
                 : "not_configured",
         ];
     }
+    $out["email"] = [
+        "configured" => emailReady(),
+        "mode" => emailReady() ? "configured" : "not_configured",
+    ];
     return $out;
 }
 function migrateSchema(): void
 {
     foreach (
-        ["schema.sql", "schema-v2.sql", "schema-v3.sql", "schema-v4.sql"]
+        [
+            "schema.sql",
+            "schema-v2.sql",
+            "schema-v3.sql",
+            "schema-v4.sql",
+            "schema-v5.sql",
+        ]
         as $name
     ) {
         $sql = file_get_contents(__DIR__ . "/" . $name);
@@ -213,6 +223,9 @@ function migrateSchema(): void
     }
     if (!one("SELECT id FROM storage_locks WHERE id=?", ["files"])) {
         run("INSERT INTO storage_locks(id) VALUES(?)", ["files"]);
+    }
+    if (!one("SELECT id FROM storage_locks WHERE id=?", ["email"])) {
+        run("INSERT INTO storage_locks(id) VALUES(?)", ["email"]);
     }
 }
 

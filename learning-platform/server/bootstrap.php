@@ -264,16 +264,17 @@ function setting(string $key, mixed $default = null): mixed
 }
 function setSetting(string $key, mixed $value): void
 {
-    if (one("SELECT setting_key FROM settings WHERE setting_key=?", [$key])) {
-        run("UPDATE settings SET value=? WHERE setting_key=?", [
-            json_encode($value, JSON_UNESCAPED_UNICODE),
-            $key,
-        ]);
+    $json = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+    if (db()->getAttribute(PDO::ATTR_DRIVER_NAME) === "mysql") {
+        run(
+            "INSERT INTO settings(setting_key,value) VALUES(?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+            [$key, $json],
+        );
     } else {
-        run("INSERT INTO settings(setting_key,value) VALUES(?,?)", [
-            $key,
-            json_encode($value, JSON_UNESCAPED_UNICODE),
-        ]);
+        run(
+            "INSERT INTO settings(setting_key,value) VALUES(?,?) ON CONFLICT(setting_key) DO UPDATE SET value=excluded.value",
+            [$key, $json],
+        );
     }
 }
 function rate(string $key, int $max, int $seconds): void
@@ -480,6 +481,7 @@ function lockRow(string $table, string $id): void
                 "classes",
                 "orders",
                 "notification_outbox",
+                "email_outbox",
                 "video_assets",
                 "storage_locks",
             ],

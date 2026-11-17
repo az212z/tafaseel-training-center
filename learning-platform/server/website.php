@@ -134,6 +134,14 @@ function websiteAction(string $action, string $method, array $d): ?array
                 now(),
             ],
         );
+        emailAdmins(
+            "inquiry:" . $id,
+            "طلب تواصل جديد — " . $reference,
+            "وصل طلب جديد عبر الموقع. الرقم المرجعي: " .
+                $reference .
+                ". راجع بياناته في مركز إدارة الموقع.",
+            "/website",
+        );
         return [
             "ok" => true,
             "reference" => $reference,

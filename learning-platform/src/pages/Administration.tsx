@@ -48,6 +48,12 @@ export function Announcements() {
         subtitle="تواصل واضح، يبقي الجميع على اطلاع."
       >
         {staff && (
+          <Link className="btn btn-secondary" to="/communications">
+            بث رسالة بريدية
+            <Envelope size={18} />
+          </Link>
+        )}
+        {staff && (
           <Button onClick={() => setAdd(true)}>
             <Plus size={18} />
             إضافة إعلان

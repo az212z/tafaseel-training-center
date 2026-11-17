@@ -4,6 +4,7 @@ require_once __DIR__ . "/bootstrap.php";
 require_once __DIR__ . "/extensions.php";
 require_once __DIR__ . "/website.php";
 require_once __DIR__ . "/learning-tools.php";
+require_once __DIR__ . "/email.php";
 function visibleCourses(array $u): array
 {
     $sql =
@@ -372,6 +373,10 @@ function checkFileRef(
 }
 function api(string $action, string $method, array $d, string $raw = ""): array
 {
+    $email = emailAction($action, $method, $d);
+    if ($email !== null) {
+        return $email;
+    }
     $learning = learningToolsAction($action, $method, $d);
     if ($learning !== null) {
         return $learning;
@@ -808,6 +813,16 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             "UPDATE users SET active=?,auth_version=auth_version+1 WHERE id=?",
             [$target["active"] ? 0 : 1, $id],
         );
+        if (!$target["active"]) {
+            queueEmail(
+                "activated:" . $id . ":" . now(),
+                $id,
+                "account",
+                "حسابك في تفاصيل جاهز",
+                "اعتمدت إدارة المركز طلبك. يمكنك الآن تسجيل الدخول باستخدام بريدك وكلمة المرور التي اخترتها.",
+                "/login",
+            );
+        }
         audit($u, "user.status_changed", $id);
         return ["ok" => true];
     }
@@ -908,6 +923,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
                 [uid(), $course, $student, now()],
             );
             audit($u, "student.enrolled", $course);
+            emailEnrollment($course, $student);
         });
         return ["ok" => true];
     }
@@ -1263,6 +1279,25 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             ],
         );
         audit($u, "class.created", $id);
+        $courseTitle = one("SELECT title FROM courses WHERE id=?", [$course])[
+            "title"
+        ];
+        $time = (new DateTimeImmutable($start))
+            ->setTimezone(new DateTimeZone("Asia/Riyadh"))
+            ->format("Y-m-d H:i");
+        emailQueueCourse(
+            $course,
+            "class-created:" . $id,
+            "training",
+            "موعد تدريبي جديد في تفاصيل",
+            $courseTitle .
+                "\n" .
+                str($d["title"] ?? "", 200) .
+                "\nالموعد بتوقيت السعودية: " .
+                $time .
+                "\nتفاصيل الحضور ورابط البث المباشر متاحة في جدولك.",
+            "/schedule",
+        );
         return ["id" => $id];
     }
     if ($action === "attendance.save") {
@@ -1397,6 +1432,15 @@ function api(string $action, string $method, array $d, string $raw = ""): array
                 ],
             );
             audit($u, "certificate.issued", $id);
+            queueEmail(
+                "certificate:" . $id,
+                $student,
+                "account",
+                "شهادتك التدريبية جاهزة",
+                "أصدرت إدارة تفاصيل شهادتك التدريبية. يمكنك عرضها وتنزيلها من قسم الشهادات في حسابك.",
+                "/certificates",
+                $course,
+            );
             return ["id" => $id];
         });
     }
@@ -1430,6 +1474,12 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             ],
         );
         audit($u, "support.created", $id);
+        emailAdmins(
+            "support:" . $id,
+            "طلب دعم جديد في تفاصيل",
+            "ورد طلب دعم جديد. راجع الطلب من لوحة الدعم داخل المنصة.",
+            "/support",
+        );
         return ["id" => $id];
     }
     if ($action === "support.reply") {
@@ -1443,6 +1493,15 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             $id,
         ]);
         audit($u, "support.replied", $id);
+        $ticket = one("SELECT user_id FROM support WHERE id=?", [$id]);
+        queueEmail(
+            "support-reply:" . $id . ":" . hash("sha256", (string) $d["reply"]),
+            $ticket["user_id"],
+            "account",
+            "تم الرد على طلبك في تفاصيل",
+            "أضافت إدارة المركز ردًا على طلب الدعم الخاص بك. افتح قسم الدعم للاطلاع عليه.",
+            "/support",
+        );
         return ["ok" => true];
     }
     fail(404, "المسار غير موجود.");

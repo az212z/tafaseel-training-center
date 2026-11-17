@@ -127,6 +127,7 @@ function reconcileOrder(string $id): array
                     "INSERT INTO enrollments(id,course_id,student_id,created_at) VALUES(?,?,?,?)",
                     [uid(), $o["course_id"], $o["student_id"], now()],
                 );
+                emailEnrollment($o["course_id"], $o["student_id"]);
             }
             run(
                 "UPDATE orders SET status=?,paid_at=?,updated_at=?,failure_code=? WHERE id=?",
@@ -210,6 +211,7 @@ function checkout(array $u, string $courseId): array
                 "INSERT INTO enrollments(id,course_id,student_id,created_at) VALUES(?,?,?,?)",
                 [uid(), $courseId, $u["id"], now()],
             );
+            emailEnrollment($courseId, $u["id"]);
             audit($u, "student.self_enrolled", $courseId);
             return ["free" => true];
         }

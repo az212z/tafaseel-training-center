@@ -133,6 +133,20 @@ function extensionAction(
                 [...$profile, now(), $id],
             );
             audit($id, "registration.requested", $id);
+            queueEmail(
+                "registration:" . $id,
+                $id,
+                "registration",
+                "استلمنا طلب انضمامك إلى تفاصيل",
+                "وصل طلب إنشاء حسابك، وهو الآن بانتظار مراجعة الإدارة. سنرسل لك إشعارًا عند تفعيله. لا تعني هذه الرسالة اعتماد التسجيل في دورة.",
+                "/login",
+            );
+            emailAdmins(
+                "registration-admin:" . $id,
+                "طلب انضمام جديد إلى تفاصيل",
+                "ورد طلب إنشاء حساب متدرب جديد. راجع البيانات من قسم الحسابات قبل التفعيل.",
+                "/users",
+            );
         });
         return [
             "ok" => true,
@@ -151,7 +165,10 @@ function extensionAction(
             $params = ["%" . $search . "%", "%" . $search . "%"];
         }
         $targetCourse = str($d["course_id"] ?? "", 40, false);
-        if ($targetCourse) { $query .= " AND c.id=?"; $params[] = $targetCourse; }
+        if ($targetCourse) {
+            $query .= " AND c.id=?";
+            $params[] = $targetCourse;
+        }
         return pagedList(
             'SELECT c.id,c.title,c.description,c.category,c.image,c.duration,c.capacity,u.name instructor_name,o.price_minor,\'SAR\' currency,(SELECT COUNT(*) FROM enrollments e WHERE e.course_id=c.id) students_count' .
                 $query .

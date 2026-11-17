@@ -333,8 +333,9 @@ if (in_array($command, ["demo", "migrate"], true)) {
     exit();
 }
 if ($command === "worker") {
-    echo json_encode(dispatchNotifications(25), JSON_UNESCAPED_UNICODE),
-        PHP_EOL;
+    $result = dispatchNotifications(25);
+    $result["email"] = dispatchEmails(5);
+    echo json_encode($result, JSON_UNESCAPED_UNICODE), PHP_EOL;
     exit();
 }
 if ($command === "doctor") {

@@ -22,7 +22,8 @@
     "test:trial": "python3 tests/codespaces.py",
     "test:website": "python3 tests/website.py",
     "test:learning": "python3 tests/learning_tools.py",
-    "test:simulation": "python3 tests/simulation.py"
+    "test:simulation": "python3 tests/simulation.py",
+    "test:email": "python3 tests/email_workflows.py"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "5.3.0",

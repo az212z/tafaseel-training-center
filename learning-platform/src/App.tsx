@@ -61,6 +61,7 @@ import { Avatar, Button, Modal, Search, Empty } from "./components/ui";
 import Dashboard from "./pages/Dashboard";
 import "./learning-tools.css";
 import { Notebook } from "./pages/Notebook";
+import { EmailCenter } from "./pages/EmailCenter";
 import { Paths, LaunchChecklist } from "./pages/LearningTools";
 import { Catalog, Payments } from "./pages/Commerce";
 import { Bags, Videos } from "./pages/Resources";
@@ -147,6 +148,7 @@ const menu: {
         roles: ["admin"],
       },
       { to: "/announcements", label: "الإعلانات", icon: Megaphone },
+      { to: "/communications", label: "البريد والتواصل", icon: Bell },
     ],
   },
   {
@@ -894,6 +896,7 @@ function Shell({
             <Route path="/certificates" element={<Certificates />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/announcements" element={<Announcements />} />
+            <Route path="/communications" element={<EmailCenter />} />
             <Route
               path="/users"
               element={
@@ -1155,7 +1158,7 @@ function SessionApp() {
 function ApplicationRoutes() {
   const { pathname } = useLocation();
   const platform =
-    /^\/(login|dashboard|website|paths|notebook|readiness|courses|catalog|bags|videos|payments|notifications|integrations|students|assignments|quizzes|schedule|attendance|files|certificates|reports|announcements|users|settings|support)(\/|$)/.test(
+    /^\/(login|dashboard|website|paths|notebook|readiness|communications|courses|catalog|bags|videos|payments|notifications|integrations|students|assignments|quizzes|schedule|attendance|files|certificates|reports|announcements|users|settings|support)(\/|$)/.test(
       pathname,
     );
   return isStaticPreview || platform ? (

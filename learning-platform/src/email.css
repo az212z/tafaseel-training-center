@@ -1,0 +1,75 @@
+.email-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.email-metrics strong {
+  font-size: 1.2rem;
+}
+.email-sender {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin: 6px 0 20px;
+}
+.email-sender p {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+.email-symbol {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  background: #e8f2ef;
+  color: #175750;
+  border-radius: 14px;
+}
+.email-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.email-setup {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border, #e4eaeb);
+}
+.email-review {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #dce5e7;
+}
+.email-review-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.email-review-head h3 {
+  margin-top: 0;
+}
+.email-preview {
+  width: 100%;
+  height: 540px;
+  border: 1px solid #dce5e7;
+  border-radius: 12px;
+  margin: 14px 0;
+  background: #f2f5f7;
+}
+.email-review p {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .email-metrics {
+    grid-template-columns: 1fr;
+  }
+  .email-buttons > .btn {
+    width: 100%;
+  }
+  .email-preview {
+    height: 580px;
+  }
+}

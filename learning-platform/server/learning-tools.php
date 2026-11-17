@@ -264,6 +264,7 @@ function learningToolsAction(string $action, string $method, array $d): ?array
                         "INSERT INTO enrollments(id,course_id,student_id,created_at) VALUES(?,?,?,?)",
                         [uid(), $cid, $sid, now()],
                     );
+                    emailEnrollment($cid, $sid);
                 }
                 audit($u, "enrollment.batch", $cid);
             }

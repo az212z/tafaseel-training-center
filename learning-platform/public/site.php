@@ -85,7 +85,7 @@ try {
         exit();
     }
     $platform = preg_match(
-        '#^/(login|dashboard|website|paths|notebook|readiness|courses|catalog|bags|videos|payments|notifications|integrations|students|assignments|quizzes|schedule|attendance|files|certificates|reports|announcements|users|settings|support)(/|$)#',
+        '#^/(login|dashboard|website|paths|notebook|readiness|communications|courses|catalog|bags|videos|payments|notifications|integrations|students|assignments|quizzes|schedule|attendance|files|certificates|reports|announcements|users|settings|support)(/|$)#',
         $path,
     );
     $found =

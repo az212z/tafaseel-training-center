@@ -1,0 +1,40 @@
+{
+  "release": "email-release-20261117-2110",
+  "checks": {
+    "sqlite_core": 68,
+    "sqlite_extension": 64,
+    "sqlite_website": 35,
+    "sqlite_learning": 44,
+    "mariadb_core": 68,
+    "mariadb_extension": 64,
+    "mariadb_website": 35,
+    "mariadb_learning": 44,
+    "sqlite_email": 24,
+    "mariadb_email": 24,
+    "preview": 42,
+    "trial": 20
+  },
+  "local_smtp_only": true,
+  "external_smtp_credentials_provided": false,
+  "ui": {
+    "desktop": true,
+    "mobile_width": 390,
+    "horizontal_overflow": false
+  },
+  "dns": {
+    "mx": "Hostinger",
+    "spf": true,
+    "dkim_selectors": 3,
+    "dmarc_policy": "none"
+  },
+  "mailbox_plan_observed": {
+    "name": "Starter Business Email Free Trial",
+    "daily_limit": 100,
+    "mailbox_gb": 1
+  },
+  "application_limits": {
+    "rolling_daily_attempts": 80,
+    "rolling_minute_attempts": 5
+  },
+  "total_local_checks": 532
+}

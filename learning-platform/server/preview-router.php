@@ -5,6 +5,10 @@ if (PHP_SAPI !== "cli-server") {
 }
 putenv("TAFASEEL_PRIVATE_DIR=" . __DIR__);
 $path = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH);
+if ($path === "/mail/" || $path === "/mail/index.php") {
+    require __DIR__ . "/../public/mail/index.php";
+    return true;
+}
 if (str_starts_with($path, "/api/")) {
     require __DIR__ . "/../public/api/index.php";
     return true;
