@@ -13,7 +13,9 @@
     "package": "npm run build && python3 scripts/package.py",
     "start": "node scripts/dev.mjs",
     "typecheck": "tsc -b",
-    "check:php": "python3 scripts/check_php.py"
+    "check:php": "python3 scripts/check_php.py",
+    "build:preview": "tsc -b && VITE_STATIC_PREVIEW=true vite build --base=/tafaseel-learning-preview/ --outDir=dist-preview && python3 scripts/prepare_preview.py",
+    "test:preview": "node scripts/test_preview.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "5.3.0",
@@ -27,6 +29,7 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "latest",
+    "fake-indexeddb": "^6.2.4",
     "prettier": "^3.10.1",
     "typescript": "~5.9.3",
     "vite": "latest"

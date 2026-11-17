@@ -1,3 +1,4 @@
+import { asset } from "../environment";
 import { useNavigate, Link } from "react-router-dom";
 import { useState } from "react";
 import {
@@ -39,7 +40,7 @@ export function CourseCard({ course }: { course: Course }) {
   return (
     <Link to={`/courses/${course.id}`} className="course-card">
       <div className="course-cover">
-        <img src={course.image} alt="" loading="lazy" />
+        <img src={asset(course.image)} alt="" loading="lazy" />
         <span className="course-category">{course.category}</span>
         <span className="cover-action">
           <ArrowUpLeft size={20} />

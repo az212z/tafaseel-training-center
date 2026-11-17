@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-17",
+  "target": "built browser-only preview at localhost:3119/tafaseel-learning-preview/",
+  "desktop_routes": 14,
+  "mobile_routes": 14,
+  "mobile_viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "overflow": 0,
+  "broken_images": 0,
+  "console_errors": 0,
+  "console_warnings": 0,
+  "flows": [
+    "create course and lesson",
+    "refresh persistence",
+    "student homework submit",
+    "instructor grade 19/20",
+    "quiz result 2/2",
+    "guardian has exactly two linked children",
+    "local resource upload persists through refresh with regenerated Blob URL",
+    "reset restores fictional seed and logs out"
+  ],
+  "real_student_data_used": false
+}

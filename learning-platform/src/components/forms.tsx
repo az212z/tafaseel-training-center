@@ -1,3 +1,4 @@
+import { isStaticPreview } from "../environment";
 import { useState } from "react";
 import { Plus, Trash } from "@phosphor-icons/react";
 import { api, get } from "../api";
@@ -198,6 +199,12 @@ export function UserForm({
           onClose();
         }}
       >
+        {isStaticPreview && (
+          <div className="alert">
+            استخدم بيانات وهمية فقط. هذا حساب داخل التجربة المحلية في المتصفح،
+            ولا ينشئ تسجيل دخول حقيقيًا.
+          </div>
+        )}
         <div className="form-grid">
           <Field label="نوع الحساب">
             <select
@@ -229,19 +236,23 @@ export function UserForm({
               autoComplete="off"
             />
           </Field>
-          <Field
-            label={target ? "كلمة مرور جديدة (اختياري)" : "كلمة المرور"}
-            hint="١٢ حرفًا على الأقل. تُسلّم لصاحب الحساب بشكل خاص."
-          >
-            <input
-              name="password"
-              type="password"
-              minLength={12}
-              maxLength={72}
-              required={!target}
-              autoComplete="new-password"
-            />
-          </Field>
+          {!isStaticPreview && (
+            <>
+              <Field
+                label={target ? "كلمة مرور جديدة (اختياري)" : "كلمة المرور"}
+                hint="١٢ حرفًا على الأقل. تُسلّم لصاحب الحساب بشكل خاص."
+              >
+                <input
+                  name="password"
+                  type="password"
+                  minLength={12}
+                  maxLength={72}
+                  required={!target}
+                  autoComplete="new-password"
+                />
+              </Field>
+            </>
+          )}
           {role === "student" && (
             <>
               <Field label="تاريخ الميلاد">
@@ -268,18 +279,22 @@ export function UserForm({
                   defaultValue={profile?.city}
                 />
               </Field>
-              <Field
-                label="رقم الهوية / الإقامة (اختياري)"
-                hint="يُحفظ مشفرًا. اجمعه عند الحاجة فقط."
-              >
-                <input
-                  name="identity_number"
-                  inputMode="numeric"
-                  maxLength={10}
-                  dir="ltr"
-                  defaultValue={profile?.identity_number}
-                />
-              </Field>
+              {!isStaticPreview && (
+                <>
+                  <Field
+                    label="رقم الهوية / الإقامة (اختياري)"
+                    hint="يُحفظ مشفرًا. اجمعه عند الحاجة فقط."
+                  >
+                    <input
+                      name="identity_number"
+                      inputMode="numeric"
+                      maxLength={10}
+                      dir="ltr"
+                      defaultValue={profile?.identity_number}
+                    />
+                  </Field>
+                </>
+              )}
               <Field label="اسم ولي الأمر" hint="مطلوب لمن هم دون ١٨ سنة.">
                 <input
                   name="guardian_name"
@@ -319,8 +334,10 @@ export function UserForm({
         </div>
         {role === "student" && (
           <label className="check-label">
-            <input type="checkbox" name="consent" required /> تم الحصول على
-            موافقة الطالب أو ولي أمره على حفظ البيانات لأغراض التدريب.
+            <input type="checkbox" name="consent" required />
+            {isStaticPreview
+              ? "أؤكد أن المدخلات بيانات وهمية للتجربة."
+              : "تم الحصول على موافقة الطالب أو ولي أمره على حفظ البيانات لأغراض التدريب."}
           </label>
         )}
       </Form>

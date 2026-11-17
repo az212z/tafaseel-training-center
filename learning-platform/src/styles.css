@@ -5171,3 +5171,38 @@ tr:hover > td {
     margin: 14mm;
   }
 }
+
+.preview-disclaimer {
+  font-size: 12px;
+  line-height: 1.9;
+  color: var(--muted);
+  margin: 16px 0;
+}
+.demo-login .text-link {
+  margin-top: 12px;
+}
+.preview-strip .text-link {
+  white-space: nowrap;
+}
+.preview-strip {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.preview-strip > span:nth-child(2) {
+  display: block;
+  flex: 1;
+  min-width: 200px;
+}
+@media (max-width: 600px) {
+  .preview-strip > span:nth-child(2) {
+    flex-basis: 100%;
+    order: 2;
+  }
+  .preview-strip {
+    font-size: 10px;
+    padding: 10px 16px;
+  }
+  .preview-strip button {
+    font-size: 10px;
+  }
+}

@@ -1,3 +1,5 @@
+import { isStaticPreview } from "./environment";
+import { fileUrl as previewFileUrl } from "./preview/store";
 export class ApiRequestError extends Error {
   constructor(
     message: string,
@@ -14,6 +16,8 @@ export async function api<T = Record<string, unknown>>(
   action: string,
   body?: object | FormData,
 ): Promise<T> {
+  if (isStaticPreview)
+    return (await import("./preview/api")).previewApi<T>(action, body);
   const url = new URL("/api/index.php", location.origin);
   url.searchParams.set("action", action);
   const multipart = body instanceof FormData;
@@ -49,6 +53,12 @@ export async function get<T>(
   action: string,
   params: Record<string, string>,
 ): Promise<T> {
+  if (isStaticPreview)
+    return (await import("./preview/api")).previewApi<T>(
+      action,
+      undefined,
+      params,
+    );
   const url = new URL("/api/index.php", location.origin);
   url.searchParams.set("action", action);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
@@ -62,4 +72,6 @@ export async function get<T>(
   return result;
 }
 export const fileUrl = (id: string) =>
-  `/api/index.php?action=file&id=${encodeURIComponent(id)}`;
+  isStaticPreview
+    ? previewFileUrl(id)
+    : `/api/index.php?action=file&id=${encodeURIComponent(id)}`;

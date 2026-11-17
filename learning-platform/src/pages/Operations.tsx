@@ -1,5 +1,6 @@
+import { asset, isStaticPreview } from "../environment";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Plus,
   VideoCamera,
@@ -174,9 +175,10 @@ export function Schedule() {
   );
 }
 export function AttendancePage() {
+  const [searchParams] = useSearchParams();
   const { data, user, notify, refresh } = useApp();
   const initial =
-    new URLSearchParams(location.search).get("class") ??
+    searchParams.get("class") ??
     data.classes.filter((c) => new Date(c.starts_at) < new Date()).at(-1)?.id ??
     data.classes[0]?.id ??
     "";
@@ -483,7 +485,11 @@ export function FilesPage() {
         <Panel>
           <Empty
             title="مساحة لكل معرفة"
-            text="أضف ملفات PDF والصور والفيديو من هنا أو من محتوى الدورة. تُرفع ملفات الهوية من ملف الطالب."
+            text={
+              isStaticPreview
+                ? "جرّب إضافة PDF أو صور أو فيديو وهمي. تُحفظ الملفات في متصفحك فقط."
+                : "أضف ملفات PDF والصور والفيديو من هنا أو من محتوى الدورة. تُرفع ملفات الهوية من ملف الطالب."
+            }
             action={
               staff && (
                 <Button onClick={() => setAdd(true)}>
@@ -497,8 +503,9 @@ export function FilesPage() {
       )}
       <div className="alert">
         <ShieldNote />
-        ملفات الهوية مشفرة، والوصول إليها مقصور على الإدارة والطالب وولي أمره
-        المرتبط.
+        {isStaticPreview
+          ? "الملفات التجريبية تُحفظ في هذا المتصفح فقط. رفع الهويات معطّل، ولا توجد حماية ملفات من خادم في نسخة العرض."
+          : "ملفات الهوية مشفرة، والوصول إليها مقصور على الإدارة والطالب وولي أمره المرتبط."}
       </div>
       {add && (
         <Modal title="رفع مادة تدريبية" onClose={() => setAdd(false)}>
@@ -629,7 +636,7 @@ export function Certificates() {
         >
           <div className="print-certificate" id="certificate">
             <div className="certificate-top">
-              <img src="/brand/logo.webp" alt="مركز تفاصيل للتدريب" />
+              <img src={asset("/brand/logo.webp")} alt="مركز تفاصيل للتدريب" />
               <span>{data.settings.name}</span>
             </div>
             <CertificateIcon size={64} weight="duotone" />

@@ -1,3 +1,4 @@
+import { isStaticPreview } from "../environment";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -233,40 +234,52 @@ export function Settings() {
               لتعديل بياناتك الأساسية، تواصل مع إدارة المركز.
             </p>
           </Panel>
-          <Panel
-            title="تغيير كلمة المرور"
-            description="اختر عبارة طويلة لا تستخدمها في حساب آخر."
-          >
-            <Form
-              submitLabel="تغيير كلمة المرور"
-              onSubmit={async (d) => {
-                await api("password", d);
-                notify("تم تغيير كلمة المرور وإبطال الجلسات الأخرى.");
-              }}
-            >
-              <Field label="كلمة المرور الحالية">
-                <input
-                  type="password"
-                  name="current"
-                  required
-                  autoComplete="current-password"
-                />
-              </Field>
-              <Field
-                label="كلمة المرور الجديدة"
-                hint="١٢ حرفًا على الأقل، وحد أقصى ٧٢ بايت."
+          {isStaticPreview ? (
+            <Panel title="حساب عرض تجريبي">
+              <p>
+                يمكنك التبديل بين الحسابات من الشريط العلوي. كلمات المرور
+                والمصادقة الثنائية تتطلبان النسخة التي تعمل على خادم، ولا
+                تستخدمان هنا.
+              </p>
+            </Panel>
+          ) : (
+            <>
+              <Panel
+                title="تغيير كلمة المرور"
+                description="اختر عبارة طويلة لا تستخدمها في حساب آخر."
               >
-                <input
-                  type="password"
-                  name="password"
-                  required
-                  minLength={12}
-                  maxLength={72}
-                  autoComplete="new-password"
-                />
-              </Field>
-            </Form>
-          </Panel>
+                <Form
+                  submitLabel="تغيير كلمة المرور"
+                  onSubmit={async (d) => {
+                    await api("password", d);
+                    notify("تم تغيير كلمة المرور وإبطال الجلسات الأخرى.");
+                  }}
+                >
+                  <Field label="كلمة المرور الحالية">
+                    <input
+                      type="password"
+                      name="current"
+                      required
+                      autoComplete="current-password"
+                    />
+                  </Field>
+                  <Field
+                    label="كلمة المرور الجديدة"
+                    hint="١٢ حرفًا على الأقل، وحد أقصى ٧٢ بايت."
+                  >
+                    <input
+                      type="password"
+                      name="password"
+                      required
+                      minLength={12}
+                      maxLength={72}
+                      autoComplete="new-password"
+                    />
+                  </Field>
+                </Form>
+              </Panel>
+            </>
+          )}
         </div>
       )}
       {tab === "general" && admin && (
@@ -318,7 +331,21 @@ export function Settings() {
           </Form>
         </Panel>
       )}
-      {tab === "security" && (
+      {tab === "security" && isStaticPreview && (
+        <Panel title="الأمان في نسخة العرض">
+          <div className="alert">
+            <WarningCircle size={22} />
+            هذا عرض عام يعمل داخل المتصفح. الحسابات والصلاحيات والتصحيح محاكاة،
+            والتخزين المحلي غير مشفّر.
+          </div>
+          <p>
+            استخدم أسماء وبيانات وملفات وهمية فقط. إدخال أرقام الهوية ورفع
+            مرفقاتها معطّلان. المصادقة الحقيقية وحماية البيانات تُختبران على
+            استضافة المركز قبل التشغيل الفعلي.
+          </p>
+        </Panel>
+      )}
+      {tab === "security" && !isStaticPreview && (
         <>
           <div className="security-overview">
             <ShieldCheck size={44} weight="duotone" />

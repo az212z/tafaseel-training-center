@@ -1,3 +1,4 @@
+import { asset, isStaticPreview } from "../environment";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -301,7 +302,7 @@ export function CourseDetail() {
             </div>
           )}
         </div>
-        <img src={c.image} alt="غلاف الدورة" />
+        <img src={asset(c.image)} alt="غلاف الدورة" />
       </div>
       <div className="tabs" role="tablist" aria-label="أقسام الدورة">
         {tabs.map(([key, label]) => (
@@ -672,8 +673,9 @@ export function QuizAttempt() {
       </PageHead>
       <div className="alert">
         <LockKey size={20} />
-        التوقيت محسوب على الخادم. إغلاق الصفحة لا يعيد بدء الوقت. الإجابات غير
-        المسلّمة تبقى في هذه الصفحة فقط.
+        {isStaticPreview
+          ? "محاكاة للتوقيت والتصحيح في المتصفح. لا تصلح هذه النسخة لإجراء اختبارات فعلية. الإجابات غير المسلّمة تبقى في هذه الصفحة فقط."
+          : "التوقيت محسوب على الخادم. إغلاق الصفحة لا يعيد بدء الوقت. الإجابات غير المسلّمة تبقى في هذه الصفحة فقط."}
       </div>
       {remaining === 0 && (
         <div className="alert alert-error">

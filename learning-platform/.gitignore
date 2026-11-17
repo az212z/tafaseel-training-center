@@ -9,3 +9,5 @@ server/config.php
 .env*
 !.env.example
 *.tsbuildinfo
+
+dist-preview/

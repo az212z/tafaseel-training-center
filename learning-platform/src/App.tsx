@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   BrowserRouter,
+  HashRouter,
   Routes,
   Route,
   NavLink,
@@ -42,6 +43,7 @@ import {
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { api, setCsrf } from "./api";
+import { asset, isStaticPreview } from "./environment";
 import { Context, roles } from "./context";
 import type { Data, User, Role } from "./types";
 import { Avatar, Button, Modal, Search, Empty } from "./components/ui";
@@ -108,6 +110,47 @@ const menu: {
     ],
   },
 ];
+function ResetPreview() {
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <>
+      <button className="text-link" onClick={() => setConfirm(true)}>
+        إعادة بيانات العرض
+      </button>
+      {confirm && (
+        <Modal title="إعادة بيانات العرض" onClose={() => setConfirm(false)}>
+          <p>
+            ستُحذف إضافاتك وملفاتك التجريبية من هذا المتصفح، وتعود بيانات العرض
+            الأصلية.
+          </p>
+          {error && (
+            <div className="alert alert-error" role="alert">
+              {error}
+            </div>
+          )}
+          <Button
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await api("preview.reset", {});
+                location.hash = "/";
+                location.reload();
+              } catch (e) {
+                setError((e as Error).message);
+                setBusy(false);
+              }
+            }}
+          >
+            إعادة البيانات التجريبية
+          </Button>
+        </Modal>
+      )}
+    </>
+  );
+}
 function Login({
   demo,
   onLogin,
@@ -135,7 +178,7 @@ function Login({
     <div className="login-page">
       <div className="login-art">
         <div className="login-brand">
-          <img src="/brand/logo.webp" alt="شعار تفاصيل" />
+          <img src={asset("/brand/logo.webp")} alt="شعار تفاصيل" />
           <div>
             تفاصيل<span>مركز تفاصيل للتدريب</span>
           </div>
@@ -157,7 +200,10 @@ function Login({
           </p>
         </div>
         <div className="login-photo">
-          <img src="/images/classroom.webp" alt="قاعة التدريب في مركز تفاصيل" />
+          <img
+            src={asset("/images/classroom.webp")}
+            alt="قاعة التدريب في مركز تفاصيل"
+          />
           <div>
             <BookOpen size={25} weight="duotone" />
             <span>من هنا، تبدأ حكاية تعلّم جديدة.</span>
@@ -191,106 +237,121 @@ function Login({
           <p>
             {mfa
               ? "أدخل الرمز من تطبيق المصادقة على جوالك."
-              : "سجّل دخولك، وأكمل رحلتك التعليمية."}
+              : isStaticPreview
+                ? "اختر حسابًا لتجربة المنصة قبل إطلاقها."
+                : "سجّل دخولك، وأكمل رحلتك التعليمية."}
           </p>
-          <form
-            className="form"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setBusy(true);
-              setError("");
-              const d = Object.fromEntries(new FormData(e.currentTarget));
-              try {
-                const r = await api<{ user?: User; mfaRequired?: boolean }>(
-                  mfa ? "login.mfa" : "login",
-                  d,
-                );
-                if (r.mfaRequired) setMfa(true);
-                else if (r.user) onLogin(r.user);
-              } catch (e) {
-                setError((e as Error).message);
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            {mfa ? (
-              <label className="field">
-                <span>رمز التحقق</span>
-                <input
-                  name="code"
-                  autoComplete="one-time-code"
-                  inputMode="numeric"
-                  required
-                  maxLength={6}
-                  autoFocus
-                  dir="ltr"
-                />
-              </label>
-            ) : (
-              <>
+          {!isStaticPreview && (
+            <form
+              className="form"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setBusy(true);
+                setError("");
+                const d = Object.fromEntries(new FormData(e.currentTarget));
+                try {
+                  const r = await api<{ user?: User; mfaRequired?: boolean }>(
+                    mfa ? "login.mfa" : "login",
+                    d,
+                  );
+                  if (r.mfaRequired) setMfa(true);
+                  else if (r.user) onLogin(r.user);
+                } catch (e) {
+                  setError((e as Error).message);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {mfa ? (
                 <label className="field">
-                  <span>البريد الإلكتروني</span>
+                  <span>رمز التحقق</span>
                   <input
-                    type="email"
-                    name="email"
+                    name="code"
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
                     required
-                    autoComplete="username"
-                    placeholder="name@example.com"
+                    maxLength={6}
+                    autoFocus
                     dir="ltr"
                   />
                 </label>
-                <label className="field">
-                  <span>كلمة المرور</span>
-                  <div className="password-field">
-                    <input
-                      type={show ? "text" : "password"}
-                      name="password"
-                      required
-                      autoComplete="current-password"
-                      placeholder="أدخل كلمة المرور"
-                    />
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      aria-label={
-                        show ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"
-                      }
-                      onClick={() => setShow(!show)}
-                    >
-                      {show ? <EyeSlash size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
-                </label>
-                <p className="login-help">
-                  نسيت كلمة المرور؟ تواصل مع إدارة المركز لاستعادتها.
-                </p>
-              </>
-            )}
-            {error && (
-              <div className="alert alert-error" role="alert">
-                <WarningCircle size={20} />
-                {error}
-              </div>
-            )}
-            <Button type="submit" disabled={busy}>
-              {busy ? (
-                <SpinnerGap size={20} className="spin" />
               ) : (
                 <>
-                  تسجيل الدخول
-                  <ArrowLeft size={19} />
+                  <label className="field">
+                    <span>البريد الإلكتروني</span>
+                    <input
+                      type="email"
+                      name="email"
+                      required
+                      autoComplete="username"
+                      placeholder="name@example.com"
+                      dir="ltr"
+                    />
+                  </label>
+                  <label className="field">
+                    <span>كلمة المرور</span>
+                    <div className="password-field">
+                      <input
+                        type={show ? "text" : "password"}
+                        name="password"
+                        required
+                        autoComplete="current-password"
+                        placeholder="أدخل كلمة المرور"
+                      />
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label={
+                          show ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"
+                        }
+                        onClick={() => setShow(!show)}
+                      >
+                        {show ? <EyeSlash size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                  </label>
+                  <p className="login-help">
+                    نسيت كلمة المرور؟ تواصل مع إدارة المركز لاستعادتها.
+                  </p>
                 </>
               )}
-            </Button>
-          </form>
+              {error && (
+                <div className="alert alert-error" role="alert">
+                  <WarningCircle size={20} />
+                  {error}
+                </div>
+              )}
+              <Button type="submit" disabled={busy}>
+                {busy ? (
+                  <SpinnerGap size={20} className="spin" />
+                ) : (
+                  <>
+                    تسجيل الدخول
+                    <ArrowLeft size={19} />
+                  </>
+                )}
+              </Button>
+            </form>
+          )}
+          {isStaticPreview && error && (
+            <div className="alert alert-error" role="alert">
+              {error}
+            </div>
+          )}
           <div className="login-security">
             <LockKey size={16} />
-            دخول محمي • خصوصيتك من أولوياتنا
+            {isStaticPreview
+              ? "نسخة عرض عامة • استخدم بيانات وهمية فقط"
+              : "دخول محمي • خصوصيتك من أولوياتنا"}
           </div>
           {demo && (
             <div className="demo-login">
-              <span>استكشف النسخة المحلية ببيانات توضيحية</span>
+              <span>
+                {isStaticPreview
+                  ? "جرّب المنصة من أربع مساحات مختلفة"
+                  : "استكشف النسخة المحلية ببيانات توضيحية"}
+              </span>
               <div>
                 {(
                   [
@@ -311,6 +372,15 @@ function Login({
                 ))}
               </div>
               <small>هذه حسابات مصطنعة للتجربة، وليست بيانات المركز.</small>
+              {isStaticPreview && (
+                <>
+                  <p className="preview-disclaimer">
+                    تُحفظ إضافاتك في هذا المتصفح فقط. لا توجد حسابات حقيقية أو
+                    حماية خادم في نسخة العرض، ويُعطّل إدخال الهويات ورفعها.
+                  </p>
+                  <ResetPreview />
+                </>
+              )}
             </div>
           )}
         </div>
@@ -378,7 +448,15 @@ function Shell({
   ].filter((r) => r.title.includes(term));
   return (
     <Context.Provider value={{ data, user, refresh, notify, logout }}>
-      <a className="skip-link" href="#main">
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById("main")?.focus();
+          document.getElementById("main")?.scrollIntoView();
+        }}
+      >
         انتقل إلى المحتوى
       </a>
       {open && (
@@ -391,7 +469,7 @@ function Shell({
       <aside className={`sidebar ${open ? "is-open" : ""}`}>
         <Link to="/" className="brand">
           <div className="brand-logo">
-            <img src="/brand/logo.webp" alt="شعار مركز تفاصيل" />
+            <img src={asset("/brand/logo.webp")} alt="شعار مركز تفاصيل" />
           </div>
           <div>
             <strong>تفاصيل</strong>
@@ -527,16 +605,21 @@ function Shell({
           <div className="preview-strip">
             <span>
               <span className="preview-dot" />
-              نسخة محلية للتجربة
+              {isStaticPreview ? "نسخة عرض تجريبية" : "نسخة محلية للتجربة"}
             </span>
-            <span>البيانات المعروضة توضيحية • لم تُربط بقاعدة المركز</span>
+            <span>
+              {isStaticPreview
+                ? "الحفظ في هذا المتصفح فقط • لا تدخل بيانات حقيقية"
+                : "البيانات المعروضة توضيحية • لم تُربط بقاعدة المركز"}
+            </span>
+            {isStaticPreview && <ResetPreview />}
             <button onClick={logout}>
               تبديل الحساب
               <ArrowLeft size={14} />
             </button>
           </div>
         )}
-        <main id="main" className="main-content">
+        <main id="main" className="main-content" tabIndex={-1}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/courses" element={<Courses />} />
@@ -769,9 +852,10 @@ function SessionApp() {
 }
 
 export default function App() {
+  const Router = isStaticPreview ? HashRouter : BrowserRouter;
   return (
-    <BrowserRouter>
+    <Router>
       <SessionApp />
-    </BrowserRouter>
+    </Router>
   );
 }

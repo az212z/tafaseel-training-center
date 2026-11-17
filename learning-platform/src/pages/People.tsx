@@ -1,5 +1,6 @@
+import { asset, isStaticPreview } from "../environment";
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   Plus,
   DownloadSimple,
@@ -260,7 +261,9 @@ export function StudentDetail() {
             {privateAccess && (
               <p className="private-note">
                 <LockKey size={15} />
-                عرض هذه البيانات مسجل في سجل العمليات.
+                {isStaticPreview
+                  ? "بيانات تجريبية محفوظة في متصفحك. إدخال الهوية ورفعها معطّلان في العرض العام."
+                  : "عرض هذه البيانات مسجل في سجل العمليات."}
               </p>
             )}
           </Panel>
@@ -318,7 +321,7 @@ export function StudentDetail() {
                   className="profile-course"
                   key={c.id}
                 >
-                  <img src={c.image} alt="" />
+                  <img src={asset(c.image)} alt="" />
                   <div>
                     <h3>{c.title}</h3>
                     <Progress value={progressPercent(data, c.id, id)} />
@@ -333,7 +336,7 @@ export function StudentDetail() {
               />
             )}
           </Panel>
-          {privateAccess && (
+          {privateAccess && !isStaticPreview && (
             <Panel
               title="الملفات الخاصة"
               description="مرفقات الهوية متاحة للإدارة والطالب وولي أمره فقط."
@@ -381,6 +384,7 @@ export function StudentDetail() {
   );
 }
 export function Users() {
+  const navigate = useNavigate();
   const { data, notify, refresh } = useApp();
   const [term, setTerm] = useState("");
   const [add, setAdd] = useState(false);
@@ -463,7 +467,7 @@ export function Users() {
                       onClick={() => {
                         if (u.role === "student") {
                           notify("يمكن تعديل بيانات الطالب من ملفه الكامل.");
-                          location.href = `/students/${u.id}`;
+                          navigate(`/students/${u.id}`);
                         } else setEdit(u);
                       }}
                     >

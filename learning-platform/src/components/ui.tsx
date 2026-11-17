@@ -1,3 +1,4 @@
+import { isStaticPreview } from "../environment";
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import type { ButtonHTMLAttributes, FormEvent, ReactNode } from "react";
@@ -345,7 +346,11 @@ export function FileUpload({
       <strong>
         {busy ? "جارٍ رفع الملف…" : name || "اختر ملفًا أو مقطع فيديو"}
       </strong>
-      <small>PDF، صور، MP4 • حتى ٣٠ ميجابايت</small>
+      <small>
+        {isStaticPreview
+          ? "PDF، صور، MP4 • حتى ١٠ ميجابايت • وهمية فقط"
+          : "PDF، صور، MP4 • حتى ٣٠ ميجابايت"}
+      </small>
       <input
         aria-label="رفع ملف"
         type="file"
@@ -354,8 +359,13 @@ export function FileUpload({
         onChange={async (e) => {
           const file = e.target.files?.[0];
           if (!file) return;
-          if (file.size > 30 * 1024 * 1024) {
-            notify("الحد الأقصى للملف ٣٠ ميجابايت.", "error");
+          if (file.size > (isStaticPreview ? 10 : 30) * 1024 * 1024) {
+            notify(
+              isStaticPreview
+                ? "الحد الأقصى في العرض ١٠ ميجابايت."
+                : "الحد الأقصى للملف ٣٠ ميجابايت.",
+              "error",
+            );
             return;
           }
           const form = new FormData();
