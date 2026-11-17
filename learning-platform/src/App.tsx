@@ -47,7 +47,7 @@ import {
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { api, setCsrf } from "./api";
-import { asset, isStaticPreview } from "./environment";
+import { asset, isStaticPreview, githubTrialUrl } from "./environment";
 import { Context, roles } from "./context";
 import type { Data, User, Role } from "./types";
 import { Avatar, Button, Modal, Search, Empty } from "./components/ui";
@@ -382,6 +382,17 @@ function Login({
             </Button>
           )}
           {register && <Registration onClose={() => setRegister(false)} />}
+          {isStaticPreview && (
+            <a
+              className="btn btn-primary"
+              href={githubTrialUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              تشغيل التجربة الكاملة على GitHub
+              <ArrowSquareOut size={19} />
+            </a>
+          )}
           <div className="login-security">
             <LockKey size={16} />
             {isStaticPreview
@@ -656,6 +667,15 @@ function Shell({
                 : "البيانات المعروضة توضيحية • لم تُربط بقاعدة المركز"}
             </span>
             {isStaticPreview && <ResetPreview />}
+            {isStaticPreview && (
+              <a
+                href={githubTrialUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                فتح التجربة الكاملة <ArrowSquareOut size={14} />
+              </a>
+            )}
             <button onClick={logout}>
               تبديل الحساب
               <ArrowLeft size={14} />
