@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import {
   BrowserRouter,
   HashRouter,
@@ -74,6 +74,8 @@ import {
   Settings,
   SupportPage,
 } from "./pages/Pages";
+const PublicSite = lazy(() => import("./site/PublicSite"));
+const WebsiteAdmin = lazy(() => import("./site/WebsiteAdmin"));
 const menu: {
   title: string;
   items: { to: string; label: string; icon: Icon; roles?: Role[] }[];
@@ -81,7 +83,7 @@ const menu: {
   {
     title: "مساحة التعلم",
     items: [
-      { to: "/", label: "نظرة عامة", icon: SquaresFour },
+      { to: "/dashboard", label: "نظرة عامة", icon: SquaresFour },
       { to: "/courses", label: "الدورات التدريبية", icon: BookOpen },
       { to: "/catalog", label: "التسجيل في الدورات", icon: ShoppingCart },
       {
@@ -127,6 +129,12 @@ const menu: {
   {
     title: "إدارة المنصة",
     items: [
+      {
+        to: "/website",
+        label: "الموقع ومركز الإدارة",
+        icon: GearSix,
+        roles: ["admin"],
+      },
       {
         to: "/users",
         label: "الحسابات والصلاحيات",
@@ -253,7 +261,7 @@ function Login({
       <main className="login-main">
         <a
           className="back-site"
-          href="https://tafaseel-training.com/"
+          href="/"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -310,13 +318,16 @@ function Login({
               ) : (
                 <>
                   <label className="field">
-                    <span>البريد الإلكتروني</span>
+                    <span>اسم المستخدم أو البريد الإلكتروني</span>
                     <input
-                      type="email"
+                      type="text"
                       name="email"
                       required
+                      maxLength={190}
                       autoComplete="username"
-                      placeholder="name@example.com"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      placeholder="اسم المستخدم أو name@example.com"
                       dir="ltr"
                     />
                   </label>
@@ -343,7 +354,8 @@ function Login({
                     </div>
                   </label>
                   <p className="login-help">
-                    نسيت كلمة المرور؟ تواصل مع إدارة المركز لاستعادتها.
+                    نسيت كلمة المرور؟{" "}
+                    <Link to="/contact">تواصل مع الإدارة لاستعادتها</Link>.
                   </p>
                 </>
               )}
@@ -685,6 +697,19 @@ function Shell({
         <main id="main" className="main-content" tabIndex={-1}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route
+              path="/website"
+              element={
+                user.role === "admin" ? (
+                  <Suspense fallback={<p>جارٍ تجهيز مركز الإدارة…</p>}>
+                    <WebsiteAdmin />
+                  </Suspense>
+                ) : (
+                  <Empty title="صلاحية إدارية مطلوبة" />
+                )
+              }
+            />
             <Route path="/courses" element={<Courses />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/bags" element={<Bags />} />
@@ -833,6 +858,7 @@ function ArrowUpLeftIcon() {
   return <ArrowSquareOut size={16} />;
 }
 function SessionApp() {
+  const routeLocation = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [data, setData] = useState<Data | null>(null);
@@ -895,6 +921,16 @@ function SessionApp() {
     }
   }, [user, refresh]);
   useEffect(() => {
+    if (user && data && routeLocation.pathname === "/login")
+      navigate(user.role === "admin" ? "/website" : "/dashboard", {
+        replace: true,
+      });
+  }, [user, data, routeLocation.pathname, navigate]);
+  useEffect(() => {
+    document.title = "تفاصيل | المنصة التعليمية";
+    document
+      .querySelector('meta[name="robots"]')
+      ?.setAttribute("content", "noindex,nofollow");
     if (data?.mfa_setup_required)
       navigate("/settings?tab=security", { replace: true });
   }, [data?.mfa_setup_required, navigate]);
@@ -909,7 +945,7 @@ function SessionApp() {
       await api("logout", {});
       setUser(null);
       setData(null);
-      navigate("/", { replace: true });
+      navigate("/login", { replace: true });
     } catch (e) {
       notify((e as Error).message, "error");
     }
@@ -944,7 +980,14 @@ function SessionApp() {
           onLogin={(u) => {
             setError("");
             setUser(u);
-            navigate("/", { replace: true });
+            navigate(
+              routeLocation.pathname !== "/login"
+                ? routeLocation.pathname + routeLocation.search
+                : u.role === "admin"
+                  ? "/website"
+                  : "/dashboard",
+              { replace: true },
+            );
           }}
         />
       )}
@@ -968,11 +1011,31 @@ function SessionApp() {
   );
 }
 
+function ApplicationRoutes() {
+  const { pathname } = useLocation();
+  const platform =
+    /^\/(login|dashboard|website|courses|catalog|bags|videos|payments|notifications|integrations|students|assignments|quizzes|schedule|attendance|files|certificates|reports|announcements|users|settings|support)(\/|$)/.test(
+      pathname,
+    );
+  return isStaticPreview || platform ? (
+    <SessionApp />
+  ) : (
+    <Suspense
+      fallback={
+        <div className="loading-screen">
+          <p>أهلًا بك في تفاصيل…</p>
+        </div>
+      }
+    >
+      <PublicSite />
+    </Suspense>
+  );
+}
 export default function App() {
   const Router = isStaticPreview ? HashRouter : BrowserRouter;
   return (
     <Router>
-      <SessionApp />
+      <ApplicationRoutes />
     </Router>
   );
 }

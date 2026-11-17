@@ -1,3 +1,7 @@
+# تفاصيل: الموقع الرئيسي والمنصة التعليمية
+
+الموقع الحي: https://tafaseel-learn.com — دخول الحسابات: https://tafaseel-learn.com/login — مركز الإدارة الموحد: https://tafaseel-learn.com/website.
+
 # منصة تفاصيل التعليمية
 
 منصة عربية لمركز تفاصيل للتدريب بواجهة React/TypeScript وخادم PHP وقاعدة PDO. تعمل محليًا بـSQLite، ومجهزة لـMySQL/MariaDB على Hostinger دون خادم Node في الاستضافة. إضافة مستقلة إلى موقع المركز الحالي.

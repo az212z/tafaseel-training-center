@@ -10,6 +10,7 @@ return [
     "key" => "", // 64 hex characters. Back up separately. Never change after storing data.
     "storage" => __DIR__ . "/storage",
     "enforce_staff_mfa" => true,
+    "staff_mfa_enabled" => true,
     "registration_enabled" => true, // New requests stay disabled until an admin review.
     "max_upload_bytes" => 31457280,
     "storage_quota_bytes" => 2147483648, // Set an explicit quota appropriate to your plan.

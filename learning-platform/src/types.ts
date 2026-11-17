@@ -3,6 +3,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  username?: string;
   role: Role;
   active: number;
   created_at: string;
@@ -163,6 +164,7 @@ export interface Data {
   }[];
   capabilities?: { video: boolean; zoom: boolean; payments: boolean };
   mfa_setup_required?: boolean;
+  mfa_available?: boolean;
   user: User;
   demo: boolean;
   courses: Course[];

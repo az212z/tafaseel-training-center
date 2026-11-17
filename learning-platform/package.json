@@ -19,7 +19,8 @@
     "test:extensions": "python3 tests/extensions.py",
     "trial:start": "node scripts/codespaces-start.mjs",
     "trial:accounts": "php server/codespaces-init.php accounts",
-    "test:trial": "python3 tests/codespaces.py"
+    "test:trial": "python3 tests/codespaces.py",
+    "test:website": "python3 tests/website.py"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "5.3.0",

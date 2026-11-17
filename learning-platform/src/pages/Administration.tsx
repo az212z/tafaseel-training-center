@@ -137,12 +137,17 @@ const auditNames: Record<string, string> = {
   "session.denied": "محاولة دخول مرفوضة",
   "student.private_view": "عرض بيانات طالب خاصة",
   "password.changed": "تغيير كلمة المرور",
+  "website.updated": "تحديث محتوى الموقع",
+  "website.inquiries_viewed": "عرض طلبات الموقع",
+  "website.inquiry_updated": "متابعة طلب من الموقع",
   "mfa.enabled": "تفعيل المصادقة الثنائية",
   "mfa.recovered": "استعادة المصادقة من أداة الاستضافة",
   "legacy.imported": "استيراد نسخة مراجعة للنظام السابق",
   "user.created": "إنشاء حساب",
   "user.updated": "تعديل حساب",
   "account.profile_updated": "تعديل بيانات حساب الإدارة",
+  "account.credentials_changed":
+    "تغيير بيانات دخول الإدارة وإبطال الجلسات السابقة",
   "user.status_changed": "تغيير حالة حساب",
   "course.created": "إنشاء دورة",
   "course.updated": "تعديل دورة",
@@ -214,6 +219,12 @@ export function Settings() {
                 <dt>البريد الإلكتروني</dt>
                 <dd dir="ltr">{user.email}</dd>
               </div>
+              {user.username && (
+                <div>
+                  <dt>اسم المستخدم</dt>
+                  <dd dir="ltr">{user.username}</dd>
+                </div>
+              )}
               <div>
                 <dt>نوع الحساب</dt>
                 <dd>
@@ -399,8 +410,16 @@ export function Settings() {
           </div>
           <div className="settings-grid">
             <Panel
-              title="المصادقة الثنائية"
-              description="طبقة تحقق إضافية من تطبيق المصادقة على جوالك."
+              title={
+                data.mfa_available === false
+                  ? "طريقة تسجيل الدخول"
+                  : "المصادقة الثنائية"
+              }
+              description={
+                data.mfa_available === false
+                  ? "تسجيل الدخول باسم المستخدم أو البريد وكلمة المرور."
+                  : "طبقة تحقق إضافية من تطبيق المصادقة على جوالك."
+              }
             >
               <div className="mfa-status">
                 <span className="security-icon">
@@ -410,20 +429,20 @@ export function Settings() {
                   <h3>
                     {data.mfa
                       ? "المصادقة الثنائية مفعّلة"
-                      : staff
+                      : staff && data.mfa_available !== false
                         ? "عزّز حماية حسابك"
                         : "تسجيل الدخول بكلمة المرور"}
                   </h3>
                   <p>
                     {data.mfa
                       ? "يُطلب رمز عند كل تسجيل دخول."
-                      : staff
+                      : staff && data.mfa_available !== false
                         ? "فعّل الرمز المتغير لحماية حسابك الإداري."
                         : "استعمل كلمة مرور طويلة واحفظها بشكل خاص."}
                   </p>
                 </div>
               </div>
-              {staff && !data.mfa && (
+              {staff && data.mfa_available !== false && !data.mfa && (
                 <Button
                   onClick={() => {
                     setSecret("");

@@ -1,7 +1,7 @@
 from pathlib import Path
 import subprocess,sys
 root=Path(__file__).resolve().parents[1]
-files=sorted((root/'server').glob('*.php'))+sorted((root/'public/api').glob('*.php'))
+files=sorted((root/'server').glob('*.php'))+sorted((root/'public/api').glob('*.php'))+sorted((root/'public').glob('*.php'))
 failed=[]
 for path in files:
     if path.name=='config.php':continue

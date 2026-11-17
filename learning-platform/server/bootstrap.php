@@ -337,10 +337,17 @@ function sessionStart(): void
 }
 function publicUser(array $u): array
 {
-    return array_intersect_key(
+    $public = array_intersect_key(
         $u,
         array_flip(["id", "name", "email", "role", "active", "created_at"]),
     );
+    if ($u["role"] === "admin") {
+        $login = setting("admin_login", []);
+        if (($login["user_id"] ?? "") === $u["id"]) {
+            $public["username"] = $login["username"];
+        }
+    }
+    return $public;
 }
 function currentUser(): ?array
 {

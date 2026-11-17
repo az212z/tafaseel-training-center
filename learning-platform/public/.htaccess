@@ -1,5 +1,5 @@
 Options -Indexes
-DirectoryIndex index.html
+DirectoryIndex site.php index.html
 <IfModule mod_rewrite.c>
  RewriteEngine On
  RewriteCond %{HTTP_HOST} !^tafaseel-learn\.com$ [NC,OR]
@@ -7,10 +7,12 @@ DirectoryIndex index.html
  RewriteRule ^ https://tafaseel-learn.com%{REQUEST_URI} [R=301,L]
  RewriteRule ^(?:server|storage|config(?:\.php)?|tafaseel-learning-private|\.deployment|\.env|\.git|\.local|reference|tests|scripts)(?:/|$) - [F,L,NC]
  RewriteRule \.(?:sql|sqlite|db|log|bak|env|ini|zip)$ - [F,L,NC]
+ RewriteRule ^index\.html$ / [R=301,L]
+ RewriteRule ^sitemap\.xml$ site.php [L]
  RewriteCond %{REQUEST_FILENAME} -f [OR]
  RewriteCond %{REQUEST_FILENAME} -d
  RewriteRule ^ - [L]
- RewriteRule ^ index.html [L]
+ RewriteRule ^ site.php [L]
 </IfModule>
 <IfModule mod_headers.c>
  Header always set X-Content-Type-Options "nosniff"
@@ -19,7 +21,7 @@ DirectoryIndex index.html
  Header always set Strict-Transport-Security "max-age=31536000"
  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://video.bunnycdn.com; media-src 'self' blob:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://player.mediadelivery.net; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
- <FilesMatch "^(index\.html)$">
+ <FilesMatch "^(index\.html|site\.php|robots\.txt)$">
   Header set Cache-Control "no-store"
  </FilesMatch>
 </IfModule>

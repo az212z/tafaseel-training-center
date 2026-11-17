@@ -33,6 +33,9 @@ with ZipFile(out/'tafaseel-learning-hostinger.zip') as z:
     assert 'public_html/.htaccess' in names
     assert 'tafaseel-learning-private/schema.sql' in names
     assert 'tafaseel-learning-private/schema-v2.sql' in names
+    assert 'tafaseel-learning-private/schema-v3.sql' in names
+    assert 'public_html/site.php' in names
+    assert 'tafaseel-learning-private/website-defaults.json' in names
     assert 'tafaseel-learning-private/vendor/autoload.php' in names
     assert not any(x.startswith('public_html/vendor/') for x in names)
 print(json.dumps({'archive':str(out/'tafaseel-learning-hostinger.zip'),'files':len(names),'secrets_included':False},indent=2))

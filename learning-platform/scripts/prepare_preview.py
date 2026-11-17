@@ -6,7 +6,7 @@ import shutil
 
 root = Path(__file__).resolve().parents[1]
 out = root / 'dist-preview'
-for entry in ['api', '.htaccess', '.user.ini']:
+for entry in ['api', '.htaccess', '.user.ini', 'site.php']:
     path = out / entry
     if path.is_dir():
         shutil.rmtree(path)

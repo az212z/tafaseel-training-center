@@ -21,5 +21,4 @@ header(
 if ($path !== "/" && is_file(__DIR__ . "/../dist" . $path)) {
     return false;
 }
-header("Content-Type: text/html; charset=utf-8");
-readfile(__DIR__ . "/../dist/index.html");
+require __DIR__ . "/../dist/site.php";

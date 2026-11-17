@@ -32,6 +32,8 @@ import {
 import { CourseSelect } from "../components/forms";
 export function Catalog() {
   const { user, data, notify, refresh } = useApp();
+  const [catalogParams, setCatalogParams] = useSearchParams();
+  const requestedCourse = catalogParams.get("course") || "";
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [edit, setEdit] = useState(false);
@@ -39,8 +41,13 @@ export function Catalog() {
   const [selected, setSelected] = useState<CatalogCourse | null>(null);
   const remote = useRemote<PageResult<CatalogCourse>>("catalog", {
     search,
+    course_id: requestedCourse,
     page: String(page),
   });
+  useEffect(() => {
+    const course = remote.result?.items.find((c) => c.id === requestedCourse);
+    if (course) setSelected(course);
+  }, [remote.result, requestedCourse]);
   return (
     <>
       <PageHead
@@ -61,6 +68,17 @@ export function Catalog() {
         </div>
       )}
       <div className="filter-bar">
+        {requestedCourse && (
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setCatalogParams({});
+              setSelected(null);
+            }}
+          >
+            عرض جميع الدورات المفتوحة
+          </Button>
+        )}
         <Search
           value={search}
           onChange={(v) => {

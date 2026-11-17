@@ -150,6 +150,8 @@ function extensionAction(
             $query .= " AND (c.title LIKE ? OR c.category LIKE ?)";
             $params = ["%" . $search . "%", "%" . $search . "%"];
         }
+        $targetCourse = str($d["course_id"] ?? "", 40, false);
+        if ($targetCourse) { $query .= " AND c.id=?"; $params[] = $targetCourse; }
         return pagedList(
             'SELECT c.id,c.title,c.description,c.category,c.image,c.duration,c.capacity,u.name instructor_name,o.price_minor,\'SAR\' currency,(SELECT COUNT(*) FROM enrollments e WHERE e.course_id=c.id) students_count' .
                 $query .

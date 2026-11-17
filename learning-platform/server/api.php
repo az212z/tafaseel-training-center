@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . "/bootstrap.php";
 require_once __DIR__ . "/extensions.php";
+require_once __DIR__ . "/website.php";
 function visibleCourses(array $u): array
 {
     $sql =
@@ -217,7 +218,9 @@ function dataFor(array $u): array
         "zoom" => integrationEnabled("zoom"),
         "payments" => integrationEnabled("moyasar"),
     ];
+    $out["mfa_available"] = (bool) (cfg()["staff_mfa_enabled"] ?? true);
     $out["mfa"] =
+        (cfg()["staff_mfa_enabled"] ?? true) &&
         (bool) (one("SELECT mfa_secret FROM users WHERE id=?", [$u["id"]])[
             "mfa_secret"
         ] ?? false);
@@ -246,6 +249,10 @@ function checkFileRef(
 }
 function api(string $action, string $method, array $d, string $raw = ""): array
 {
+    $website = websiteAction($action, $method, $d);
+    if ($website !== null) {
+        return $website;
+    }
     $extension = extensionAction($action, $method, $d, $raw);
     if ($extension !== null) {
         return $extension;
@@ -282,10 +289,22 @@ function api(string $action, string $method, array $d, string $raw = ""): array
     }
     if ($action === "login") {
         rate("login-ip:" . ($_SERVER["REMOTE_ADDR"] ?? ""), 15, 900);
-        $em = email($d["email"] ?? "");
+        $em = strtolower(str($d["email"] ?? "", 190));
         rate("login-email:" . $em, 12, 900);
         $pw = str($d["password"] ?? "", 128);
-        $u = one("SELECT * FROM users WHERE email=? AND active=1", [$em]);
+        if (filter_var($em, FILTER_VALIDATE_EMAIL)) {
+            $u = one("SELECT * FROM users WHERE email=? AND active=1", [$em]);
+        } else {
+            $adminLogin = setting("admin_login", []);
+            $u =
+                preg_match('/^[a-z0-9][a-z0-9_.-]{2,31}$/', $em) &&
+                hash_equals(strtolower($adminLogin["username"] ?? ""), $em)
+                    ? one(
+                        "SELECT * FROM users WHERE id=? AND role='admin' AND active=1",
+                        [$adminLogin["user_id"] ?? ""],
+                    )
+                    : null;
+        }
         $valid = password_verify(
             $pw,
             $u["password"] ??
@@ -293,9 +312,9 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         );
         if (!$u || !$valid) {
             audit(null, "session.denied");
-            fail(401, "البريد أو كلمة المرور غير صحيحة.");
+            fail(401, "اسم المستخدم أو البريد أو كلمة المرور غير صحيحة.");
         }
-        if ($u["mfa_secret"]) {
+        if ((cfg()["staff_mfa_enabled"] ?? true) && $u["mfa_secret"]) {
             $_SESSION["mfa_challenge"] = [
                 "id" => $u["id"],
                 "expires" => time() + 300,
@@ -305,6 +324,9 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         return loginUser($u);
     }
     if ($action === "login.mfa") {
+        if (!(cfg()["staff_mfa_enabled"] ?? true)) {
+            fail(403, "المصادقة الإضافية غير مفعلة.");
+        }
         rate("mfa:" . session_id(), 8, 300);
         $challenge = $_SESSION["mfa_challenge"] ?? null;
         if (!$challenge || $challenge["expires"] < time()) {
@@ -405,6 +427,15 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         session_regenerate_id(true);
         audit($u, "password.changed");
         return ["ok" => true];
+    }
+    if (
+        in_array($action, ["mfa.begin", "mfa.confirm"], true) &&
+        !(cfg()["staff_mfa_enabled"] ?? true)
+    ) {
+        fail(
+            403,
+            "الدخول باسم المستخدم وكلمة المرور. المصادقة الإضافية غير مفعلة.",
+        );
     }
     if ($action === "mfa.begin") {
         auth(["admin", "instructor"]);

@@ -176,7 +176,7 @@ function integrationStatuses(): array
 }
 function migrateSchema(): void
 {
-    foreach (["schema.sql", "schema-v2.sql"] as $name) {
+    foreach (["schema.sql", "schema-v2.sql", "schema-v3.sql"] as $name) {
         $sql = file_get_contents(__DIR__ . "/" . $name);
         foreach (explode(";", $sql) as $statement) {
             $statement = trim($statement);
@@ -217,6 +217,7 @@ function staffNeedsMfa(array $u): bool
 {
     return cfg()["environment"] === "production" &&
         (cfg()["enforce_staff_mfa"] ?? true) &&
+        (cfg()["staff_mfa_enabled"] ?? true) &&
         in_array($u["role"], ["admin", "instructor"], true) &&
         empty(
             one("SELECT mfa_secret FROM users WHERE id=?", [$u["id"]])[
