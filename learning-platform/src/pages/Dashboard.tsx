@@ -106,7 +106,9 @@ export default function Dashboard() {
   const upcoming = data.classes
     .filter((c) => new Date(c.ends_at) > current)
     .slice(0, 3);
-  const pending = data.submissions.filter((s) => s.score === null).length;
+  const pending =
+    data.statistics?.pending ??
+    data.submissions.filter((s) => s.score === null).length;
   const submitted = data.submissions.filter((s) => s.student_id === user.id);
   const progressCourses = data.courses.filter(
     (c) => c.status === "published" && c.lessons_count > 0,
@@ -125,12 +127,13 @@ export default function Dashboard() {
         ) / progressCourses.length,
       )
     : 0;
-  const attendance = attendancePercent(data.attendance);
+  const attendance =
+    data.statistics?.attendance_percent ?? attendancePercent(data.attendance);
   const cards = staff
     ? [
         {
           label: "إجمالي الطلاب",
-          value: data.students.length,
+          value: data.statistics?.students ?? data.students.length,
           icon: UsersThree,
           tone: "mint",
           detail: "طلاب مسجلون في المنصة",
@@ -154,7 +157,7 @@ export default function Dashboard() {
         },
         {
           label: "حصص اليوم",
-          value: today.length,
+          value: data.statistics?.classes_today ?? today.length,
           icon: VideoCamera,
           tone: "rose",
           detail: "في جدولك التدريبي اليوم",
@@ -188,7 +191,7 @@ export default function Dashboard() {
         },
         {
           label: "شهاداتي",
-          value: data.certificates.length,
+          value: data.statistics?.certificates ?? data.certificates.length,
           icon: GraduationCap,
           tone: "rose",
           detail: "إنجازاتك تستحق أن تُحفظ",
@@ -406,14 +409,18 @@ export default function Dashboard() {
                   الدروس المكتملة
                 </p>
                 <strong>
-                  {ar(data.progress.length)} <small>إكمال مسجل</small>
+                  {ar(data.statistics?.progress ?? data.progress.length)}{" "}
+                  <small>إكمال مسجل</small>
                 </strong>
                 <p>
                   <span className="legend-dot gray" />
                   الدورات المنشورة
                 </p>
                 <strong>
-                  {ar(active.length)} <small>دورات تدريبية</small>
+                  {ar(
+                    data.courses.filter((c) => c.status === "published").length,
+                  )}{" "}
+                  <small>دورات تدريبية</small>
                 </strong>
               </div>
             </div>
@@ -457,12 +464,17 @@ export default function Dashboard() {
             <div>
               <span>الواجبات التي تم تقييمها</span>
               <strong>
-                {ar(data.submissions.filter((s) => s.score !== null).length)}
+                {ar(
+                  data.statistics?.graded ??
+                    data.submissions.filter((s) => s.score !== null).length,
+                )}
               </strong>
             </div>
             <div>
               <span>الشهادات الصادرة</span>
-              <strong>{ar(data.certificates.length)}</strong>
+              <strong>
+                {ar(data.statistics?.certificates ?? data.certificates.length)}
+              </strong>
             </div>
           </div>
           {recent && (

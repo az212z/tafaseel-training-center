@@ -1,3 +1,4 @@
+import { BatchEnrollment } from "./LearningTools";
 import { useRemote, RemoteState, Pagination } from "../components/remote";
 import type { PageResult } from "../types";
 import { GuardianPreference } from "./Communication";
@@ -45,6 +46,7 @@ export function Students() {
   const { user } = useApp();
   const [term, setTerm] = useState("");
   const [add, setAdd] = useState(false);
+  const [batch, setBatch] = useState(false);
   const [page, setPage] = useState(1);
   const remote = useRemote<PageResult<Student & { courses_count: number }>>(
     "students.list",
@@ -75,6 +77,11 @@ export function Students() {
           <DownloadSimple size={18} />
           تصدير الصفحة الحالية
         </Button>
+        {user.role === "admin" && (
+          <Button variant="secondary" onClick={() => setBatch(true)}>
+            تسجيل مجموعة CSV
+          </Button>
+        )}
         {user.role === "admin" && (
           <Button onClick={() => setAdd(true)}>
             <Plus size={18} />
@@ -148,6 +155,7 @@ export function Students() {
         total={remote.result?.total ?? 0}
         onPage={setPage}
       />
+      {batch && <BatchEnrollment onClose={() => setBatch(false)} />}
       {add && (
         <UserForm
           onClose={() => {

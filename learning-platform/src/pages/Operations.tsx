@@ -1,3 +1,4 @@
+import { TrainingReport } from "./LearningTools";
 import { ZoomControl } from "./Communication";
 import { asset, isStaticPreview } from "../environment";
 import { useState } from "react";
@@ -692,6 +693,14 @@ function EyeIcon() {
   return <CertificateIcon size={18} />;
 }
 export function Reports() {
+  const { user } = useApp();
+  return ["admin", "instructor"].includes(user.role) ? (
+    <TrainingReport />
+  ) : (
+    <LegacyReports />
+  );
+}
+function LegacyReports() {
   const { data, user } = useApp();
   const [course, setCourse] = useState("");
   const courses = data.courses.filter((c) => !course || c.id === course);

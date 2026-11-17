@@ -25,3 +25,6 @@ Disallow: /users
 Disallow: /settings
 Disallow: /support
 Sitemap: https://tafaseel-learn.com/sitemap.xml
+Disallow: /paths
+Disallow: /readiness
+Disallow: /notebook

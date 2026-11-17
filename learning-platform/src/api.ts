@@ -63,12 +63,20 @@ export async function get<T>(
   url.searchParams.set("action", action);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   const response = await fetch(url, { credentials: "same-origin" });
-  const result = await response.json();
-  if (!response.ok)
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error("تعذّر الاتصال بالخادم. تحقق من الاتصال ثم حاول مجددًا.");
+  }
+  if (!response.ok) {
+    if (response.status === 401)
+      window.dispatchEvent(new Event("session-expired"));
     throw new ApiRequestError(
       result.error || "تعذّر إتمام العملية.",
       response.status,
     );
+  }
   return result;
 }
 export const fileUrl = (id: string) =>

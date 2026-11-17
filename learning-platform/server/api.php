@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . "/bootstrap.php";
 require_once __DIR__ . "/extensions.php";
 require_once __DIR__ . "/website.php";
+require_once __DIR__ . "/learning-tools.php";
 function visibleCourses(array $u): array
 {
     $sql =
@@ -24,8 +25,11 @@ function visibleCourses(array $u): array
     }
     return rows($sql . " ORDER BY c.created_at DESC,c.title", $args);
 }
-function visibleStudents(array $u): array
-{
+function visibleStudents(
+    array $u,
+    string $courseId = "",
+    string $studentId = "",
+): array {
     $sql =
         "SELECT u.id,u.name,u.email,u.active,u.created_at,p.birth_date,p.city FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.role='student'";
     $args = [];
@@ -42,7 +46,16 @@ function visibleStudents(array $u): array
         $sql .= " AND u.id=?";
         $args = [$u["id"]];
     }
-    $out = rows($sql . " ORDER BY u.name LIMIT 2000", $args);
+    if ($courseId) {
+        $sql .=
+            " AND u.id IN (SELECT student_id FROM enrollments WHERE course_id=?)";
+        $args[] = $courseId;
+    }
+    if ($studentId) {
+        $sql .= " AND u.id=?";
+        $args[] = $studentId;
+    }
+    $out = rows($sql . " ORDER BY u.name,u.id", $args);
     if ($u["role"] === "instructor") {
         foreach ($out as &$student) {
             unset($student["birth_date"]);
@@ -50,7 +63,7 @@ function visibleStudents(array $u): array
     }
     return $out;
 }
-function dataFor(array $u): array
+function dataFor(array $u, array $scope = []): array
 {
     if (staffNeedsMfa($u)) {
         return array_fill_keys(
@@ -89,7 +102,107 @@ function dataFor(array $u): array
     $courses = visibleCourses($u);
     $ids = array_column($courses, "id");
     $holders = $ids ? implode(",", array_fill(0, count($ids), "?")) : "''";
-    $students = visibleStudents($u);
+    $staff = in_array($u["role"], ["admin", "instructor"], true);
+    $courseId = $staff ? str($scope["course_id"] ?? "", 40, false) : "";
+    $studentId = $staff ? str($scope["student_id"] ?? "", 40, false) : "";
+    if ($courseId) {
+        courseAccess($u, $courseId, true);
+    }
+    if ($studentId) {
+        studentAccess($u, $studentId);
+    }
+    $enrollmentCount = (int) one(
+        "SELECT COUNT(*) n FROM enrollments WHERE course_id IN ($holders)",
+        $ids,
+    )["n"];
+    $large =
+        $staff &&
+        ($enrollmentCount > 1000 ||
+            ($u["role"] === "admin" &&
+                (int) one("SELECT COUNT(*) n FROM users WHERE role='student'")[
+                    "n"
+                ] > 1000));
+    $overview = $large && !$courseId && !$studentId;
+    $statistics = [];
+    if ($staff) {
+        $statistics = [
+            "students" =>
+                $u["role"] === "admin"
+                    ? (int) one(
+                        "SELECT COUNT(*) n FROM users WHERE role='student'",
+                    )["n"]
+                    : (int) one(
+                        "SELECT COUNT(DISTINCT student_id) n FROM enrollments WHERE course_id IN ($holders)",
+                        $ids,
+                    )["n"],
+            "enrollments" => $enrollmentCount,
+            "progress" => (int) one(
+                "SELECT COUNT(*) n FROM progress p JOIN lessons l ON l.id=p.lesson_id WHERE l.course_id IN ($holders)",
+                $ids,
+            )["n"],
+            "certificates" => (int) one(
+                "SELECT COUNT(*) n FROM certificates WHERE course_id IN ($holders)",
+                $ids,
+            )["n"],
+            "graded" => (int) one(
+                "SELECT COUNT(*) n FROM submissions s JOIN assignments a ON a.id=s.assignment_id WHERE a.course_id IN ($holders) AND s.score IS NOT NULL",
+                $ids,
+            )["n"],
+            "pending" => (int) one(
+                "SELECT COUNT(*) n FROM submissions s JOIN assignments a ON a.id=s.assignment_id WHERE a.course_id IN ($holders) AND s.score IS NULL",
+                $ids,
+            )["n"],
+        ];
+        $attendanceCounts = rows(
+            "SELECT a.status,COUNT(*) n FROM attendance a JOIN classes cl ON cl.id=a.class_id WHERE cl.course_id IN ($holders) GROUP BY a.status",
+            $ids,
+        );
+        $attendanceMap = array_column($attendanceCounts, "n", "status");
+        $present =
+            (int) ($attendanceMap["present"] ?? 0) +
+            (int) ($attendanceMap["late"] ?? 0);
+        $eligible = $present + (int) ($attendanceMap["absent"] ?? 0);
+        $statistics["attendance_percent"] = $eligible
+            ? (int) round((100 * $present) / $eligible)
+            : 0;
+        $day = (new DateTimeImmutable(
+            "today",
+            new DateTimeZone("Asia/Riyadh"),
+        ))->setTimezone(new DateTimeZone("UTC"));
+        $statistics["classes_today"] = (int) one(
+            "SELECT COUNT(*) n FROM classes WHERE course_id IN ($holders) AND starts_at>=? AND starts_at<?",
+            [
+                ...$ids,
+                $day->format("Y-m-d\\TH:i:s\\Z"),
+                $day->modify("+1 day")->format("Y-m-d\\TH:i:s\\Z"),
+            ],
+        )["n"];
+        $overviewClasses = $overview
+            ? rows(
+                "SELECT * FROM classes WHERE course_id IN ($holders) AND ends_at>=? ORDER BY starts_at LIMIT 30",
+                [...$ids, now()],
+            )
+            : [];
+        $counts = rows(
+            "SELECT l.course_id,COUNT(*) n FROM progress p JOIN lessons l ON l.id=p.lesson_id JOIN enrollments e ON e.course_id=l.course_id AND e.student_id=p.student_id WHERE l.course_id IN ($holders) GROUP BY l.course_id",
+            $ids,
+        );
+        $map = array_column($counts, "n", "course_id");
+        foreach ($courses as &$course) {
+            $denominator =
+                (int) $course["students_count"] *
+                (int) $course["lessons_count"];
+            $course["progress_percent"] = $denominator
+                ? (int) round(
+                    (100 * (int) ($map[$course["id"]] ?? 0)) / $denominator,
+                )
+                : 0;
+        }
+        unset($course);
+    }
+    $ids = $overview ? [] : ($courseId ? [$courseId] : $ids);
+    $holders = $ids ? implode(",", array_fill(0, count($ids), "?")) : "''";
+    $students = $overview ? [] : visibleStudents($u, $courseId, $studentId);
     $sids = array_column($students, "id");
     $sh = $sids ? implode(",", array_fill(0, count($sids), "?")) : "''";
     $staff = in_array($u["role"], ["admin", "instructor"], true);
@@ -103,6 +216,13 @@ function dataFor(array $u): array
     );
     $out = [
         "user" => $u,
+        "statistics" => $statistics,
+        "dataset" => [
+            "scoped" => $large,
+            "overview" => $overview,
+            "course_id" => $courseId,
+            "student_id" => $studentId,
+        ],
         "demo" => (bool) cfg()["demo"],
         "courses" => $courses,
         "students" => $students,
@@ -181,11 +301,14 @@ function dataFor(array $u): array
     );
     if ($u["role"] === "admin") {
         $out["users"] = rows(
-            "SELECT id,name,email,role,active,created_at FROM users ORDER BY created_at DESC LIMIT 2000",
+            "SELECT id,name,email,role,active,created_at FROM users WHERE role<>'student' ORDER BY created_at DESC",
         );
         $out["audit"] = rows(
             "SELECT a.*,u.name AS actor_name FROM audit a LEFT JOIN users u ON a.actor_id=u.id ORDER BY a.created_at DESC LIMIT 200",
         );
+    }
+    if ($overview) {
+        $out["classes"] = $overviewClasses;
     }
     $zoomRows = rows(
         "SELECT z.class_id,z.status,z.meeting_id FROM zoom_meetings z JOIN classes c ON c.id=z.class_id WHERE c.course_id IN ($holders)",
@@ -249,6 +372,10 @@ function checkFileRef(
 }
 function api(string $action, string $method, array $d, string $raw = ""): array
 {
+    $learning = learningToolsAction($action, $method, $d);
+    if ($learning !== null) {
+        return $learning;
+    }
     $website = websiteAction($action, $method, $d);
     if ($website !== null) {
         return $website;
@@ -288,7 +415,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         csrf();
     }
     if ($action === "login") {
-        rate("login-ip:" . ($_SERVER["REMOTE_ADDR"] ?? ""), 15, 900);
+        rate("login-ip:" . ($_SERVER["REMOTE_ADDR"] ?? ""), 300, 900);
         $em = strtolower(str($d["email"] ?? "", 190));
         rate("login-email:" . $em, 12, 900);
         $pw = str($d["password"] ?? "", 128);
@@ -385,7 +512,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         return ["ok" => true, "csrf" => $_SESSION["csrf"]];
     }
     if ($action === "data") {
-        return dataFor($u);
+        return dataFor($u, $d);
     }
     if ($action === "account.profile") {
         auth(["admin"]);
@@ -860,17 +987,13 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             fail(404, "الدرس غير موجود.");
         }
         courseAccess($u, $lesson["course_id"]);
-        if (
-            !one("SELECT id FROM progress WHERE lesson_id=? AND student_id=?", [
-                $lesson["id"],
-                $u["id"],
-            ])
-        ) {
-            run(
-                "INSERT INTO progress(id,lesson_id,student_id,completed_at) VALUES(?,?,?,?)",
-                [uid(), $lesson["id"], $u["id"], now()],
-            );
-        }
+        $insert =
+            "INSERT INTO progress(id,lesson_id,student_id,completed_at) VALUES(?,?,?,?)";
+        $insert .=
+            db()->getAttribute(PDO::ATTR_DRIVER_NAME) === "mysql"
+                ? " ON DUPLICATE KEY UPDATE id=id"
+                : " ON CONFLICT(lesson_id,student_id) DO NOTHING";
+        run($insert, [uid(), $lesson["id"], $u["id"], now()]);
         return ["ok" => true];
     }
     if ($action === "assignment.save") {
@@ -904,30 +1027,33 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         if (strtotime($a["due_at"]) < time()) {
             fail(409, "انتهى موعد تسليم الواجب.");
         }
-        $existing = one(
-            "SELECT * FROM submissions WHERE assignment_id=? AND student_id=?",
-            [$a["id"], $u["id"]],
-        );
-        if ($existing && $existing["score"] !== null) {
-            fail(409, "تم تقييم الواجب؛ لا يمكن تعديله.");
-        }
         $file = $d["file_id"] ?? null;
         checkFileRef($u, $file, "submission", $a["course_id"], $u["id"]);
         $body = str($d["body"] ?? "", 10000, !$file);
-        $id = $existing["id"] ?? uid();
-        if ($existing) {
-            run(
-                "UPDATE submissions SET body=?,file_id=?,submitted_at=? WHERE id=?",
-                [$body, $file ?: null, now(), $id],
+        return tx(function () use ($u, $a, $file, $body) {
+            lockRow("courses", $a["course_id"]);
+            $existing = one(
+                "SELECT * FROM submissions WHERE assignment_id=? AND student_id=?",
+                [$a["id"], $u["id"]],
             );
-        } else {
-            run(
-                "INSERT INTO submissions(id,assignment_id,student_id,body,file_id,submitted_at) VALUES(?,?,?,?,?,?)",
-                [$id, $a["id"], $u["id"], $body, $file ?: null, now()],
-            );
-        }
-        audit($u, "assignment.submitted", $id);
-        return ["id" => $id];
+            if ($existing && $existing["score"] !== null) {
+                fail(409, "تم تقييم الواجب؛ لا يمكن تعديله.");
+            }
+            $id = $existing["id"] ?? uid();
+            if ($existing) {
+                run(
+                    "UPDATE submissions SET body=?,file_id=?,submitted_at=? WHERE id=?",
+                    [$body, $file ?: null, now(), $id],
+                );
+            } else {
+                run(
+                    "INSERT INTO submissions(id,assignment_id,student_id,body,file_id,submitted_at) VALUES(?,?,?,?,?,?)",
+                    [$id, $a["id"], $u["id"], $body, $file ?: null, now()],
+                );
+            }
+            audit($u, "assignment.submitted", $id);
+            return ["id" => $id];
+        });
     }
     if ($action === "submission.grade") {
         $s = one(
@@ -938,13 +1064,18 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             fail(404, "التسليم غير موجود.");
         }
         courseAccess($u, $s["course_id"], true);
-        run("UPDATE submissions SET score=?,feedback=? WHERE id=?", [
-            number($d["score"] ?? "", 0, (int) $s["points"]),
-            str($d["feedback"] ?? "", 3000, false),
-            $s["id"],
-        ]);
-        audit($u, "submission.graded", $s["id"]);
-        return ["ok" => true];
+        $score = number($d["score"] ?? "", 0, (int) $s["points"]);
+        $feedback = str($d["feedback"] ?? "", 3000, false);
+        return tx(function () use ($u, $s, $score, $feedback) {
+            lockRow("courses", $s["course_id"]);
+            run("UPDATE submissions SET score=?,feedback=? WHERE id=?", [
+                $score,
+                $feedback,
+                $s["id"],
+            ]);
+            audit($u, "submission.graded", $s["id"]);
+            return ["ok" => true];
+        });
     }
     if ($action === "quiz.save") {
         $course = str($d["course_id"] ?? "", 40);
@@ -1241,30 +1372,33 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         $course = str($d["course_id"] ?? "", 40);
         $student = str($d["student_id"] ?? "", 40);
         courseAccess($u, $course, true);
-        $reason = certificateReason($course, $student);
-        if ($reason) {
-            fail(422, $reason);
-        }
-        $exists = one(
-            "SELECT id FROM certificates WHERE course_id=? AND student_id=?",
-            [$course, $student],
-        );
-        if ($exists) {
-            return $exists;
-        }
-        $id = uid();
-        run(
-            "INSERT INTO certificates(id,course_id,student_id,serial,issued_at) VALUES(?,?,?,?,?)",
-            [
-                $id,
-                $course,
-                $student,
-                "TF-" . date("Y") . "-" . strtoupper(substr(uid(), 0, 10)),
-                now(),
-            ],
-        );
-        audit($u, "certificate.issued", $id);
-        return ["id" => $id];
+        return tx(function () use ($u, $course, $student) {
+            lockRow("courses", $course);
+            $reason = certificateReason($course, $student);
+            if ($reason) {
+                fail(422, $reason);
+            }
+            $exists = one(
+                "SELECT id FROM certificates WHERE course_id=? AND student_id=?",
+                [$course, $student],
+            );
+            if ($exists) {
+                return $exists;
+            }
+            $id = uid();
+            run(
+                "INSERT INTO certificates(id,course_id,student_id,serial,issued_at) VALUES(?,?,?,?,?)",
+                [
+                    $id,
+                    $course,
+                    $student,
+                    "TF-" . date("Y") . "-" . strtoupper(substr(uid(), 0, 10)),
+                    now(),
+                ],
+            );
+            audit($u, "certificate.issued", $id);
+            return ["id" => $id];
+        });
     }
     if ($action === "settings.save") {
         auth(["admin"]);

@@ -1,3 +1,4 @@
+import { CourseCommunity, CourseSurvey, LessonNotebook } from "./LearningTools";
 import { asset, isStaticPreview } from "../environment";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -131,6 +132,7 @@ export function LessonViewer({
 }) {
   const { data, user, refresh, notify } = useApp();
   const [busy, setBusy] = useState(false);
+  const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const completed = data.progress.some(
     (p) => p.lesson_id === lesson.id && p.student_id === user.id,
   );
@@ -213,6 +215,7 @@ export function LessonViewer({
         ) : lesson.file_id ? (
           <video
             className="video-frame"
+            ref={setVideo}
             controls
             preload="metadata"
             src={fileUrl(lesson.file_id)}
@@ -236,6 +239,9 @@ export function LessonViewer({
           <DownloadSimple size={19} />
           تنزيل ملف الدرس
         </a>
+      )}
+      {user.role !== "guardian" && (
+        <LessonNotebook lessonId={lesson.id} video={video} />
       )}
       {user.role === "student" && (
         <div className="lesson-footer">
@@ -293,6 +299,8 @@ export function CourseDetail() {
     ["assignments", "الواجبات"],
     ["quizzes", "الاختبارات"],
     ["files", "الملفات"],
+    ["community", "النقاشات"],
+    ["survey", "تقييم التجربة"],
   ];
   return (
     <>
@@ -353,26 +361,31 @@ export function CourseDetail() {
             onClick={() => setTab(key)}
           >
             {label}
-            <span>
-              {ar(
-                key === "lessons"
-                  ? lessons.length
-                  : key === "students"
-                    ? students.length
-                    : key === "assignments"
-                      ? data.assignments.filter((a) => a.course_id === id)
-                          .length
-                      : key === "quizzes"
-                        ? data.quizzes.filter((q) => q.course_id === id).length
-                        : data.files.filter(
-                            (f) =>
-                              f.course_id === id && f.purpose === "resource",
-                          ).length,
-              )}
-            </span>
+            {!["community", "survey"].includes(key) && (
+              <span>
+                {ar(
+                  key === "lessons"
+                    ? lessons.length
+                    : key === "students"
+                      ? students.length
+                      : key === "assignments"
+                        ? data.assignments.filter((a) => a.course_id === id)
+                            .length
+                        : key === "quizzes"
+                          ? data.quizzes.filter((q) => q.course_id === id)
+                              .length
+                          : data.files.filter(
+                              (f) =>
+                                f.course_id === id && f.purpose === "resource",
+                            ).length,
+                )}
+              </span>
+            )}
           </button>
         ))}
       </div>
+      {tab === "community" && <CourseCommunity courseId={c.id} />}
+      {tab === "survey" && <CourseSurvey courseId={c.id} />}
       <div className="course-resource-links">
         <Link className="text-link" to={`/bags?course=${id}`}>
           فتح الحقيبة التعليمية للمادة

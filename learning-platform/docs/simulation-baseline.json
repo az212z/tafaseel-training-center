@@ -1,0 +1,41 @@
+{
+  "fixture_counts": {
+    "students": 5000,
+    "courses": 100,
+    "lessons": 1200,
+    "video_lessons": 400,
+    "enrollments": 50000,
+    "progress": 300000,
+    "attendance": 50000,
+    "submissions": 10000,
+    "attempts": 10000,
+    "orders": 5000
+  },
+  "seed_seconds": 7.37,
+  "baseline": {
+    "data": {
+      "milliseconds": 269.16,
+      "bytes": 18960785,
+      "status": 200,
+      "students_returned": 2000,
+      "progress_returned": 120000,
+      "last_student_visible": false
+    },
+    "students.list&search=s4999%40example.test": {
+      "milliseconds": 4.78,
+      "bytes": 227,
+      "status": 200
+    },
+    "orders": {
+      "milliseconds": 20.01,
+      "bytes": 8055,
+      "status": 200
+    },
+    "health": {
+      "milliseconds": 1.06,
+      "bytes": 29,
+      "status": 200
+    }
+  },
+  "environment": "local MariaDB; PHP CLI 8 workers; not hosting capacity proof"
+}

@@ -13,6 +13,7 @@ export interface Student extends User {
   city?: string;
 }
 export interface Course {
+  progress_percent?: number;
   id: string;
   title: string;
   description: string;
@@ -157,6 +158,22 @@ export interface Profile {
   guardian_id?: string | null;
 }
 export interface Data {
+  statistics?: {
+    students: number;
+    enrollments: number;
+    progress: number;
+    certificates: number;
+    graded: number;
+    pending: number;
+    attendance_percent: number;
+    classes_today: number;
+  };
+  dataset?: {
+    scoped: boolean;
+    overview: boolean;
+    course_id: string;
+    student_id: string;
+  };
   commerce?: {
     course_id: string;
     price_minor: number;

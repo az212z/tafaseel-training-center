@@ -1,3 +1,4 @@
+import { PublicPathDirectory } from "../pages/LearningTools";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   Link,
@@ -53,6 +54,7 @@ const publicPaths = [
   "/",
   "/programs",
   "/tracks",
+  "/learning-paths",
   "/about",
   "/gallery",
   "/business",
@@ -215,6 +217,7 @@ export default function PublicSite() {
     const labels: Record<string, string> = {
       "/": "مركز تفاصيل للتدريب | برامجك ومساحتك التعليمية",
       "/programs": "الدورات والبرامج",
+      "/learning-paths": "مسارات التعلم",
       "/about": "عن مركز تفاصيل",
       "/contact": "تواصل معنا",
       "/help": "مركز المساعدة",
@@ -331,6 +334,7 @@ export default function PublicSite() {
         <Routes>
           <Route path="/" element={<Home c={content} />} />
           <Route path="/programs" element={<Programs c={content} />} />
+          <Route path="/learning-paths" element={<PublicPathDirectory />} />
           <Route path="/tracks" element={<Programs c={content} />} />
           <Route path="/tracks/:category" element={<Programs c={content} />} />
           <Route
@@ -434,6 +438,7 @@ export default function PublicSite() {
               ["/register", "إنشاء حساب متدرب"],
               ["/library", "مكتبة التعلّم"],
               ["/practice", "تمارين توضيحية"],
+              ["/learning-paths", "مسارات التعلم"],
               ["/verify", "التحقق من الشهادات"],
             ].map(([to, l]) => (
               <Link key={to} to={to}>

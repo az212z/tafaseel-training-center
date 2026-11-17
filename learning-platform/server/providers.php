@@ -176,7 +176,10 @@ function integrationStatuses(): array
 }
 function migrateSchema(): void
 {
-    foreach (["schema.sql", "schema-v2.sql", "schema-v3.sql"] as $name) {
+    foreach (
+        ["schema.sql", "schema-v2.sql", "schema-v3.sql", "schema-v4.sql"]
+        as $name
+    ) {
         $sql = file_get_contents(__DIR__ . "/" . $name);
         foreach (explode(";", $sql) as $statement) {
             $statement = trim($statement);

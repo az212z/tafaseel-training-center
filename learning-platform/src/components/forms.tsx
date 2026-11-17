@@ -1,3 +1,5 @@
+import { useRemote, RemoteState, Pagination } from "./remote";
+import type { PageResult } from "../types";
 import { VideoPicker } from "../pages/Resources";
 import { isStaticPreview } from "../environment";
 import { useState } from "react";
@@ -731,19 +733,68 @@ export function EnrollForm({
           <CourseSelect value={courseId} />
         </Field>
         <Field label="الطالب">
-          <select name="student_id" required defaultValue={studentId ?? ""}>
-            <option value="">اختر الطالب</option>
-            {data.students
-              .filter((s) => s.active)
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-          </select>
+          {data.dataset?.scoped && !studentId ? (
+            <StudentLookup />
+          ) : (
+            <select name="student_id" required defaultValue={studentId ?? ""}>
+              <option value="">اختر الطالب</option>
+              {data.students
+                .filter((s) => s.active)
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+            </select>
+          )}
         </Field>
       </Form>
     </Modal>
+  );
+}
+function StudentLookup() {
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [value, setValue] = useState("");
+  const remote = useRemote<PageResult<Student>>("students.list", {
+    search,
+    page: String(page),
+  });
+  return (
+    <>
+      <input
+        aria-label="ابحث عن الطالب في جميع الحسابات"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+          setValue("");
+        }}
+        placeholder="اسم الطالب أو بريده الإلكتروني"
+      />
+      <RemoteState {...remote} />
+      <select
+        aria-label="الطالب المراد تسجيله"
+        name="student_id"
+        required
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      >
+        <option value="">اختر الطالب من النتائج</option>
+        {remote.result?.items
+          .filter((s) => s.active)
+          .map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name} — {s.email}
+            </option>
+          ))}
+      </select>
+      <Pagination
+        page={page}
+        total={remote.result?.total ?? 0}
+        onPage={setPage}
+      />
+    </>
   );
 }
 export async function fetchProfile(id: string) {

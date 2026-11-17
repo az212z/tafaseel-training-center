@@ -1,4 +1,11 @@
-import { useEffect, useState, useCallback, lazy, Suspense } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  lazy,
+  Suspense,
+} from "react";
 import {
   BrowserRouter,
   HashRouter,
@@ -46,12 +53,15 @@ import {
   EyeSlash,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
-import { api, setCsrf } from "./api";
+import { api, get, setCsrf } from "./api";
 import { asset, isStaticPreview, githubTrialUrl } from "./environment";
 import { Context, roles } from "./context";
 import type { Data, User, Role } from "./types";
 import { Avatar, Button, Modal, Search, Empty } from "./components/ui";
 import Dashboard from "./pages/Dashboard";
+import "./learning-tools.css";
+import { Notebook } from "./pages/Notebook";
+import { Paths, LaunchChecklist } from "./pages/LearningTools";
 import { Catalog, Payments } from "./pages/Commerce";
 import { Bags, Videos } from "./pages/Resources";
 import { Notifications, Integrations } from "./pages/Communication";
@@ -85,6 +95,13 @@ const menu: {
     items: [
       { to: "/dashboard", label: "نظرة عامة", icon: SquaresFour },
       { to: "/courses", label: "الدورات التدريبية", icon: BookOpen },
+      { to: "/paths", label: "مسارات التعلم", icon: GraduationCap },
+      {
+        to: "/notebook",
+        label: "دفتر المراجعة",
+        icon: BookOpen,
+        roles: ["admin", "instructor", "student"],
+      },
       { to: "/catalog", label: "التسجيل في الدورات", icon: ShoppingCart },
       {
         to: "/students",
@@ -123,6 +140,12 @@ const menu: {
       },
       { to: "/certificates", label: "الشهادات", icon: Certificate },
       { to: "/reports", label: "التقارير والإحصاءات", icon: ChartBar },
+      {
+        to: "/readiness",
+        label: "الجاهزية والتشغيل",
+        icon: ShieldCheck,
+        roles: ["admin"],
+      },
       { to: "/announcements", label: "الإعلانات", icon: Megaphone },
     ],
   },
@@ -457,7 +480,9 @@ function Shell({
   refresh,
   logout,
   notify,
+  onWorkspace,
 }: {
+  onWorkspace: (id: string) => void;
   data: Data;
   user: User;
   refresh: () => Promise<void>;
@@ -465,6 +490,25 @@ function Shell({
   notify: (s: string, t?: "success" | "error") => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [mobile, setMobile] = useState(
+    () => window.matchMedia("(max-width: 800px)").matches,
+  );
+  const sidebarRef = useRef<HTMLElement>(null);
+  const menuToggleRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 800px)");
+    const update = () => setMobile(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    if (mobile && open) {
+      sidebarRef.current
+        ?.querySelector<HTMLButtonElement>(".mobile-close")
+        ?.focus();
+      return () => menuToggleRef.current?.focus();
+    }
+  }, [mobile, open]);
   const [search, setSearch] = useState(false);
   const [term, setTerm] = useState("");
   const [notifications, setNotifications] = useState(false);
@@ -526,15 +570,46 @@ function Shell({
           onClick={() => setOpen(false)}
         />
       )}
-      <aside className={`sidebar ${open ? "is-open" : ""}`}>
-        <Link to="/" className="brand">
-          <div className="brand-logo">
-            <img src={asset("/brand/logo.webp")} alt="شعار مركز تفاصيل" />
-          </div>
-          <div>
-            <strong>تفاصيل</strong>
-            <span>المنصة التعليمية</span>
-          </div>
+      <aside
+        id="platform-sidebar"
+        ref={sidebarRef}
+        className={`sidebar ${open ? "is-open" : ""}`}
+        inert={mobile && !open}
+        aria-hidden={mobile && !open ? true : undefined}
+        onKeyDown={(e) => {
+          if (!mobile || !open) return;
+          if (e.key === "Escape") {
+            setOpen(false);
+            return;
+          }
+          if (e.key === "Tab") {
+            const items = [
+              ...e.currentTarget.querySelectorAll<HTMLElement>(
+                "a[href],button:not([disabled])",
+              ),
+            ].filter((x) => x.offsetParent !== null);
+            const first = items[0],
+              last = items.at(-1);
+            if (e.shiftKey && document.activeElement === first) {
+              e.preventDefault();
+              last?.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+              e.preventDefault();
+              first?.focus();
+            }
+          }
+        }}
+      >
+        <div className="brand">
+          <Link to="/" className="brand-link">
+            <div className="brand-logo">
+              <img src={asset("/brand/logo.webp")} alt="شعار مركز تفاصيل" />
+            </div>
+            <div>
+              <strong>تفاصيل</strong>
+              <span>المنصة التعليمية</span>
+            </div>
+          </Link>
           <button
             className="icon-btn mobile-close"
             aria-label="إغلاق القائمة"
@@ -545,7 +620,7 @@ function Shell({
           >
             <X size={20} />
           </button>
-        </Link>
+        </div>
         <div className="workspace-switch">
           <span className="workspace-icon">
             <GraduationCap size={22} weight="duotone" />
@@ -615,11 +690,14 @@ function Shell({
           <GearSix size={19} />
         </button>
       </aside>
-      <div className="app-area">
+      <div className="app-area" inert={mobile && open}>
         <header className="topbar">
           <div className="breadcrumbs">
             <button
               className="icon-btn menu-toggle"
+              ref={menuToggleRef}
+              aria-controls="platform-sidebar"
+              aria-expanded={open}
               onClick={() => setOpen(!open)}
               aria-label="فتح القائمة"
             >
@@ -695,6 +773,36 @@ function Shell({
           </div>
         )}
         <main id="main" className="main-content" tabIndex={-1}>
+          {data.dataset?.scoped &&
+            ["admin", "instructor"].includes(user.role) && (
+              <div className="workspace-filter">
+                <label htmlFor="workspace-course">نطاق العمل التفصيلي</label>
+                <select
+                  id="workspace-course"
+                  value={data.dataset.course_id}
+                  onChange={(e) => {
+                    onWorkspace(e.target.value);
+                    if (/^\/(courses|students)\//.test(path.pathname))
+                      nav("/dashboard");
+                  }}
+                >
+                  <option value="">نظرة عامة</option>
+                  {data.courses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title}
+                    </option>
+                  ))}
+                </select>
+                <small>
+                  {data.dataset.student_id
+                    ? "يعرض ملف الطالب المحدد"
+                    : data.dataset.overview
+                      ? "اختر دورة لعرض سجلاتها التفصيلية. قوائم الطلاب والتقارير تشمل جميع السجلات عبر صفحاتها."
+                      : "السجلات التفصيلية للدورة المحددة؛ التقارير تحسب كامل البيانات."}
+                </small>
+              </div>
+            )}
+
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -711,6 +819,27 @@ function Shell({
               }
             />
             <Route path="/courses" element={<Courses />} />
+            <Route path="/paths" element={<Paths />} />
+            <Route
+              path="/notebook"
+              element={
+                user.role !== "guardian" ? (
+                  <Notebook />
+                ) : (
+                  <Empty title="الملاحظات خاصة بالمتدرب" />
+                )
+              }
+            />
+            <Route
+              path="/readiness"
+              element={
+                user.role === "admin" ? (
+                  <LaunchChecklist />
+                ) : (
+                  <Empty title="صلاحية إدارية مطلوبة" />
+                )
+              }
+            />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/bags" element={<Bags />} />
             <Route
@@ -873,10 +1002,21 @@ function SessionApp() {
     (message: string, type = "success") => setToast({ message, type }),
     [],
   );
+  const [workspace, setWorkspace] = useState("");
+  const dataRequest = useRef(0);
+  const courseScope =
+    routeLocation.pathname.match(/^\/courses\/([^/]+)$/)?.[1] ?? "";
+  const studentScope =
+    routeLocation.pathname.match(/^\/students\/([^/]+)$/)?.[1] ?? "";
+  const scopeCourse = studentScope ? "" : courseScope || workspace;
   const refresh = useCallback(async () => {
-    const result = await api<Data>("data");
-    setData(result);
-  }, []);
+    const request = ++dataRequest.current;
+    const result = await get<Data>("data", {
+      course_id: scopeCourse,
+      student_id: studentScope,
+    });
+    if (request === dataRequest.current) setData(result);
+  }, [scopeCourse, studentScope]);
   useEffect(() => {
     let live = true;
     api<{
@@ -972,6 +1112,7 @@ function SessionApp() {
           refresh={refresh}
           logout={logout}
           notify={notify}
+          onWorkspace={setWorkspace}
         />
       ) : (
         <Login
@@ -1014,7 +1155,7 @@ function SessionApp() {
 function ApplicationRoutes() {
   const { pathname } = useLocation();
   const platform =
-    /^\/(login|dashboard|website|courses|catalog|bags|videos|payments|notifications|integrations|students|assignments|quizzes|schedule|attendance|files|certificates|reports|announcements|users|settings|support)(\/|$)/.test(
+    /^\/(login|dashboard|website|paths|notebook|readiness|courses|catalog|bags|videos|payments|notifications|integrations|students|assignments|quizzes|schedule|attendance|files|certificates|reports|announcements|users|settings|support)(\/|$)/.test(
       pathname,
     );
   return isStaticPreview || platform ? (

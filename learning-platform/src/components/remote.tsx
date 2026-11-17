@@ -50,7 +50,7 @@ export function RemoteState({
   return error ? (
     <div className="alert alert-error" role="alert">
       {error}
-      <Button variant="secondary" onClick={reload}>
+      <Button type="button" variant="secondary" onClick={reload}>
         إعادة المحاولة
       </Button>
     </div>
@@ -75,6 +75,7 @@ export function Pagination({
   return (
     <div className="pagination">
       <Button
+        type="button"
         variant="secondary"
         disabled={page <= 1}
         onClick={() => onPage(page - 1)}
@@ -85,6 +86,7 @@ export function Pagination({
         صفحة {page} من {pages} • {total} سجل
       </span>
       <Button
+        type="button"
         variant="secondary"
         disabled={page >= pages}
         onClick={() => onPage(page + 1)}

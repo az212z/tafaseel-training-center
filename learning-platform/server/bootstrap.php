@@ -279,32 +279,24 @@ function setSetting(string $key, mixed $value): void
 function rate(string $key, int $max, int $seconds): void
 {
     $bucket = hash_hmac("sha256", $key, cfg()["key"]);
-    tx(function () use ($bucket, $max, $seconds) {
-        $r = one(
-            "SELECT * FROM rate_limits WHERE bucket=?" .
-                (db()->getAttribute(PDO::ATTR_DRIVER_NAME) === "mysql"
-                    ? " FOR UPDATE"
-                    : ""),
-            [$bucket],
-        );
-        if (!$r) {
-            run("INSERT INTO rate_limits(bucket,hits,expires) VALUES(?,1,?)", [
-                $bucket,
-                time() + $seconds,
-            ]);
-            return;
+    $hits = tx(function () use ($bucket, $seconds) {
+        $time = time();
+        if (db()->getAttribute(PDO::ATTR_DRIVER_NAME) === "mysql") {
+            run(
+                "INSERT INTO rate_limits(bucket,hits,expires) VALUES(?,1,?) ON DUPLICATE KEY UPDATE hits=IF(expires<?,1,hits+1),expires=IF(expires<?,?,expires)",
+                [$bucket, $time + $seconds, $time, $time, $time + $seconds],
+            );
+        } else {
+            run(
+                "INSERT INTO rate_limits(bucket,hits,expires) VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET hits=CASE WHEN rate_limits.expires<? THEN 1 ELSE rate_limits.hits+1 END,expires=CASE WHEN rate_limits.expires<? THEN ? ELSE rate_limits.expires END",
+                [$bucket, $time + $seconds, $time, $time, $time + $seconds],
+            );
         }
-        if ((int) $r["expires"] < time()) {
-            run("UPDATE rate_limits SET hits=1,expires=? WHERE bucket=?", [
-                time() + $seconds,
-                $bucket,
-            ]);
-            return;
-        }
-        run("UPDATE rate_limits SET hits=hits+1 WHERE bucket=?", [$bucket]);
+        return (int) one("SELECT hits FROM rate_limits WHERE bucket=?", [
+            $bucket,
+        ])["hits"];
     });
-    $r = one("SELECT hits FROM rate_limits WHERE bucket=?", [$bucket]);
-    if ((int) $r["hits"] > $max) {
+    if ($hits > $max) {
         fail(429, "محاولات كثيرة. حاول لاحقًا.");
     }
 }

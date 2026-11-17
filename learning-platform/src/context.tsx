@@ -35,6 +35,10 @@ export function progressPercent(
   courseId: string,
   studentId?: string,
 ) {
+  if (!studentId) {
+    const course = data.courses.find((c) => c.id === courseId);
+    if (course?.progress_percent !== undefined) return course.progress_percent;
+  }
   const ls = data.lessons.filter((l) => l.course_id === courseId);
   if (!ls.length) return 0;
   const students = studentId

@@ -23,6 +23,7 @@ try {
         "/" => "مركز تفاصيل للتدريب | برامجك ومساحتك التعليمية",
         "/programs" => "الدورات والبرامج",
         "/tracks" => "مجالات التعلّم",
+        "/learning-paths" => "مسارات التعلم",
         "/about" => "عن مركز تفاصيل",
         "/gallery" => "صور المركز",
         "/business" => "تدريب الجهات",
@@ -84,7 +85,7 @@ try {
         exit();
     }
     $platform = preg_match(
-        '#^/(login|dashboard|website|courses|catalog|bags|videos|payments|notifications|integrations|students|assignments|quizzes|schedule|attendance|files|certificates|reports|announcements|users|settings|support)(/|$)#',
+        '#^/(login|dashboard|website|paths|notebook|readiness|courses|catalog|bags|videos|payments|notifications|integrations|students|assignments|quizzes|schedule|attendance|files|certificates|reports|announcements|users|settings|support)(/|$)#',
         $path,
     );
     $found =
