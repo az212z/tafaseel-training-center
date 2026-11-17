@@ -4,6 +4,7 @@ on:
     paths:
       - 'learning-platform/**'
       - '.github/workflows/learning-platform.yml'
+      - '.devcontainer/learning-platform/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,6 +34,7 @@ jobs:
       - run: npm run check:php
       - run: npm test
       - run: npm run test:extensions
+      - run: npm run test:trial
       - run: npm run test:preview
       - run: npm run build:preview
       - run: npm run package
@@ -41,3 +43,20 @@ jobs:
           name: tafaseel-learning-hostinger
           path: learning-platform/output/tafaseel-learning-hostinger.zip
           retention-days: 14
+
+  trial-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Build the actual Codespaces runtime
+        run: docker build -t tafaseel-github-trial .devcontainer/learning-platform
+      - name: Verify installation and start a private trial runtime
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e CODESPACES=true -e CODESPACE_NAME=tafaseel-ci-test -e GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN=app.github.dev -v "$PWD:/workspace" -w /workspace/learning-platform tafaseel-github-trial sh -lc '
+            composer install --no-dev --prefer-dist --no-interaction &&
+            npm ci && npm run build &&
+            php server/codespaces-init.php init &&
+            npm run trial:start &&
+            curl --fail --silent "http://127.0.0.1:8080/api/index.php?action=health" &&
+            npm run test:trial
+          '

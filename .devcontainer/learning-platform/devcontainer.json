@@ -1,0 +1,13 @@
+{
+  "name": "تفاصيل — تجربة كاملة بخادم وقاعدة بيانات",
+  "build": {"dockerfile": "Dockerfile", "context": "."},
+  "remoteUser": "vscode",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}/learning-platform",
+  "forwardPorts": [8080],
+  "portsAttributes": {"8080": {"label": "منصة تفاصيل التعليمية", "onAutoForward": "openBrowser", "protocol": "http"}},
+  "hostRequirements": {"cpus": 2, "memory": "4gb"},
+  "postCreateCommand": "composer install --no-dev --prefer-dist --no-interaction && npm ci && npm run build && php server/codespaces-init.php init",
+  "postStartCommand": "npm run trial:start",
+  "postAttachCommand": "npm run trial:accounts",
+  "customizations": {"vscode": {"settings": {"terminal.integrated.cwd": "${workspaceFolder}", "workbench.startupEditor": "none"}}}
+}

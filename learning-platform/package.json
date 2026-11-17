@@ -16,7 +16,10 @@
     "check:php": "python3 scripts/check_php.py",
     "build:preview": "tsc -b && VITE_STATIC_PREVIEW=true vite build --base=/tafaseel-learning-preview/ --outDir=dist-preview && python3 scripts/prepare_preview.py",
     "test:preview": "node scripts/test_preview.mjs",
-    "test:extensions": "python3 tests/extensions.py"
+    "test:extensions": "python3 tests/extensions.py",
+    "trial:start": "node scripts/codespaces-start.mjs",
+    "trial:accounts": "php server/codespaces-init.php accounts",
+    "test:trial": "python3 tests/codespaces.py"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "5.3.0",

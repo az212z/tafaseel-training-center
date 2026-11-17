@@ -6,13 +6,14 @@ if (PHP_SAPI !== "cli") {
 $command = $argv[1] ?? "help";
 $root = dirname(__DIR__);
 if ($command === "demo") {
-    $dir = $root . "/.local";
+    $dir = getenv("TAFASEEL_DEMO_DIR") ?: $root . "/.local";
     if (!is_dir($dir)) {
         mkdir($dir, 0700, true);
     }
-    if (!file_exists(__DIR__ . "/config.php")) {
+    $configPath = getenv("TAFASEEL_CONFIG") ?: __DIR__ . "/config.php";
+    if (!file_exists($configPath)) {
         file_put_contents(
-            __DIR__ . "/config.php",
+            $configPath,
             "<?php return " .
                 var_export(
                     [
@@ -28,7 +29,7 @@ if ($command === "demo") {
                 ";",
         );
     }
-    chmod(__DIR__ . "/config.php", 0600);
+    chmod($configPath, 0600);
 }
 require_once __DIR__ . "/api.php";
 if (in_array($command, ["demo", "migrate"], true)) {
@@ -324,10 +325,10 @@ if (in_array($command, ["demo", "migrate"], true)) {
     });
     seedDemoV2();
     file_put_contents(
-        $root . "/.local/accounts.json",
+        $dir . "/accounts.json",
         json_encode($accounts, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
     );
-    chmod($root . "/.local/accounts.json", 0600);
+    chmod($dir . "/accounts.json", 0600);
     echo "Local demo ready. Fictional accounts stay in .local/accounts.json. Use the local demo buttons.\n";
     exit();
 }
