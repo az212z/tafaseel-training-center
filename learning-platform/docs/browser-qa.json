@@ -1,0 +1,134 @@
+{
+  "desktop": [
+    {
+      "brokenImages": 0,
+      "heading": "الطلاب والمتدربون",
+      "overflow": false,
+      "path": "/students"
+    },
+    {
+      "brokenImages": 0,
+      "heading": "الواجبات والتكليفات",
+      "overflow": false,
+      "path": "/assignments"
+    },
+    {
+      "brokenImages": 0,
+      "heading": "الاختبارات",
+      "overflow": false,
+      "path": "/quizzes"
+    },
+    {
+      "brokenImages": 0,
+      "heading": "الجدول التدريبي",
+      "overflow": false,
+      "path": "/schedule"
+    },
+    {
+      "brokenImages": 0,
+      "heading": "الحضور والغياب",
+      "overflow": false,
+      "path": "/attendance"
+    },
+    {
+      "brokenImages": 0,
+      "heading": "مكتبة الملفات",
+      "overflow": false,
+      "path": "/files"
+    },
+    {
+      "brokenImages": 0,
+      "heading": "الشهادات",
+      "overflow": false,
+      "path": "/certificates"
+    },
+    {
+      "brokenImages": 0,
+      "heading": "التقارير والإحصاءات",
+      "overflow": false,
+      "path": "/reports"
+    },
+    {
+      "brokenImages": 0,
+      "heading": "إعلانات المركز",
+      "overflow": false,
+      "path": "/announcements"
+    },
+    {
+      "brokenImages": 0,
+      "heading": "الحسابات والصلاحيات",
+      "overflow": false,
+      "path": "/users"
+    },
+    {
+      "brokenImages": 0,
+      "heading": "الإعدادات والأمان",
+      "overflow": false,
+      "path": "/settings"
+    },
+    {
+      "brokenImages": 0,
+      "heading": "المساعدة والدعم",
+      "overflow": false,
+      "path": "/support"
+    }
+  ],
+  "mobile": [
+    {
+      "overflow": false,
+      "path": "/"
+    },
+    {
+      "overflow": false,
+      "path": "/courses"
+    },
+    {
+      "overflow": false,
+      "path": "/students"
+    },
+    {
+      "overflow": false,
+      "path": "/assignments"
+    },
+    {
+      "overflow": false,
+      "path": "/quizzes"
+    },
+    {
+      "overflow": false,
+      "path": "/schedule"
+    },
+    {
+      "overflow": false,
+      "path": "/attendance"
+    },
+    {
+      "overflow": false,
+      "path": "/files"
+    },
+    {
+      "overflow": false,
+      "path": "/certificates"
+    },
+    {
+      "overflow": false,
+      "path": "/reports"
+    },
+    {
+      "overflow": false,
+      "path": "/announcements"
+    },
+    {
+      "overflow": false,
+      "path": "/users"
+    },
+    {
+      "overflow": false,
+      "path": "/settings"
+    },
+    {
+      "overflow": false,
+      "path": "/support"
+    }
+  ]
+}

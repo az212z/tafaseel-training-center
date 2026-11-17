@@ -1,0 +1,11 @@
+node_modules/
+dist/
+reference/
+.local/
+output/
+server/config.php
+*.log
+.DS_Store
+.env*
+!.env.example
+*.tsbuildinfo
