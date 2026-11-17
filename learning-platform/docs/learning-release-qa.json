@@ -1,0 +1,74 @@
+{
+  "test_assertions": {
+    "sqlite": {
+      "core": 68,
+      "integrations": 64,
+      "website": 35,
+      "learning_tools": 44
+    },
+    "mariadb": {
+      "core": 68,
+      "integrations": 64,
+      "website": 35,
+      "learning_tools": 44
+    }
+  },
+  "preview_workflows": 42,
+  "github_trial_checks": 20,
+  "large_simulation_checks": 19,
+  "local_assertions_total": 503,
+  "ci": {
+    "url": "https://github.com/az212z/tafaseel-training-center/actions/runs/44129587325",
+    "conclusion": "success",
+    "jobs": [
+      "verify",
+      "trial-container",
+      "mariadb-regression"
+    ],
+    "runtime": "PHP 8.3 / MariaDB 11.8",
+    "scale_checks": 19
+  },
+  "deployment": {
+    "domain": "tafaseel-learn.com",
+    "deployed_at": "2026-11-17T16:55:45.305015+00:00",
+    "files": 93,
+    "all_hashes_match": true,
+    "private_configuration_preserved": true,
+    "schema_tables": 39,
+    "synthetic_production_records": 0
+  },
+  "production": {
+    "passed": 18,
+    "failed": 0,
+    "public_routes": 44,
+    "static_files_matched": 67,
+    "private_paths_denied": 10,
+    "canonical_redirects": 2,
+    "old_site_responses_unchanged": 2,
+    "runtime": {
+      "php": "8.3.36",
+      "database": "11.8.9-MariaDB-log"
+    },
+    "data_counts": {
+      "users": 1,
+      "courses": 20,
+      "lessons": 0,
+      "enrollments": 0,
+      "learning_paths": 0,
+      "path_courses": 0,
+      "discussions": 0,
+      "lesson_notes": 0,
+      "course_surveys": 0
+    },
+    "worker_last_run": "2026-11-17T17:02:01Z",
+    "worker_age_seconds_at_verification": 6
+  },
+  "temporary_access_cleanup": {
+    "verified_at": "2026-11-17T17:04:00.525145+00:00",
+    "temporary_key_removed_from_hosting": true,
+    "new_ssh_connection_rejected": true,
+    "local_private_key_removed": true,
+    "public_key_retained_for_audit": true
+  },
+  "verdict": "Not ready for full commercial launch; tested technical release with content, integration, operational capacity and optional enterprise gaps documented."
+}

@@ -1781,6 +1781,7 @@ function Sitemap({ c }: { c: SiteContent }) {
                       "/teach": "انضم كمدرب",
                       "/library": "المكتبة",
                       "/practice": "التمارين",
+                      "/learning-paths": "مسارات التعلم",
                       "/help": "المساعدة",
                       "/contact": "التواصل",
                       "/verify": "التحقق من الشهادات",
