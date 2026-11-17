@@ -1,5 +1,13 @@
 """Isolated API integration and authorization tests; never touches the center's database."""
 import os, tempfile, subprocess, pathlib, socket, time, json, urllib.request, urllib.error, http.cookiejar, re, hashlib, hmac, base64, struct
+import sys
+_original_hook=sys.excepthook
+def show_process_error(kind,value,trace):
+    if isinstance(value,subprocess.CalledProcessError):
+        for output in [value.stdout,value.stderr]:
+            if output:print(output.decode(errors='replace') if isinstance(output,bytes) else output,file=sys.stderr)
+    _original_hook(kind,value,trace)
+sys.excepthook=show_process_error
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 ORIGIN='http://127.0.0.1:3117'
 passed=[]
