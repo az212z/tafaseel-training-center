@@ -5,11 +5,12 @@ import {
   ArrowSquareOut,
   ShoppingCart,
   ArrowsClockwise,
+  DownloadSimple,
 } from "@phosphor-icons/react";
 import { api } from "../api";
 import { asset, isStaticPreview } from "../environment";
-import { useApp, date } from "../context";
-import type { CatalogCourse, Order, PageResult } from "../types";
+import { useApp, date, ar, downloadCsv } from "../context";
+import type { CatalogCourse, Order, OrderLedger, PageResult } from "../types";
 import {
   PageHead,
   Panel,
@@ -252,7 +253,21 @@ export function Payments() {
   const [recover, setRecover] = useState<Order | null>(null);
   const [params] = useSearchParams();
   const orderId = params.get("order");
-  const remote = useRemote<PageResult<Order>>("orders", { page: String(page) });
+  const [filters, setFilters] = useState({
+    search: "",
+    status: "",
+    from: "",
+    to: "",
+  });
+  const remote = useRemote<OrderLedger>("orders", {
+    ...filters,
+    page: String(page),
+  });
+  const ledger = !remote.loading && !remote.error ? remote.result : null;
+  function filter(key: keyof typeof filters, value: string) {
+    setFilters((previous) => ({ ...previous, [key]: value }));
+    setPage(1);
+  }
   useEffect(() => {
     if (orderId && !isStaticPreview)
       api("payment.refresh", { id: orderId })
@@ -287,6 +302,38 @@ export function Payments() {
         title="المدفوعات والتسجيل"
         subtitle="سجل الرسوم وحالة التحقق من بوابة الدفع."
       >
+        {user.role === "admin" && (
+          <Button
+            variant="secondary"
+            disabled={!ledger?.items.length}
+            onClick={() =>
+              downloadCsv(
+                "tafaseel-payments-page.csv",
+                [
+                  "معرف الطلب",
+                  "الطالب",
+                  "الدورة",
+                  "المبلغ بالريال",
+                  "الحالة",
+                  "تاريخ الطلب",
+                  "تاريخ الدفع",
+                ],
+                (ledger?.items ?? []).map((o) => [
+                  o.id,
+                  o.student_name,
+                  o.course_title,
+                  (o.amount / 100).toFixed(2),
+                  statusNames[o.status] || o.status,
+                  o.created_at,
+                  o.paid_at,
+                ]),
+              )
+            }
+          >
+            <DownloadSimple size={18} />
+            تصدير الصفحة الحالية
+          </Button>
+        )}
         <Button variant="secondary" onClick={remote.reload}>
           <ArrowsClockwise size={18} />
           تحديث السجل
@@ -297,9 +344,84 @@ export function Payments() {
           محاكاة فقط: لا توجد عمليات دفع حقيقية أو خصم مبالغ في نسخة GitHub.
         </div>
       )}
+      <Panel
+        title="تصفية سجل المدفوعات"
+        description="الفترة حسب تاريخ إنشاء الطلب بتوقيت الرياض. الملخص يشمل جميع النتائج المطابقة عبر الصفحات."
+      >
+        <div className="form-grid">
+          <Field label="الطالب أو الدورة أو رقم الطلب">
+            <input
+              type="search"
+              value={filters.search}
+              maxLength={100}
+              onChange={(e) => filter("search", e.target.value)}
+            />
+          </Field>
+          <Field label="حالة الدفع">
+            <select
+              value={filters.status}
+              onChange={(e) => filter("status", e.target.value)}
+            >
+              <option value="">جميع الحالات</option>
+              {Object.entries(statusNames)
+                .filter(([key]) => isStaticPreview || !key.startsWith("demo_"))
+                .map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+            </select>
+          </Field>
+          <Field label="من تاريخ">
+            <input
+              type="date"
+              value={filters.from}
+              onChange={(e) => filter("from", e.target.value)}
+            />
+          </Field>
+          <Field label="إلى تاريخ">
+            <input
+              type="date"
+              value={filters.to}
+              onChange={(e) => filter("to", e.target.value)}
+            />
+          </Field>
+        </div>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setFilters({ search: "", status: "", from: "", to: "" });
+            setPage(1);
+          }}
+        >
+          مسح التصفية
+        </Button>
+      </Panel>
       <RemoteState {...remote} />
+      {user.role === "admin" && ledger && (
+        <>
+          <div className="stats-grid">
+            {[
+              ["المدفوع المؤكد حاليًا", money(ledger.summary.paid)],
+              ["بانتظار الدفع أو التحقق", money(ledger.summary.pending)],
+              ["طلبات بحالة مسترد", money(ledger.summary.refunded)],
+              ["طلبات تحتاج مراجعة", ar(ledger.summary.review)],
+            ].map(([label, value]) => (
+              <div className="stat-card" key={label}>
+                <div className="stat-title">{label}</div>
+                <strong className="finance-value">{value}</strong>
+              </div>
+            ))}
+          </div>
+          <p className="muted">
+            المبالغ حسب الحالة الحالية للطلبات. المدفوع يشمل الطلبات المدفوعة
+            التي تنتظر مراجعة التسجيل، ويستبعد الطلبات المستردة. هذا سجل متابعة
+            للمنصة؛ لا يمثل تسوية حساب بوابة الدفع.
+          </p>
+        </>
+      )}
       <Panel>
-        {remote.result?.items.length ? (
+        {ledger?.items.length ? (
           <Table
             headers={[
               "الطلب",
@@ -310,7 +432,7 @@ export function Payments() {
               "",
             ]}
           >
-            {remote.result.items.map((o) => (
+            {ledger.items.map((o) => (
               <tr key={o.id}>
                 <td className="mono-cell">{o.id.slice(0, 10)}</td>
                 <td>
@@ -387,19 +509,16 @@ export function Payments() {
             ))}
           </Table>
         ) : (
-          !remote.loading && (
+          !remote.loading &&
+          !remote.error && (
             <Empty
               title="لا توجد طلبات دفع"
-              text="تظهر طلبات التسجيل المدفوع هنا بعد اختيار دورة من كتالوج التسجيل."
+              text="لا توجد طلبات مطابقة للتصفية الحالية. تظهر طلبات التسجيل المدفوع بعد اختيار دورة من كتالوج التسجيل."
             />
           )
         )}
       </Panel>
-      <Pagination
-        page={page}
-        total={remote.result?.total ?? 0}
-        onPage={setPage}
-      />
+      <Pagination page={page} total={ledger?.total ?? 0} onPage={setPage} />
       <p className="muted">
         تأكيد التسجيل المدفوع يعتمد على استعلام الخادم من ميسر. إشعار النجاح في
         المتصفح وحده لا يثبت الدفع. الاسترداد وتنظيم صلاحية الوصول بعده يراجعان

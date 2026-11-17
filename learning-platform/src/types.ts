@@ -197,6 +197,9 @@ export interface PageResult<T> {
   page: number;
   page_size: number;
 }
+export interface OrderLedger extends PageResult<Order> {
+  summary: { paid: number; pending: number; refunded: number; review: number };
+}
 export interface CatalogCourse {
   id: string;
   title: string;

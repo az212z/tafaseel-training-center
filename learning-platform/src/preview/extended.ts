@@ -239,12 +239,73 @@ export async function extendedApi<T>(
         await save();
         return { enrolled: false, order } as T;
       }
-    case "orders":
+    case "orders": {
       actor(["admin", "student"]);
-      return page(
-        e.orders.filter((o) => u.role === "admin" || o.student_id === u.id),
-        n,
-      ) as T;
+      const search = value(d.search).toLocaleLowerCase();
+      const status = value(d.status);
+      const dates: Record<string, number> = {};
+      for (const field of ["from", "to"]) {
+        const input = value(d[field]);
+        if (!input) continue;
+        const parsed = new Date(`${input}T00:00:00+03:00`);
+        if (
+          !/^\d{4}-\d{2}-\d{2}$/.test(input) ||
+          !Number.isFinite(parsed.getTime()) ||
+          new Date(parsed.getTime() + 10800000).toISOString().slice(0, 10) !==
+            input
+        )
+          throw new Error("تاريخ تصفية المدفوعات غير صحيح.");
+        dates[field] = parsed.getTime();
+      }
+      if (
+        dates.from !== undefined &&
+        dates.to !== undefined &&
+        dates.from > dates.to
+      )
+        throw new Error("تاريخ البداية يجب أن يسبق تاريخ النهاية.");
+      const orders = e.orders
+        .filter(
+          (o) =>
+            (u.role === "admin" || o.student_id === u.id) &&
+            (!status || o.status === status) &&
+            (!search ||
+              [o.id, o.student_name, o.course_title].some((v) =>
+                v?.toLocaleLowerCase().includes(search),
+              )) &&
+            (dates.from === undefined ||
+              Date.parse(o.created_at) >= dates.from) &&
+            (dates.to === undefined ||
+              Date.parse(o.created_at) < dates.to + 86400000),
+        )
+        .sort(
+          (a, b) =>
+            b.created_at.localeCompare(a.created_at) ||
+            a.id.localeCompare(b.id),
+        );
+      return {
+        ...page(orders, n),
+        summary: {
+          paid: orders
+            .filter((o) =>
+              ["paid", "paid_review", "demo_paid"].includes(o.status),
+            )
+            .reduce((sum, o) => sum + o.amount, 0),
+          pending: orders
+            .filter((o) =>
+              ["creating", "pending", "uncertain", "demo_pending"].includes(
+                o.status,
+              ),
+            )
+            .reduce((sum, o) => sum + o.amount, 0),
+          refunded: orders
+            .filter((o) => o.status === "refunded")
+            .reduce((sum, o) => sum + o.amount, 0),
+          review: orders.filter((o) =>
+            ["paid_review", "uncertain"].includes(o.status),
+          ).length,
+        },
+      } as T;
+    }
     case "preview.payment.confirm":
     case "payment.refresh": {
       const o = e.orders.find(

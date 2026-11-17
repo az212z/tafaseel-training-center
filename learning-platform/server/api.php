@@ -365,6 +365,30 @@ function api(string $action, string $method, array $d, string $raw = ""): array
     if ($action === "data") {
         return dataFor($u);
     }
+    if ($action === "account.profile") {
+        auth(["admin"]);
+        rate("account-profile:" . $u["id"], 8, 900);
+        $current = str($d["current"] ?? "", 128);
+        $row = one("SELECT password FROM users WHERE id=?", [$u["id"]]);
+        if (!password_verify($current, $row["password"])) {
+            fail(422, "كلمة المرور الحالية غير صحيحة.");
+        }
+        $name = str($d["name"] ?? "", 120);
+        $em = email($d["email"] ?? "");
+        tx(function () use ($u, $name, $em) {
+            $conflict = one("SELECT id FROM users WHERE email=?", [$em]);
+            if ($conflict && $conflict["id"] !== $u["id"]) {
+                fail(409, "البريد مسجل مسبقًا.");
+            }
+            run("UPDATE users SET name=?,email=? WHERE id=?", [
+                $name,
+                $em,
+                $u["id"],
+            ]);
+            audit($u, "account.profile_updated", $u["id"]);
+        });
+        return ["ok" => true];
+    }
     if ($action === "password") {
         $old = str($d["current"] ?? "", 128);
         $row = one("SELECT password FROM users WHERE id=?", [$u["id"]]);

@@ -146,6 +146,22 @@ with tempfile.TemporaryDirectory(prefix='tafaseel-v2-test-') as folder:
   check('fake-client-secret' not in json.dumps(admin.get('integrations')) and admin.get('integrations')['services']['moyasar']['mode']=='test','Integration dashboard exposes status and test mode without secret values')
   for i in range(30):sql("INSERT INTO orders(id,student_id,course_id,amount,currency,status,expires_at,created_at,updated_at) VALUES(?,?,?,100,'SAR','failed',?,?,?)",['paged-'+str(i),'student',cid,stamp(),stamp(),stamp()])
   check(len(student.get('orders&page=1')['items'])==25 and student.get('orders&page=2')['items'],'Payment ledger paginated in database, not sliced from a full client payload')
+  ledger_fixtures=[]
+  for i in range(30):
+   ledger_fixtures.append({'id':'ledger-fixture-'+str(i),'student_id':'student' if i%2==0 else 'second','amount':1000+i,'status':['paid','paid_review','pending','uncertain','refunded','failed'][i%6],'created_at':'2026-11-16T21:00:00Z'})
+  for suffix,created,status,amount in [('before','2026-11-16T20:59:59Z','paid',10000),('end','2026-11-17T20:59:59Z','refunded',20000),('after','2026-11-17T21:00:00Z','paid_review',30000)]:
+   ledger_fixtures.append({'id':'ledger-fixture-'+suffix,'student_id':'student','amount':amount,'status':status,'created_at':created})
+  for o in ledger_fixtures:sql("INSERT INTO orders(id,student_id,course_id,amount,currency,status,expires_at,created_at,updated_at) VALUES(?,?,?,?,'SAR',?,?,?,?)",[o['id'],o['student_id'],cid,o['amount'],o['status'],stamp(),o['created_at'],stamp()])
+  selection='orders&search=ledger-fixture&from=2026-11-17&to=2026-11-17'
+  ledger=admin.get(selection);selected=[o for o in ledger_fixtures if '2026-11-16T21:00:00Z'<=o['created_at']<'2026-11-17T21:00:00Z']
+  expected_summary=lambda items:{'paid':sum(o['amount'] for o in items if o['status'] in ['paid','paid_review']),'pending':sum(o['amount'] for o in items if o['status'] in ['creating','pending','uncertain']),'refunded':sum(o['amount'] for o in items if o['status']=='refunded'),'review':sum(o['status'] in ['paid_review','uncertain'] for o in items)}
+  check(ledger['total']==31 and len(ledger['items'])==25 and ledger['summary']==expected_summary(selected),'Ledger totals include all filtered pages and separate paid, pending and refunded amounts')
+  page2=admin.get(selection+'&page=2');check(len(page2['items'])==6 and page2['summary']==ledger['summary'],'Financial summary stays identical across pages')
+  student_ledger=student.get(selection+'&student_id=second');own=[o for o in selected if o['student_id']=='student']
+  check(student_ledger['total']==len(own) and student_ledger['summary']==expected_summary(own),'Ledger filters and totals cannot expose another student payment data')
+  refunded=admin.get(selection+'&status=refunded');check(refunded['total']==6 and refunded['summary']['paid']==0 and refunded['summary']['refunded']==25080,'Riyadh date range includes both midnight boundaries and filters payment status')
+  admin.get('orders&status=not-a-status',422);admin.get('orders&from=2026-02-30',422);admin.get('orders&from=2026-11-18&to=2026-11-17',422)
+  check(True,'Ledger rejects invalid status, impossible dates and reversed ranges')
   # Revocation, strong staff setup and failure recovery checks.
   admin.post('user.save',{'id':child,'role':'student','name':'طفل تجريبي','email':'child@example.test','birth_date':'2015-01-01','city':'تبوك','phone':'','guardian_name':'ولي تجريبي','guardian_phone':'0500000003','guardian_id':'guardian','consent':True})
   check(int(sql('SELECT sms_enabled FROM guardian_preferences WHERE student_id=?',[child])[0]['sms_enabled'])==0,'Changing guardian destination revokes previous SMS consent')

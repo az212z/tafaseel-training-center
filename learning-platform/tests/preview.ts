@@ -392,6 +392,22 @@ await test("guardian sees linked child's consent only", async () => {
 });
 await test("guardian cannot open financial ledger", async () =>
   assert.rejects(() => api("orders"), /غير متاحة/));
+await role("admin");
+await test("preview financial summary follows status and search filters", async () => {
+  const ledger = await api<any>("orders", undefined, { status: "demo_paid", search: checkout.order.id });
+  assert.equal(ledger.total, 1);
+  assert.equal(ledger.summary.paid, 19900);
+  assert.equal(ledger.summary.pending, 0);
+  assert.equal((await api<any>("orders", undefined, { search: "no-such-order" })).summary.paid, 0);
+});
+await test("preview date filters use Riyadh days and reject invalid dates", async () => {
+  const order = dbState().extensions!.orders.find((o) => o.id === checkout.order.id)!;
+  order.created_at = "2026-11-16T21:00:00Z";
+  const ledger = await api<any>("orders", undefined, { from: "2026-11-17", to: "2026-11-17" });
+  assert.equal(ledger.total, 1);
+  assert.equal((await api<any>("orders", undefined, { to: "2026-11-16" })).total, 0);
+  await assert.rejects(() => api("orders", undefined, { from: "2026-02-30" }), /تاريخ/);
+});
 await test("reset clears additions, files, roles and results", async () => {
   await api("preview.reset", {});
   assert.equal((await api<any>("session")).user, null);

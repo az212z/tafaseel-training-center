@@ -847,6 +847,13 @@ a:focus-visible {
   color: #5a7075;
   margin-top: 5px;
 }
+.finance-value {
+  display: block;
+  margin-top: 12px;
+  font-size: 22px;
+  color: #2c454b;
+  overflow-wrap: anywhere;
+}
 .stat-detail {
   font-size: 10px;
   color: #666e6f;

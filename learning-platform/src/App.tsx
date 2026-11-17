@@ -932,7 +932,7 @@ function SessionApp() {
       ) : user && data ? (
         <Shell
           data={data}
-          user={user}
+          user={data.user}
           refresh={refresh}
           logout={logout}
           notify={notify}

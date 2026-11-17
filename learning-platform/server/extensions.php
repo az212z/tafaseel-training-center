@@ -215,14 +215,89 @@ function extensionAction(
             }
             $where = $u["role"] === "admin" ? "1=1" : "o.student_id=?";
             $args = $u["role"] === "admin" ? [] : [$u["id"]];
-            return pagedList(
+            $status = str($d["status"] ?? "", 30, false);
+            if ($status) {
+                if (
+                    !in_array(
+                        $status,
+                        [
+                            "creating",
+                            "pending",
+                            "paid",
+                            "paid_review",
+                            "uncertain",
+                            "failed",
+                            "expired",
+                            "canceled",
+                            "refunded",
+                            "voided",
+                        ],
+                        true,
+                    )
+                ) {
+                    fail(422, "حالة الدفع غير صحيحة.");
+                }
+                $where .= " AND o.status=?";
+                $args[] = $status;
+            }
+            $search = str($d["search"] ?? "", 100, false);
+            if ($search) {
+                $where .=
+                    " AND (o.id LIKE ? OR u.name LIKE ? OR c.title LIKE ?)";
+                array_push(
+                    $args,
+                    "%" . $search . "%",
+                    "%" . $search . "%",
+                    "%" . $search . "%",
+                );
+            }
+            $dates = [];
+            foreach (["from", "to"] as $field) {
+                $value = str($d[$field] ?? "", 10, false);
+                if (!$value) {
+                    continue;
+                }
+                $date = DateTimeImmutable::createFromFormat(
+                    "!Y-m-d",
+                    $value,
+                    new DateTimeZone("Asia/Riyadh"),
+                );
+                if (!$date || $date->format("Y-m-d") !== $value) {
+                    fail(422, "تاريخ تصفية المدفوعات غير صحيح.");
+                }
+                $dates[$field] = $date;
+                $where .=
+                    $field === "from"
+                        ? " AND o.created_at>=?"
+                        : " AND o.created_at<?";
+                $args[] = ($field === "to" ? $date->modify("+1 day") : $date)
+                    ->setTimezone(new DateTimeZone("UTC"))
+                    ->format("Y-m-d\\TH:i:s\\Z");
+            }
+            if (
+                isset($dates["from"], $dates["to"]) &&
+                $dates["from"] > $dates["to"]
+            ) {
+                fail(422, "تاريخ البداية يجب أن يسبق تاريخ النهاية.");
+            }
+            $from =
+                " FROM orders o JOIN users u ON u.id=o.student_id JOIN courses c ON c.id=o.course_id WHERE " .
+                $where;
+            $result = pagedList(
                 "SELECT o.id,o.student_id,o.course_id,o.amount,o.currency,o.status,o.checkout_url,o.expires_at,o.created_at,o.paid_at,o.failure_code,u.name student_name,c.title course_title FROM orders o JOIN users u ON u.id=o.student_id JOIN courses c ON c.id=o.course_id WHERE " .
                     $where .
                     " ORDER BY o.created_at DESC,o.id",
-                "SELECT COUNT(*) n FROM orders o WHERE " . $where,
+                "SELECT COUNT(*) n" . $from,
                 $args,
                 $page,
             );
+            $summary = one(
+                "SELECT COALESCE(SUM(CASE WHEN o.status IN ('paid','paid_review') THEN o.amount ELSE 0 END),0) paid, COALESCE(SUM(CASE WHEN o.status IN ('creating','pending','uncertain') THEN o.amount ELSE 0 END),0) pending, COALESCE(SUM(CASE WHEN o.status='refunded' THEN o.amount ELSE 0 END),0) refunded, COALESCE(SUM(CASE WHEN o.status IN ('paid_review','uncertain') THEN 1 ELSE 0 END),0) review" .
+                    $from,
+                $args,
+            );
+            $result["summary"] = array_map("intval", $summary);
+            return $result;
         case "payment.refresh":
             $o = orderAccess($u, str($d["id"] ?? "", 40));
             rate("payment-refresh:" . $u["id"], 30, 300);

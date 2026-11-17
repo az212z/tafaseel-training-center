@@ -142,6 +142,7 @@ const auditNames: Record<string, string> = {
   "legacy.imported": "استيراد نسخة مراجعة للنظام السابق",
   "user.created": "إنشاء حساب",
   "user.updated": "تعديل حساب",
+  "account.profile_updated": "تعديل بيانات حساب الإدارة",
   "user.status_changed": "تغيير حالة حساب",
   "course.created": "إنشاء دورة",
   "course.updated": "تعديل دورة",
@@ -230,9 +231,48 @@ export function Settings() {
                 <ArrowLeft size={18} />
               </Link>
             )}
-            <p className="muted">
-              لتعديل بياناتك الأساسية، تواصل مع إدارة المركز.
-            </p>
+            {admin && !isStaticPreview ? (
+              <Form
+                key={`${user.name}:${user.email}`}
+                submitLabel="حفظ بيانات الإدارة"
+                onSubmit={async (d) => {
+                  await api("account.profile", d);
+                  await refresh();
+                  notify("تم تحديث اسمك وبريد الدخول.");
+                }}
+              >
+                <Field label="اسم مدير المنصة">
+                  <input
+                    name="name"
+                    required
+                    maxLength={120}
+                    defaultValue={user.name}
+                  />
+                </Field>
+                <Field label="بريد الدخول للإدارة">
+                  <input
+                    name="email"
+                    type="email"
+                    dir="ltr"
+                    required
+                    defaultValue={user.email}
+                    autoComplete="username"
+                  />
+                </Field>
+                <Field label="كلمة المرور الحالية لتأكيد التعديل">
+                  <input
+                    name="current"
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                  />
+                </Field>
+              </Form>
+            ) : (
+              <p className="muted">
+                لتعديل بياناتك الأساسية، تواصل مع إدارة المركز.
+              </p>
+            )}
           </Panel>
           {isStaticPreview ? (
             <Panel title="حساب عرض تجريبي">

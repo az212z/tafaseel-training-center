@@ -78,6 +78,21 @@ with tempfile.TemporaryDirectory(prefix='tafaseel-test-') as temp:
         trainer=Client(base);trainer.post('login',{'email':'instructor@example.test','password':password})
         student=Client(base);student.post('login',{'email':'student@example.test','password':password})
         guardian=Client(base);guardian.post('login',{'email':'guardian@example.test','password':password})
+        account={'name':'إدارة تفاصيل المحدثة','email':'owner-updated@example.test','current':password}
+        for restricted in [student,trainer,guardian]:restricted.post('account.profile',account,403)
+        check(True,'Only administrator can update the administration profile')
+        admin.post('account.profile',{**account,'current':'Incorrect-password-93!'},422)
+        admin.post('account.profile',{**account,'email':'student@example.test'},409)
+        check(True,'Administration profile requires current password and unique email')
+        auth_before=sql('SELECT password,auth_version,mfa_secret FROM users WHERE id=?',['admin'])
+        admin.post('account.profile',{**account,'id':'student','role':'student','password':'Unrequested-password-93!'})
+        updated=admin.get('data')['user']
+        check(updated['id']=='admin' and updated['role']=='admin' and updated['email']==account['email'] and updated['name']==account['name'],'Administrator edits own name and email without accepting target or role overrides')
+        check(sql('SELECT password,auth_version,mfa_secret FROM users WHERE id=?',['admin'])==auth_before,'Profile edit preserves password, sessions and MFA configuration')
+        check(len(sql("SELECT id FROM audit WHERE action='account.profile_updated' AND actor_id='admin'"))==1,'Administration profile update records the actor in audit log')
+        new_login=Client(base);new_login.post('login',{'email':account['email'],'password':password});new_login.post('logout',{})
+        admin.post('account.profile',{'name':'admin','email':'admin@example.test','current':password})
+        check(True,'Updated administrator email works for authenticated login')
         body={'role':'student','name':'طالب اختبار','email':'child@example.test','password':password,'birth_date':'2015-01-01','phone':'','city':'تبوك','identity_number':'1000000001','guardian_name':'ولي اختبار','guardian_phone':'٠٥٠٠٠٠٠٠٠١','guardian_id':'guardian','consent':True}
         invalid={**body,'guardian_phone':''};admin.post('user.save',invalid,422);check(True,'Guardian data mandatory for minors')
         child=admin.post('user.save',body)['id'];check(True,'Student creation accepts Arabic phone digits')
