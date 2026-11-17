@@ -16,6 +16,7 @@ def timed(client,action,body=None,expected=200):
     return data,meta
 def percentile(values,p): return round(sorted(values)[max(0,math.ceil(len(values)*p)-1)],2)
 
+(ROOT/'output').mkdir(exist_ok=True)
 with Sandbox() as s:
     counts=json.loads(s.php([str(ROOT/'tests/scale-fixtures.php'),'5000']).stdout)
     admin=s.login('admin');trainer=s.login('instructor');outsider=s.login('other');guardian=s.login('guardian');guest=Client(s.base)

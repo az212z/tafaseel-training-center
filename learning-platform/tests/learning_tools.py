@@ -7,6 +7,7 @@ def check(value,label):
     assert value,label
     checks.append(label)
 
+(ROOT/'output').mkdir(exist_ok=True)
 with Sandbox() as s:
     s.php([str(ROOT/'tests/scale-fixtures.php'),'100'])
     s.php([str(ROOT/'server/console.php'),'migrate'])
