@@ -44,7 +44,7 @@ function visibleStudents(array $u): array
     if ($u["role"] === "instructor") {
         foreach ($out as &$student) {
             unset($student["birth_date"]);
-        };
+        }
     }
     return $out;
 }
@@ -513,7 +513,7 @@ function api(string $action, string $method, array $d): array
                     "راجع تاريخ الميلاد والموافقة وبيانات ولي الأمر في ملف الطالب قبل التفعيل.",
                 );
             }
-            $age = new DateTimeImmutable($p["birth_date"])->diff(
+            $age = (new DateTimeImmutable($p["birth_date"]))->diff(
                 new DateTimeImmutable(),
             )->y;
             if (
@@ -939,7 +939,7 @@ function api(string $action, string $method, array $d): array
                     ) {
                         $score++;
                     }
-                };
+                }
             }
             run(
                 "UPDATE attempts SET answers=?,score=?,submitted_at=? WHERE id=?",
@@ -1267,7 +1267,7 @@ function uploadFile(array $u): array
     if ($size < 1 || $size > 30 * 1024 * 1024) {
         fail(413, "حجم الملف يجب ألا يتجاوز ٣٠ ميجابايت.");
     }
-    $mime = new finfo(FILEINFO_MIME_TYPE)->file($f["tmp_name"]);
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($f["tmp_name"]);
     $allowed = [
         "application/pdf" => ["pdf"],
         "image/jpeg" => ["jpg", "jpeg"],

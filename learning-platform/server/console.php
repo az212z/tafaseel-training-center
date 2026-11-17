@@ -299,7 +299,7 @@ if (in_array($command, ["demo", "migrate"], true)) {
                                 now(),
                             ],
                         );
-                    };
+                    }
                 }
             }
         }
