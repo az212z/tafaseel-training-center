@@ -134,7 +134,38 @@ export function LessonViewer({
   const completed = data.progress.some(
     (p) => p.lesson_id === lesson.id && p.student_id === user.id,
   );
-  let embed = "";
+  const [lessonBody, setLessonBody] = useState(lesson.body);
+  const [bodyError, setBodyError] = useState("");
+  useEffect(() => {
+    let live = true;
+    get<{ lesson: Lesson }>("lesson", { id: lesson.id })
+      .then((r) => {
+        if (live) setLessonBody(r.lesson.body);
+      })
+      .catch((e) => {
+        if (live) setBodyError(e.message);
+      });
+    return () => {
+      live = false;
+    };
+  }, [lesson.id]);
+  const [cloudEmbed, setCloudEmbed] = useState("");
+  const [cloudError, setCloudError] = useState("");
+  useEffect(() => {
+    let live = true;
+    if (lesson.video_asset_id)
+      get<{ url: string }>("video.play", { lesson_id: lesson.id })
+        .then((r) => {
+          if (live) setCloudEmbed(r.url);
+        })
+        .catch((e) => {
+          if (live) setCloudError(e.message);
+        });
+    return () => {
+      live = false;
+    };
+  }, [lesson.id, lesson.video_asset_id]);
+  let embed = cloudEmbed;
   if (lesson.video_url) {
     try {
       const url = new URL(lesson.video_url);
@@ -188,10 +219,18 @@ export function LessonViewer({
           />
         ) : (
           <div className="alert">
-            أضف رابط تشغيل صالحًا للفيديو من إدارة الدورة.
+            {cloudError ||
+              (lesson.video_asset_id
+                ? "جارٍ تجهيز رابط التشغيل…"
+                : "أضف رابط تشغيل صالحًا للفيديو من إدارة الدورة.")}
           </div>
         ))}
-      {lesson.body && <div className="lesson-body">{lesson.body}</div>}
+      {bodyError && (
+        <div className="alert alert-error" role="alert">
+          {bodyError}
+        </div>
+      )}
+      {lessonBody && <div className="lesson-body">{lessonBody}</div>}
       {lesson.file_id && lesson.kind !== "video" && (
         <a href={fileUrl(lesson.file_id)} className="btn btn-secondary">
           <DownloadSimple size={19} />
@@ -333,6 +372,11 @@ export function CourseDetail() {
             </span>
           </button>
         ))}
+      </div>
+      <div className="course-resource-links">
+        <Link className="text-link" to={`/bags?course=${id}`}>
+          فتح الحقيبة التعليمية للمادة
+        </Link>
       </div>
       {tab === "lessons" && (
         <Panel

@@ -275,6 +275,123 @@ await test("real authentication unavailable on static host", async () =>
     () => api("login", { email: "x", password: "x" }),
     /الحسابات التجريبية فقط/,
   ));
+await role("admin");
+const market = await api<any>("catalog");
+const purchasable = market.items.find(
+  (c: any) =>
+    !dbState().enrollments.some(
+      (e) => e.course_id === c.id && e.student_id === "preview-student",
+    ),
+);
+await test("catalog provides available priced course", () => {
+  assert.ok(purchasable);
+  assert.ok(Number.isInteger(purchasable.price_minor));
+});
+await api("commerce.save", {
+  course_id: purchasable.id,
+  price_minor: 19900,
+  enrollment_open: true,
+});
+const bag = await api<any>("bag.save", {
+  course_id: course.id,
+  title: "حقيبة فحص العرض",
+  version: "1.0",
+  description: "مراجع توضيحية",
+});
+await test("training bag references course resource", async () => {
+  await api("bag.item.save", {
+    bag_id: bag.id,
+    file_id: file.id,
+    label: "مرجع توضيحي",
+    sort_order: 1,
+  });
+  const b = await api<any>("bags", undefined, { course_id: course.id });
+  assert.ok(b.items.some((v: any) => v.id === bag.id && v.items.length === 1));
+});
+await api("guardian.preference.save", {
+  student_id: "preview-student",
+  sms_enabled: true,
+  consent: true,
+});
+await api("attendance.save", {
+  class_id: session.id,
+  records: [
+    {
+      student_id: "preview-student",
+      status: "absent",
+      note: "اختبار سجل التنبيه",
+    },
+  ],
+});
+await test("absence preview queues blocked record and never sends", async () => {
+  const n = await api<any>("notifications");
+  assert.ok(
+    n.items.some(
+      (v: any) => v.student_id === "preview-student" && v.status === "blocked",
+    ),
+  );
+});
+await test("external providers explicitly disabled on static hosting", async () => {
+  const r = await api<any>("integrations");
+  assert.ok(Object.values(r.services).every((v: any) => !v.configured));
+});
+await role("student");
+const checkout = await api<any>("checkout", {
+  course_id: purchasable.id,
+  amount: 1,
+  status: "paid",
+});
+await test("preview price is owned by course configuration", () => {
+  assert.equal(checkout.order.amount, 19900);
+  assert.equal(checkout.order.status, "demo_pending");
+});
+await test("pending checkout reused without duplicate order", async () =>
+  assert.equal(
+    (await api<any>("checkout", { course_id: purchasable.id })).order.id,
+    checkout.order.id,
+  ));
+await test("local payment simulation enrolls once", async () => {
+  await api("preview.payment.confirm", { id: checkout.order.id });
+  await api("preview.payment.confirm", { id: checkout.order.id });
+  assert.equal(
+    dbState().enrollments.filter(
+      (e) =>
+        e.student_id === "preview-student" && e.course_id === purchasable.id,
+    ).length,
+    1,
+  );
+  assert.equal(
+    (await api<any>("orders")).items.find(
+      (v: any) => v.id === checkout.order.id,
+    ).status,
+    "demo_paid",
+  );
+});
+await test("preview cannot query a real payment provider", async () =>
+  assert.rejects(
+    () => api("payment.refresh", { id: checkout.order.id }),
+    /محاكاة/,
+  ));
+await role("guardian");
+await test("guardian sees linked child's consent only", async () => {
+  assert.equal(
+    (
+      await api<any>("guardian.preference", undefined, {
+        student_id: "preview-student",
+      })
+    ).sms_enabled,
+    true,
+  );
+  await assert.rejects(
+    () =>
+      api("guardian.preference", undefined, {
+        student_id: "preview-student-3",
+      }),
+    /مرتبط/,
+  );
+});
+await test("guardian cannot open financial ledger", async () =>
+  assert.rejects(() => api("orders"), /غير متاحة/));
 await test("reset clears additions, files, roles and results", async () => {
   await api("preview.reset", {});
   assert.equal((await api<any>("session")).user, null);

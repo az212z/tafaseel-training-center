@@ -11,3 +11,5 @@ server/config.php
 *.tsbuildinfo
 
 dist-preview/
+
+vendor/

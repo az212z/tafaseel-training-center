@@ -1,3 +1,6 @@
+import { useRemote, RemoteState, Pagination } from "../components/remote";
+import type { PageResult } from "../types";
+import { GuardianPreference } from "./Communication";
 import { asset, isStaticPreview } from "../environment";
 import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -19,6 +22,7 @@ import {
   ar,
   date,
   progressPercent,
+  attendancePercent,
   downloadCsv,
   roles,
 } from "../context";
@@ -38,14 +42,15 @@ import {
 } from "../components/ui";
 import { UserForm, EnrollForm, fetchProfile } from "../components/forms";
 export function Students() {
-  const { data, user } = useApp();
+  const { user } = useApp();
   const [term, setTerm] = useState("");
   const [add, setAdd] = useState(false);
-  const students = data.students.filter(
-    (s) =>
-      s.name.includes(term) ||
-      s.email.toLowerCase().includes(term.toLowerCase()),
+  const [page, setPage] = useState(1);
+  const remote = useRemote<PageResult<Student & { courses_count: number }>>(
+    "students.list",
+    { search: term, page: String(page) },
   );
+  const students = remote.result?.items ?? [];
   return (
     <>
       <PageHead
@@ -56,19 +61,19 @@ export function Students() {
           variant="secondary"
           onClick={() =>
             downloadCsv(
-              "tafaseel-students.csv",
+              "tafaseel-students-page.csv",
               ["الاسم", "البريد", "الحالة", "الدورات"],
               students.map((s) => [
                 s.name,
                 s.email,
                 s.active ? "نشط" : "موقوف",
-                data.enrollments.filter((e) => e.student_id === s.id).length,
+                s.courses_count,
               ]),
             )
           }
         >
           <DownloadSimple size={18} />
-          تصدير القائمة
+          تصدير الصفحة الحالية
         </Button>
         {user.role === "admin" && (
           <Button onClick={() => setAdd(true)}>
@@ -81,11 +86,15 @@ export function Students() {
         <div className="table-toolbar">
           <Search
             value={term}
-            onChange={setTerm}
+            onChange={(v) => {
+              setTerm(v);
+              setPage(1);
+            }}
             placeholder="ابحث باسم الطالب أو بريده…"
           />
-          <span className="muted">{ar(students.length)} طالب</span>
+          <span className="muted">{ar(remote.result?.total ?? 0)} طالب</span>
         </div>
+        <RemoteState {...remote} />
         {students.length ? (
           <Table
             headers={[
@@ -111,13 +120,7 @@ export function Students() {
                 <td dir="ltr" className="email-cell">
                   {s.email}
                 </td>
-                <td>
-                  {ar(
-                    data.enrollments.filter((e) => e.student_id === s.id)
-                      .length,
-                  )}{" "}
-                  دورات
-                </td>
+                <td>{ar(s.courses_count)} دورات</td>
                 <td>
                   <Badge tone={s.active ? "green" : "gray"}>
                     {s.active ? "نشط" : "موقوف"}
@@ -140,7 +143,19 @@ export function Students() {
           />
         )}
       </Panel>
-      {add && <UserForm onClose={() => setAdd(false)} />}
+      <Pagination
+        page={page}
+        total={remote.result?.total ?? 0}
+        onPage={setPage}
+      />
+      {add && (
+        <UserForm
+          onClose={() => {
+            setAdd(false);
+            remote.reload();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -168,13 +183,7 @@ export function StudentDetail() {
     enrollments.some((e) => e.course_id === c.id),
   );
   const attend = data.attendance.filter((a) => a.student_id === id);
-  const rate = attend.length
-    ? Math.round(
-        (100 *
-          attend.filter((a) => ["present", "late"].includes(a.status)).length) /
-          attend.length,
-      )
-    : 0;
+  const rate = attendancePercent(attend);
   const privateAccess = user.role !== "instructor";
   return (
     <>
@@ -301,7 +310,7 @@ export function StudentDetail() {
               </div>
               <div>
                 <strong>{ar(rate)}٪</strong>
-                <span>نسبة الحضور</span>
+                <span>نسبة الحضور المرصود</span>
               </div>
               <div>
                 <strong>
@@ -370,6 +379,9 @@ export function StudentDetail() {
           )}
         </div>
       </div>
+      {["admin", "guardian"].includes(user.role) && (
+        <GuardianPreference studentId={student.id} />
+      )}
       {modal === "edit" && (
         <UserForm
           user={student}
@@ -385,13 +397,15 @@ export function StudentDetail() {
 }
 export function Users() {
   const navigate = useNavigate();
-  const { data, notify, refresh } = useApp();
+  const { notify, refresh } = useApp();
   const [term, setTerm] = useState("");
   const [add, setAdd] = useState(false);
   const [edit, setEdit] = useState<User | null>(null);
-  const users = (data.users ?? []).filter(
-    (u) => u.name.includes(term) || u.email.includes(term),
-  );
+  const [page, setPage] = useState(1);
+  const remote = useRemote<
+    PageResult<User> & { role_counts?: Record<string, number> }
+  >("users.list", { search: term, page: String(page) });
+  const users = remote.result?.items ?? [];
   return (
     <>
       <PageHead
@@ -408,9 +422,7 @@ export function Users() {
           <div key={role}>
             <ShieldCheck size={24} weight="duotone" />
             <strong>{label}</strong>
-            <span>
-              {ar(data.users?.filter((u) => u.role === role).length ?? 0)} حساب
-            </span>
+            <span>{ar(remote.result?.role_counts?.[role] ?? 0)} حساب</span>
             <small>
               {role === "admin"
                 ? "إدارة جميع أقسام المنصة"
@@ -427,10 +439,14 @@ export function Users() {
         <div className="table-toolbar">
           <Search
             value={term}
-            onChange={setTerm}
+            onChange={(v) => {
+              setTerm(v);
+              setPage(1);
+            }}
             placeholder="ابحث في الحسابات…"
           />
         </div>
+        <RemoteState {...remote} />
         <Table
           headers={[
             "الاسم",
@@ -479,6 +495,7 @@ export function Users() {
                         try {
                           await api("user.toggle", { id: u.id });
                           await refresh();
+                          remote.reload();
                           notify(
                             u.active
                               ? "تم إيقاف الحساب وإبطال جلساته."
@@ -503,10 +520,29 @@ export function Users() {
         إيقاف الحساب يمنع تسجيل الدخول ويبطل جلساته الحالية. تبقى السجلات
         التعليمية محفوظة.
       </div>
+      <Pagination
+        page={page}
+        total={remote.result?.total ?? 0}
+        onPage={setPage}
+      />
       {add && (
-        <UserForm defaultRole="instructor" onClose={() => setAdd(false)} />
+        <UserForm
+          defaultRole="instructor"
+          onClose={() => {
+            setAdd(false);
+            remote.reload();
+          }}
+        />
       )}
-      {edit && <UserForm user={edit} onClose={() => setEdit(null)} />}
+      {edit && (
+        <UserForm
+          user={edit}
+          onClose={() => {
+            setEdit(null);
+            remote.reload();
+          }}
+        />
+      )}
     </>
   );
 }

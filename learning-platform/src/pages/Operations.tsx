@@ -1,3 +1,4 @@
+import { ZoomControl } from "./Communication";
 import { asset, isStaticPreview } from "../environment";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -26,6 +27,7 @@ import {
   time,
   downloadCsv,
   progressPercent,
+  attendancePercent,
 } from "../context";
 import { api, fileUrl } from "../api";
 import type { Certificate } from "../types";
@@ -136,6 +138,16 @@ export function Schedule() {
                 </div>
               </div>
               <div className="schedule-actions">
+                {(staff || user.role === "student") && (
+                  <ZoomControl
+                    classId={c.id}
+                    ready={c.zoom_status === "ready"}
+                    canHost={staff}
+                  />
+                )}
+                {c.zoom_status && c.zoom_status !== "ready" && (
+                  <Badge tone="amber">لقاء زوم يحتاج مراجعة الإعداد</Badge>
+                )}
                 {c.join_url ? (
                   <a
                     href={c.join_url}
@@ -242,6 +254,13 @@ export function AttendancePage() {
           تصدير السجل
         </Button>
       </PageHead>
+      {staff && (
+        <div className="alert">
+          عند رصد الغياب تُجدول رسالة بعد خمس دقائق للطلاب الذين وُثقت موافقة ولي
+          أمرهم على SMS. تابع حالة الرسائل من «رسائل الغياب»؛ يمكن تصحيح الرصد
+          قبل الإرسال.
+        </div>
+      )}
       <Panel>
         <div className="attendance-toolbar">
           <Field label="اختر الحصة التدريبية">
@@ -680,19 +699,12 @@ export function Reports() {
   const attendance = data.attendance.filter((a) =>
     classes.some((c) => c.id === a.class_id),
   );
-  const ratio = attendance.length
-    ? Math.round(
-        (attendance.filter((a) => ["present", "late"].includes(a.status))
-          .length /
-          attendance.length) *
-          100,
-      )
-    : 0;
+  const ratio = attendancePercent(attendance);
   return (
     <>
       <PageHead
         title="التقارير والإحصاءات"
-        subtitle="صورة واضحة للتقدم، مبنية على سجلات المنصة."
+        subtitle="نسبة الحضور من السجلات المرصودة؛ المتأخر حاضر، والغياب بعذر مستبعد من النسبة."
       >
         <Button
           variant="secondary"

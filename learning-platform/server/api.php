@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . "/bootstrap.php";
+require_once __DIR__ . "/extensions.php";
 function visibleCourses(array $u): array
 {
     $sql =
@@ -50,6 +51,40 @@ function visibleStudents(array $u): array
 }
 function dataFor(array $u): array
 {
+    if (staffNeedsMfa($u)) {
+        return array_fill_keys(
+            [
+                "courses",
+                "students",
+                "instructors",
+                "lessons",
+                "enrollments",
+                "assignments",
+                "quizzes",
+                "classes",
+                "announcements",
+                "support",
+                "submissions",
+                "attempts",
+                "progress",
+                "attendance",
+                "certificates",
+                "files",
+            ],
+            [],
+        ) + [
+            "user" => $u,
+            "demo" => false,
+            "mfa" => false,
+            "mfa_setup_required" => true,
+            "settings" => [
+                "name" => "مركز تفاصيل للتدريب",
+                "email" => "",
+                "phone" => "",
+                "certificate_attendance" => 75,
+            ],
+        ];
+    }
     $courses = visibleCourses($u);
     $ids = array_column($courses, "id");
     $holders = $ids ? implode(",", array_fill(0, count($ids), "?")) : "''";
@@ -58,7 +93,7 @@ function dataFor(array $u): array
     $sh = $sids ? implode(",", array_fill(0, count($sids), "?")) : "''";
     $staff = in_array($u["role"], ["admin", "instructor"], true);
     $lessons = rows(
-        "SELECT * FROM lessons WHERE course_id IN ($holders) ORDER BY sort_order,created_at",
+        "SELECT id,course_id,title,kind,video_url,file_id,'' AS body,duration,sort_order,created_at FROM lessons WHERE course_id IN ($holders) ORDER BY sort_order,created_at",
         $ids,
     );
     $quizzes = rows(
@@ -124,17 +159,24 @@ function dataFor(array $u): array
         "SELECT f.*,u.name AS student_name,c.title AS course_title,c.duration FROM certificates f JOIN users u ON u.id=f.student_id JOIN courses c ON c.id=f.course_id WHERE f.course_id IN ($holders) AND f.student_id IN ($sh)",
         [...$ids, ...$sids],
     );
-    $files = rows(
-        "SELECT id,owner_id,course_id,student_id,purpose,name,mime,bytes,created_at FROM files ORDER BY created_at DESC LIMIT 1000",
-    );
-    $out["files"] = array_values(
-        array_filter($files, function ($f) use ($u) {
-            try {
-                return fileAccess($u, $f);
-            } catch (ApiError) {
-                return false;
-            }
-        }),
+    $fileWhere = "1=1";
+    $fileArgs = [];
+    if ($u["role"] === "instructor") {
+        $fileWhere =
+            "f.owner_id=? OR (f.purpose<>'identity' AND f.course_id IN (SELECT id FROM courses WHERE instructor_id=?))";
+        $fileArgs = [$u["id"], $u["id"]];
+    } elseif ($u["role"] === "student") {
+        $fileWhere =
+            "f.owner_id=? OR (f.purpose IN ('identity','submission') AND f.student_id=?) OR (f.purpose='resource' AND f.course_id IN (SELECT e.course_id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.student_id=? AND c.status='published'))";
+        $fileArgs = [$u["id"], $u["id"], $u["id"]];
+    } elseif ($u["role"] === "guardian") {
+        $fileWhere =
+            "f.owner_id=? OR (f.purpose IN ('identity','submission') AND f.student_id IN (SELECT user_id FROM profiles WHERE guardian_id=?)) OR (f.purpose='resource' AND f.course_id IN (SELECT e.course_id FROM enrollments e JOIN profiles p ON p.user_id=e.student_id JOIN courses c ON c.id=e.course_id WHERE p.guardian_id=? AND c.status='published'))";
+        $fileArgs = [$u["id"], $u["id"], $u["id"]];
+    }
+    $out["files"] = rows(
+        "SELECT f.id,f.owner_id,f.course_id,f.student_id,f.purpose,f.name,f.mime,f.bytes,f.created_at FROM files f WHERE ($fileWhere) ORDER BY f.created_at DESC LIMIT 1000",
+        $fileArgs,
     );
     if ($u["role"] === "admin") {
         $out["users"] = rows(
@@ -144,6 +186,37 @@ function dataFor(array $u): array
             "SELECT a.*,u.name AS actor_name FROM audit a LEFT JOIN users u ON a.actor_id=u.id ORDER BY a.created_at DESC LIMIT 200",
         );
     }
+    $zoomRows = rows(
+        "SELECT z.class_id,z.status,z.meeting_id FROM zoom_meetings z JOIN classes c ON c.id=z.class_id WHERE c.course_id IN ($holders)",
+        $ids,
+    );
+    foreach ($out["classes"] as &$class) {
+        $z = array_values(
+            array_filter($zoomRows, fn($z) => $z["class_id"] === $class["id"]),
+        );
+        $class["zoom_status"] = $z[0]["status"] ?? null;
+    }
+    unset($class);
+    $videoMap = rows(
+        "SELECT id,lesson_id,status FROM video_assets WHERE lesson_id IS NOT NULL AND course_id IN ($holders)",
+        $ids,
+    );
+    foreach ($out["lessons"] as &$lesson) {
+        foreach ($videoMap as $v) {
+            if ($v["lesson_id"] === $lesson["id"]) {
+                $lesson["video_asset_id"] = $v["id"];
+                $lesson["video_status"] = $v["status"];
+            }
+        }
+    }
+    unset($lesson);
+    $out["commerce"] =
+        $u["role"] === "admin" ? rows("SELECT * FROM course_commerce") : [];
+    $out["capabilities"] = [
+        "video" => integrationEnabled("video"),
+        "zoom" => integrationEnabled("zoom"),
+        "payments" => integrationEnabled("moyasar"),
+    ];
     $out["mfa"] =
         (bool) (one("SELECT mfa_secret FROM users WHERE id=?", [$u["id"]])[
             "mfa_secret"
@@ -171,8 +244,12 @@ function checkFileRef(
         fail(422, "المرفق غير صالح لهذا المحتوى.");
     }
 }
-function api(string $action, string $method, array $d): array
+function api(string $action, string $method, array $d, string $raw = ""): array
 {
+    $extension = extensionAction($action, $method, $d, $raw);
+    if ($extension !== null) {
+        return $extension;
+    }
     $gets = [
         "session",
         "data",
@@ -188,7 +265,7 @@ function api(string $action, string $method, array $d): array
     if ($action === "health") {
         cfg();
         db();
-        return ["ok" => true, "version" => "1.0.0"];
+        return ["ok" => true, "version" => "2.0.0"];
     }
     if ($action === "session") {
         sessionStart();
@@ -196,6 +273,8 @@ function api(string $action, string $method, array $d): array
             "user" => currentUser(),
             "csrf" => $_SESSION["csrf"],
             "demo" => (bool) cfg()["demo"],
+            "registration_enabled" =>
+                (bool) (cfg()["registration_enabled"] ?? true),
         ];
     }
     if ($method === "POST") {
@@ -275,6 +354,7 @@ function api(string $action, string $method, array $d): array
         return loginUser($u);
     }
     $u = auth();
+    staffMfaGuard($u, $action);
     if ($action === "logout") {
         audit($u, "session.logout");
         $_SESSION = [];
@@ -477,6 +557,25 @@ function api(string $action, string $method, array $d): array
                 );
             }
             if ($role === "student") {
+                $previous = one(
+                    "SELECT guardian_phone,guardian_id FROM profiles WHERE user_id=?",
+                    [$id],
+                );
+                if (
+                    $previous &&
+                    (dec($previous["guardian_phone"]) !== dec($profile[5]) ||
+                        ($previous["guardian_id"] ?? null) !== $profile[6])
+                ) {
+                    run(
+                        "UPDATE guardian_preferences SET sms_enabled=0,consent_at=NULL,updated_by=?,updated_at=? WHERE student_id=?",
+                        [$u["id"], now(), $id],
+                    );
+                    run(
+                        "UPDATE notification_outbox SET status='cancelled',updated_at=? WHERE student_id=? AND status IN ('pending','retry','blocked')",
+                        [now(), $id],
+                    );
+                    audit($u, "guardian.sms_consent_reset", $id);
+                }
                 if (
                     one("SELECT user_id FROM profiles WHERE user_id=?", [$id])
                 ) {
@@ -583,7 +682,7 @@ function api(string $action, string $method, array $d): array
                     "SELECT COUNT(*) n FROM enrollments WHERE course_id=?",
                     [$id],
                 )["n"];
-                if ($values[7] < $count) {
+                if ($values[7] < $count + reservedSeats($id)) {
                     fail(422, "السعة أقل من عدد الطلاب المسجلين.");
                 }
                 run(
@@ -616,7 +715,9 @@ function api(string $action, string $method, array $d): array
                 (int) one(
                     "SELECT COUNT(*) n FROM enrollments WHERE course_id=?",
                     [$course],
-                )["n"] >= (int) $c["capacity"]
+                )["n"] +
+                    reservedSeats($course) >=
+                (int) $c["capacity"]
             ) {
                 fail(409, "اكتمل عدد المقاعد في الدورة.");
             }
@@ -1040,6 +1141,13 @@ function api(string $action, string $method, array $d): array
                     );
                 }
             }
+            foreach ($records as $record) {
+                syncAbsenceNotice(
+                    $c["id"],
+                    $record["student_id"],
+                    $record["status"],
+                );
+            }
             audit($u, "attendance.saved", $c["id"]);
         });
         return ["ok" => true];
@@ -1198,24 +1306,35 @@ function certificateReason(string $course, string $student): ?string
             return "يجب اجتياز اختبارات الدورة.";
         }
     }
-    $classes = rows("SELECT id FROM classes WHERE course_id=?", [$course]);
+    $classes = rows("SELECT id,ends_at FROM classes WHERE course_id=?", [
+        $course,
+    ]);
     $present = 0;
+    $eligible = 0;
     foreach ($classes as $c) {
+        if (strtotime($c["ends_at"]) > time()) {
+            return "لا تصدر الشهادة قبل انتهاء جميع حصص الدورة.";
+        }
         $a = one(
             "SELECT status FROM attendance WHERE class_id=? AND student_id=?",
             [$c["id"], $student],
         );
-        if (
-            $a &&
-            in_array($a["status"], ["present", "late", "excused"], true)
-        ) {
+        if (!$a) {
+            return "أكمل رصد حضور الطالب في جميع حصص الدورة.";
+        }
+        if ($a["status"] === "excused") {
+            continue;
+        }
+        $eligible++;
+        if (in_array($a["status"], ["present", "late"], true)) {
             $present++;
         }
     }
     if (
         $classes &&
-        (100 * $present) / count($classes) <
-            (setting("general")["certificate_attendance"] ?? 75)
+        (!$eligible ||
+            (100 * $present) / $eligible <
+                (setting("general")["certificate_attendance"] ?? 75))
     ) {
         return "نسبة الحضور أقل من الحد المطلوب للشهادة.";
     }
@@ -1264,7 +1383,7 @@ function uploadFile(array $u): array
         fail(422, "تعذّر رفع الملف. الحد ٣٠ ميجابايت.");
     }
     $size = (int) $f["size"];
-    if ($size < 1 || $size > 30 * 1024 * 1024) {
+    if ($size < 1 || $size > (int) (cfg()["max_upload_bytes"] ?? 31457280)) {
         fail(413, "حجم الملف يجب ألا يتجاوز ٣٠ ميجابايت.");
     }
     $mime = (new finfo(FILEINFO_MIME_TYPE))->file($f["tmp_name"]);
@@ -1286,43 +1405,52 @@ function uploadFile(array $u): array
     if (str_starts_with($mime, "image/") && !@getimagesize($f["tmp_name"])) {
         fail(422, "الصورة غير سليمة.");
     }
-    $used = (int) one("SELECT COALESCE(SUM(bytes),0) n FROM files")["n"];
-    if ($used + $size > 2 * 1024 * 1024 * 1024) {
-        fail(409, "وصلت مساحة الملفات إلى ٢ جيجابايت. راجع الإدارة.");
-    }
     $name = str(basename($f["name"]), 180);
     $id = uid();
-    $storage = uid() . ".enc";
-    $dir = cfg()["storage"] . "/files";
-    if (!is_dir($dir)) {
-        mkdir($dir, 0700, true);
-    }
-    $content = file_get_contents($f["tmp_name"]);
-    if (
-        file_put_contents($dir . "/" . $storage, enc($content), LOCK_EX) ===
-        false
-    ) {
-        throw new RuntimeException("Cannot save file");
-    }
-    chmod($dir . "/" . $storage, 0600);
+    reserveUpload($id, $size);
+    $storage = null;
     try {
-        run(
-            "INSERT INTO files(id,owner_id,course_id,student_id,purpose,name,mime,bytes,storage_name,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
-            [
-                $id,
-                $u["id"],
-                $course ?: null,
-                $student ?: null,
-                $purpose,
-                $name,
-                $mime,
-                $size,
-                $storage,
-                now(),
-            ],
+        $storage = storeEncryptedObject(
+            uid() . ".enc",
+            enc(file_get_contents($f["tmp_name"])),
         );
+        tx(function () use (
+            $id,
+            $u,
+            $course,
+            $student,
+            $purpose,
+            $name,
+            $mime,
+            $size,
+            $storage,
+        ) {
+            run(
+                "INSERT INTO files(id,owner_id,course_id,student_id,purpose,name,mime,bytes,storage_name,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                [
+                    $id,
+                    $u["id"],
+                    $course ?: null,
+                    $student ?: null,
+                    $purpose,
+                    $name,
+                    $mime,
+                    $size,
+                    $storage,
+                    now(),
+                ],
+            );
+            run("DELETE FROM upload_reservations WHERE id=?", [$id]);
+        });
     } catch (Throwable $e) {
-        unlink($dir . "/" . $storage);
+        if ($storage !== null) {
+            try {
+                discardObject($storage);
+            } catch (Throwable) {
+                error_log("Tafaseel: private upload cleanup needs review");
+            }
+        }
+        run("DELETE FROM upload_reservations WHERE id=?", [$id]);
         throw $e;
     }
     audit($u, "file.uploaded", $id);
@@ -1334,12 +1462,9 @@ function downloadFile(array $u, string $id): never
     if (!$f || !fileAccess($u, $f)) {
         fail(404, "الملف غير متاح.");
     }
-    $path = cfg()["storage"] . "/files/" . $f["storage_name"];
-    if (!is_file($path)) {
-        fail(404, "الملف غير موجود.");
-    }
-    $content = dec(file_get_contents($path));
+    $content = dec(encryptedObject($f["storage_name"]));
     audit($u, "file.downloaded", $id);
+    session_write_close();
     $isVideo = $f["mime"] === "video/mp4";
     header("Content-Type: " . $f["mime"]);
     header(

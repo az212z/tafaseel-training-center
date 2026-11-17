@@ -1,5 +1,7 @@
 <?php
 declare(strict_types=1);
+ini_set("display_errors", "0");
+ini_set("log_errors", "1");
 header("Content-Type: application/json; charset=utf-8");
 header("Cache-Control: no-store, private");
 header("X-Content-Type-Options: nosniff");
@@ -38,10 +40,15 @@ try {
     } else {
         $d = $_GET;
     }
-    $result = api($action, $method, $d);
+    $result = api($action, $method, $d, $raw ?? "");
     echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 } catch (Throwable $e) {
-    $status = $e instanceof ApiError ? $e->status : 500;
+    $status =
+        $e instanceof ApiError
+            ? $e->status
+            : ($e instanceof ProviderError
+                ? 502
+                : 500);
     http_response_code($status);
     if ($status === 500) {
         error_log(

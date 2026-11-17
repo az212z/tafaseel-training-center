@@ -17,7 +17,14 @@ import {
   Plus,
   DotsThree,
 } from "@phosphor-icons/react";
-import { useApp, ar, date, time, progressPercent } from "../context";
+import {
+  useApp,
+  ar,
+  date,
+  time,
+  progressPercent,
+  attendancePercent,
+} from "../context";
 import type { Course } from "../types";
 import {
   Panel,
@@ -118,14 +125,7 @@ export default function Dashboard() {
         ) / progressCourses.length,
       )
     : 0;
-  const attendance = data.attendance.length
-    ? Math.round(
-        (data.attendance.filter((a) => ["present", "late"].includes(a.status))
-          .length /
-          data.attendance.length) *
-          100,
-      )
-    : 0;
+  const attendance = attendancePercent(data.attendance);
   const cards = staff
     ? [
         {

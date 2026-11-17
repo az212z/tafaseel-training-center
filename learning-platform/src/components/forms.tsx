@@ -1,3 +1,4 @@
+import { VideoPicker } from "../pages/Resources";
 import { isStaticPreview } from "../environment";
 import { useState } from "react";
 import { Plus, Trash } from "@phosphor-icons/react";
@@ -354,16 +355,18 @@ export function LessonForm({
   const { refresh, notify } = useApp();
   const [kind, setKind] = useState("text");
   const [file, setFile] = useState("");
+  const [videoAsset, setVideoAsset] = useState("");
   return (
     <Modal title="إضافة درس جديد" onClose={onClose} wide>
       <Form
         onCancel={onClose}
         onSubmit={async (d) => {
-          await api("lesson.save", {
+          await api(kind === "cloud" ? "video.lesson" : "lesson.save", {
             ...d,
             kind,
             course_id: courseId,
             file_id: file || null,
+            asset_id: videoAsset || null,
             duration: Number(d.duration),
             sort_order: Number(d.sort_order),
           });
@@ -386,6 +389,9 @@ export function LessonForm({
             >
               <option value="text">درس نصّي</option>
               <option value="video">فيديو مسجل</option>
+              {!isStaticPreview && (
+                <option value="cloud">فيديو طويل من المكتبة السحابية</option>
+              )}
               <option value="file">ملف تدريبي</option>
             </select>
           </Field>
@@ -415,7 +421,14 @@ export function LessonForm({
             />
           </Field>
         )}
-        {kind !== "text" && (
+        {kind === "cloud" && (
+          <VideoPicker
+            courseId={courseId}
+            value={videoAsset}
+            onChange={setVideoAsset}
+          />
+        )}
+        {kind !== "text" && kind !== "cloud" && (
           <FileUpload
             key={kind}
             purpose="resource"

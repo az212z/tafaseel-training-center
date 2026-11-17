@@ -27,6 +27,8 @@ export interface Course {
   created_at: string;
 }
 export interface Lesson {
+  video_asset_id?: string;
+  video_status?: string;
   id: string;
   course_id: string;
   title: string;
@@ -80,6 +82,7 @@ export interface Attempt {
   questions?: Question[];
 }
 export interface ClassSession {
+  zoom_status?: string | null;
   id: string;
   course_id: string;
   title: string;
@@ -153,6 +156,13 @@ export interface Profile {
   guardian_id?: string | null;
 }
 export interface Data {
+  commerce?: {
+    course_id: string;
+    price_minor: number;
+    enrollment_open: number;
+  }[];
+  capabilities?: { video: boolean; zoom: boolean; payments: boolean };
+  mfa_setup_required?: boolean;
   user: User;
   demo: boolean;
   courses: Course[];
@@ -180,4 +190,82 @@ export interface Data {
     phone: string;
     certificate_attendance: number;
   };
+}
+export interface PageResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+export interface CatalogCourse {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  image: string;
+  duration: number;
+  capacity: number;
+  instructor_name: string | null;
+  price_minor: number;
+  currency: string;
+  students_count: number;
+}
+export interface Order {
+  updated_at?: string;
+  id: string;
+  student_id: string;
+  course_id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  checkout_url: string | null;
+  expires_at: string;
+  created_at: string;
+  paid_at: string | null;
+  failure_code: string | null;
+  student_name?: string;
+  course_title?: string;
+}
+export interface BagItem {
+  id: string;
+  bag_id: string;
+  file_id: string;
+  label: string;
+  sort_order: number;
+  name: string;
+  mime: string;
+  bytes: number;
+}
+export interface LearningBag {
+  id: string;
+  course_id: string;
+  title: string;
+  description: string;
+  version: string;
+  updated_at: string;
+  items: BagItem[];
+}
+export interface VideoAsset {
+  id: string;
+  course_id: string;
+  lesson_id: string | null;
+  title: string;
+  status: string;
+  bytes: number;
+  created_at: string;
+  updated_at: string;
+}
+export interface NotificationRecord {
+  id: string;
+  student_id: string;
+  class_id: string;
+  status: string;
+  attempts: number;
+  provider_id: string | null;
+  error_code: string | null;
+  created_at: string;
+  updated_at: string;
+  recipient: string;
+  student_name: string;
+  class_title: string;
 }

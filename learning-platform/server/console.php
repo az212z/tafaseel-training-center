@@ -32,7 +32,7 @@ if ($command === "demo") {
 }
 require_once __DIR__ . "/api.php";
 if (in_array($command, ["demo", "migrate"], true)) {
-    db()->exec(file_get_contents(__DIR__ . "/schema.sql"));
+    migrateSchema();
     if ($command === "migrate") {
         echo "Schema ready. No sample data or accounts were created.\n";
         exit();
@@ -43,6 +43,7 @@ if (in_array($command, ["demo", "migrate"], true)) {
         );
     }
     if (one("SELECT id FROM users LIMIT 1")) {
+        seedDemoV2();
         echo "Local demo already initialized.\n";
         exit();
     }
@@ -321,12 +322,32 @@ if (in_array($command, ["demo", "migrate"], true)) {
         ]);
         audit($admin, "demo.initialized");
     });
+    seedDemoV2();
     file_put_contents(
         $root . "/.local/accounts.json",
         json_encode($accounts, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
     );
     chmod($root . "/.local/accounts.json", 0600);
     echo "Local demo ready. Fictional accounts stay in .local/accounts.json. Use the local demo buttons.\n";
+    exit();
+}
+if ($command === "worker") {
+    echo json_encode(dispatchNotifications(25), JSON_UNESCAPED_UNICODE),
+        PHP_EOL;
+    exit();
+}
+if ($command === "doctor") {
+    echo json_encode(
+    [
+        "php" => PHP_VERSION,
+        "database" => db()->getAttribute(PDO::ATTR_DRIVER_NAME),
+        "services" => integrationStatuses(),
+        "cron_required" => true,
+        "demo" => (bool) cfg()["demo"],
+    ],
+    JSON_PRETTY_PRINT,
+),
+        PHP_EOL;
     exit();
 }
 if ($command === "admin") {

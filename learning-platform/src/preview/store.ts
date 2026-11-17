@@ -1,7 +1,9 @@
+import type { PreviewExtras } from "./extended";
 import type { Data, Profile, Question, Role, User } from "../types";
 import catalog from "../../server/catalog.json";
 export interface PreviewState extends Omit<Data, "user" | "demo" | "mfa"> {
   version: 1;
+  extensions?: PreviewExtras;
   users: User[];
   profiles: Record<string, Profile>;
   questions: Record<string, Question[]>;
@@ -185,20 +187,18 @@ export function seed(): PreviewState {
         due_at: new Date(Date.now() + 3 * 86400000).toISOString(),
         points: 20,
       });
-      students
-        .slice(1, 6)
-        .forEach((u, i) =>
-          s.submissions.push({
-            id: uid(),
-            assignment_id: aid,
-            student_id: u.id,
-            body: "إجابة تجريبية لتوضيح تسليم الواجب ومراجعة المدرب.",
-            file_id: null,
-            score: i < 2 ? 18 : null,
-            feedback: i < 2 ? "عمل جيد، حافظ على وضوح الأمثلة." : "",
-            submitted_at: stamp,
-          }),
-        );
+      students.slice(1, 6).forEach((u, i) =>
+        s.submissions.push({
+          id: uid(),
+          assignment_id: aid,
+          student_id: u.id,
+          body: "إجابة تجريبية لتوضيح تسليم الواجب ومراجعة المدرب.",
+          file_id: null,
+          score: i < 2 ? 18 : null,
+          feedback: i < 2 ? "عمل جيد، حافظ على وضوح الأمثلة." : "",
+          submitted_at: stamp,
+        }),
+      );
       const qid = `c-${ci}-quiz`;
       s.quizzes.push({
         id: qid,

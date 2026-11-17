@@ -23,12 +23,16 @@ jobs:
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: '8.3'
-          extensions: pdo_sqlite, sqlite3, mbstring, openssl, fileinfo
+          extensions: pdo_sqlite, sqlite3, mbstring, openssl, fileinfo, curl
+          tools: composer:v2
           coverage: none
+      - run: composer install --no-dev --prefer-dist --no-interaction
+      - run: composer audit --no-interaction
       - run: npm ci
       - run: npm run typecheck
       - run: npm run check:php
       - run: npm test
+      - run: npm run test:extensions
       - run: npm run test:preview
       - run: npm run build:preview
       - run: npm run package

@@ -139,6 +139,7 @@ function str(mixed $v, int $max = 200, bool $required = true): string
     }
     $v = trim($v);
     if (
+        strlen($v) > 60000 ||
         mb_strlen($v) > $max ||
         ($required && mb_strlen($v) < 2) ||
         preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u', $v)
@@ -470,7 +471,22 @@ function studentAccess(array $u, string $id, bool $sensitive = false): array
 }
 function lockRow(string $table, string $id): void
 {
-    if (!in_array($table, ["courses", "quizzes", "attempts"], true)) {
+    if (
+        !in_array(
+            $table,
+            [
+                "courses",
+                "quizzes",
+                "attempts",
+                "classes",
+                "orders",
+                "notification_outbox",
+                "video_assets",
+                "storage_locks",
+            ],
+            true,
+        )
+    ) {
         throw new RuntimeException("Invalid lock");
     }
     one(

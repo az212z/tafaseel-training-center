@@ -11,6 +11,10 @@ import {
 } from "react-router-dom";
 import {
   SquaresFour,
+  Wallet,
+  ShoppingCart,
+  VideoCamera,
+  Plug,
   BookOpen,
   UsersThree,
   ClipboardText,
@@ -48,6 +52,10 @@ import { Context, roles } from "./context";
 import type { Data, User, Role } from "./types";
 import { Avatar, Button, Modal, Search, Empty } from "./components/ui";
 import Dashboard from "./pages/Dashboard";
+import { Catalog, Payments } from "./pages/Commerce";
+import { Bags, Videos } from "./pages/Resources";
+import { Notifications, Integrations } from "./pages/Communication";
+import { Registration } from "./components/Registration";
 import {
   Courses,
   CourseDetail,
@@ -75,6 +83,7 @@ const menu: {
     items: [
       { to: "/", label: "نظرة عامة", icon: SquaresFour },
       { to: "/courses", label: "الدورات التدريبية", icon: BookOpen },
+      { to: "/catalog", label: "التسجيل في الدورات", icon: ShoppingCart },
       {
         to: "/students",
         label: "الطلاب والمتدربون",
@@ -91,6 +100,25 @@ const menu: {
     title: "الموارد والمتابعة",
     items: [
       { to: "/files", label: "مكتبة الملفات", icon: FolderOpen },
+      { to: "/bags", label: "الحقائب التعليمية", icon: FolderOpen },
+      {
+        to: "/videos",
+        label: "مكتبة الفيديو السحابي",
+        icon: VideoCamera,
+        roles: ["admin", "instructor"],
+      },
+      {
+        to: "/payments",
+        label: "المدفوعات والتسجيل",
+        icon: Wallet,
+        roles: ["admin", "student"],
+      },
+      {
+        to: "/notifications",
+        label: "رسائل الغياب",
+        icon: Bell,
+        roles: ["admin", "guardian"],
+      },
       { to: "/certificates", label: "الشهادات", icon: Certificate },
       { to: "/reports", label: "التقارير والإحصاءات", icon: ChartBar },
       { to: "/announcements", label: "الإعلانات", icon: Megaphone },
@@ -106,6 +134,12 @@ const menu: {
         roles: ["admin"],
       },
       { to: "/settings", label: "الإعدادات والأمان", icon: GearSix },
+      {
+        to: "/integrations",
+        label: "الخدمات والتشغيل",
+        icon: Plug,
+        roles: ["admin"],
+      },
       { to: "/support", label: "المساعدة والدعم", icon: Question },
     ],
   },
@@ -153,14 +187,17 @@ function ResetPreview() {
 }
 function Login({
   demo,
+  registrationEnabled,
   onLogin,
 }: {
   demo: boolean;
+  registrationEnabled: boolean;
   onLogin: (u: User) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [mfa, setMfa] = useState(false);
+  const [register, setRegister] = useState(false);
   const [show, setShow] = useState(false);
   async function demoLogin(role: Role) {
     setBusy(true);
@@ -339,6 +376,12 @@ function Login({
               {error}
             </div>
           )}
+          {registrationEnabled && (
+            <Button variant="secondary" onClick={() => setRegister(true)}>
+              طالب جديد؟ اطلب إنشاء حساب
+            </Button>
+          )}
+          {register && <Registration onClose={() => setRegister(false)} />}
           <div className="login-security">
             <LockKey size={16} />
             {isStaticPreview
@@ -619,10 +662,58 @@ function Shell({
             </button>
           </div>
         )}
+        {data.mfa_setup_required && (
+          <div className="alert">
+            يلزم تفعيل المصادقة الثنائية قبل إدارة بيانات الطلاب. افتح تبويب
+            الأمان لإكمال التفعيل.
+          </div>
+        )}
         <main id="main" className="main-content" tabIndex={-1}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/courses" element={<Courses />} />
+            <Route path="/catalog" element={<Catalog />} />
+            <Route path="/bags" element={<Bags />} />
+            <Route
+              path="/videos"
+              element={
+                ["admin", "instructor"].includes(user.role) ? (
+                  <Videos />
+                ) : (
+                  <Empty title="صلاحية مدرّب مطلوبة" />
+                )
+              }
+            />
+            <Route
+              path="/payments"
+              element={
+                ["admin", "student"].includes(user.role) ? (
+                  <Payments />
+                ) : (
+                  <Empty title="هذا السجل للإدارة وصاحب الطلب" />
+                )
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                ["admin", "guardian"].includes(user.role) ? (
+                  <Notifications />
+                ) : (
+                  <Empty title="هذا السجل للإدارة وولي الأمر" />
+                )
+              }
+            />
+            <Route
+              path="/integrations"
+              element={
+                user.role === "admin" ? (
+                  <Integrations />
+                ) : (
+                  <Empty title="صلاحية إدارية مطلوبة" />
+                )
+              }
+            />
             <Route path="/courses/:id" element={<CourseDetail />} />
             <Route path="/students" element={<Students />} />
             <Route path="/students/:id" element={<StudentDetail />} />
@@ -732,6 +823,7 @@ function SessionApp() {
   const [user, setUser] = useState<User | null>(null);
   const [data, setData] = useState<Data | null>(null);
   const [demo, setDemo] = useState(false);
+  const [registrationEnabled, setRegistrationEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState<{ message: string; type: string } | null>(
@@ -747,12 +839,18 @@ function SessionApp() {
   }, []);
   useEffect(() => {
     let live = true;
-    api<{ user: User | null; csrf: string; demo: boolean }>("session")
+    api<{
+      user: User | null;
+      csrf: string;
+      demo: boolean;
+      registration_enabled?: boolean;
+    }>("session")
       .then((r) => {
         if (live) {
           setCsrf(r.csrf);
           setUser(r.user);
           setDemo(r.demo);
+          setRegistrationEnabled(r.registration_enabled ?? isStaticPreview);
         }
       })
       .catch((e) => {
@@ -783,6 +881,10 @@ function SessionApp() {
     }
   }, [user, refresh]);
   useEffect(() => {
+    if (data?.mfa_setup_required)
+      navigate("/settings?tab=security", { replace: true });
+  }, [data?.mfa_setup_required, navigate]);
+  useEffect(() => {
     if (toast) {
       const id = setTimeout(() => setToast(null), 5500);
       return () => clearTimeout(id);
@@ -802,7 +904,7 @@ function SessionApp() {
     <>
       {loading ? (
         <div className="loading-screen">
-          <img src="/brand/logo.webp" alt="تفاصيل" />
+          <img src={asset("/brand/logo.webp")} alt="تفاصيل" />
           <SpinnerGap size={27} className="spin" />
           <p>نجهّز مساحتك التعليمية…</p>
         </div>
@@ -824,6 +926,7 @@ function SessionApp() {
       ) : (
         <Login
           demo={demo}
+          registrationEnabled={registrationEnabled}
           onLogin={(u) => {
             setError("");
             setUser(u);

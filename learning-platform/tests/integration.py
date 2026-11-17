@@ -63,6 +63,9 @@ with tempfile.TemporaryDirectory(prefix='tafaseel-test-') as temp:
         for _ in range(50):
             try:guest=Client(base);break
             except Exception:time.sleep(.1)
+        query_file=temp/'query.php';query_file.write_text("<?php require "+repr(str(ROOT/'server/bootstrap.php'))+"; $d=json_decode(stream_get_contents(STDIN),true);$s=db()->prepare($d['sql']);$s->execute($d['args']??[]);echo json_encode($s->fetchAll(PDO::FETCH_NUM));")
+        def sql(query,args=[]):
+            r=subprocess.run(['php',str(query_file)],input=json.dumps({'sql':query,'args':args}),env=env,text=True,capture_output=True,check=True);return json.loads(r.stdout)
         guest.get('data',401);check(True,'Unauthenticated data denied')
         guest.post('demo',{'role':'admin'},404);check(True,'Demo entry disabled outside demo configuration')
         guest.post('login',{'email':'admin@example.test','password':password},403,{'X-CSRF-Token':'invalid'});check(True,'CSRF required before login')
@@ -100,15 +103,18 @@ with tempfile.TemporaryDirectory(prefix='tafaseel-test-') as temp:
         classid=trainer.post('class.save',{'course_id':cid,'title':'حصة اختبار','starts_at':'2020-01-01T10:00:00Z','ends_at':'2020-01-01T11:00:00Z','location':'قاعة اختبار'})['id']
         trainer.post('attendance.save',{'class_id':classid,'records':[{'student_id':'student','status':'present'}]});trainer.post('attendance.save',{'class_id':classid,'records':[{'student_id':'student','status':'absent'}]},422);trainer.post('attendance.save',{'class_id':classid,'records':[{'student_id':'student','status':'late','note':'تصحيح وقت الوصول'}]});check(True,'Attendance correction requires an audit reason')
         student.post('attendance.save',{'class_id':classid,'records':[]},403);check(True,'Student cannot self-award attendance')
+        additional={'course_id':cid,'title':'حصة اكتمال الرصد','starts_at':'2099-01-01T10:00:00Z','ends_at':'2099-01-01T11:00:00Z','location':'قاعة اختبار'}
+        additional_id=trainer.post('class.save',additional)['id']
+        trainer.post('certificate.issue',{'course_id':cid,'student_id':'student'},422);check(True,'Certificate blocked before future classes finish')
+        sql('UPDATE classes SET starts_at=?,ends_at=? WHERE id=?',['2020-01-02T10:00:00Z','2020-01-02T11:00:00Z',additional_id]) # Advance fixture clock without changing production scheduling
+        trainer.post('certificate.issue',{'course_id':cid,'student_id':'student'},422);check(True,'Certificate requires attendance finalized for each class')
+        trainer.post('attendance.save',{'class_id':additional_id,'records':[{'student_id':'student','status':'excused'}]});check(True,'Excused absence excluded from attendance denominator')
         cert=trainer.post('certificate.issue',{'course_id':cid,'student_id':'student'});check(bool(cert['id']),'Certificate issued only after passing course requirements')
         trainer.post('certificate.issue',{'course_id':cid,'student_id':child},422);check(True,'Incomplete learner cannot receive certificate')
         pdf=b'%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n'
         file=admin.upload(pdf,student=child,purpose='identity');trainer.get('file&id='+file['id'],403);student.get('file&id='+file['id'],403);guardian.get('file&id='+file['id']);check(True,'Identity file accessible only to linked child or guardian and admin')
         resource=trainer.upload(pdf,course=cid);student.get('file&id='+resource['id']);check(True,'Enrolled student can download course resource')
         trainer.upload(b'<?php echo "bad"; ?>',filename='malicious.php',mime='application/x-php',course=cid,expected=422);trainer.upload(b'<svg onload="alert(1)"></svg>',filename='image.svg',mime='image/svg+xml',course=cid,expected=422);check(True,'Executable and SVG uploads rejected')
-        query_file=temp/'query.php';query_file.write_text("<?php require "+repr(str(ROOT/'server/bootstrap.php'))+"; $d=json_decode(stream_get_contents(STDIN),true);$s=db()->prepare($d['sql']);$s->execute($d['args']??[]);echo json_encode($s->fetchAll(PDO::FETCH_NUM));")
-        def sql(query,args=[]):
-            r=subprocess.run(['php',str(query_file)],input=json.dumps({'sql':query,'args':args}),env=env,text=True,capture_output=True,check=True);return json.loads(r.stdout)
         stored=sql('SELECT identity_number,guardian_phone FROM profiles WHERE user_id=?',[child])[0];check('1000000001' not in stored and '+966500000001' not in stored,'Identity and guardian phone encrypted at rest')
         names=[p.read_bytes() for p in (temp/'storage/files').iterdir()];check(all(not b.startswith(b'%PDF') for b in names),'Uploaded files encrypted outside public root')
         data=guardian.get('data');check(all(s['id']==child for s in data['students']),'Guardian data endpoint excludes unrelated learners');check('users' not in data and 'audit' not in data,'Private administration data omitted for guardian')

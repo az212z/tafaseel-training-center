@@ -1,6 +1,6 @@
 {
   "name": "tafaseel-learning",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,14 +15,16 @@
     "typecheck": "tsc -b",
     "check:php": "python3 scripts/check_php.py",
     "build:preview": "tsc -b && VITE_STATIC_PREVIEW=true vite build --base=/tafaseel-learning-preview/ --outDir=dist-preview && python3 scripts/prepare_preview.py",
-    "test:preview": "node scripts/test_preview.mjs"
+    "test:preview": "node scripts/test_preview.mjs",
+    "test:extensions": "python3 tests/extensions.py"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "5.3.0",
     "@phosphor-icons/react": "2.1.10",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-router-dom": "^7.9.5"
+    "react-router-dom": "^7.9.5",
+    "tus-js-client": "^4.3.1"
   },
   "devDependencies": {
     "@prettier/plugin-php": "^0.26.0",

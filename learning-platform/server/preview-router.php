@@ -10,7 +10,7 @@ if (str_starts_with($path, "/api/")) {
     return true;
 }
 header(
-    "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+    "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://video.bunnycdn.com; media-src 'self' blob:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://player.mediadelivery.net; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
 );
 header("X-Content-Type-Options: nosniff");
 header("X-Frame-Options: DENY");

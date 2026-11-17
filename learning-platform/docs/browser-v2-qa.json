@@ -1,0 +1,247 @@
+{
+  "production": [
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/",
+      "title": "نظرة عامة"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/courses",
+      "title": "الدورات التدريبية"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/students",
+      "title": "الطلاب والمتدربون"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/assignments",
+      "title": "الواجبات والتكليفات"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/quizzes",
+      "title": "الاختبارات"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/schedule",
+      "title": "الجدول التدريبي"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/attendance",
+      "title": "الحضور والغياب"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/files",
+      "title": "مكتبة الملفات"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/bags",
+      "title": "الحقائب التعليمية"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/videos",
+      "title": "مكتبة الفيديو السحابي"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/catalog",
+      "title": "التسجيل في الدورات"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/payments",
+      "title": "المدفوعات والتسجيل"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/notifications",
+      "title": "رسائل الغياب"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/certificates",
+      "title": "الشهادات"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/reports",
+      "title": "التقارير والإحصاءات"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/announcements",
+      "title": "إعلانات المركز"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/users",
+      "title": "الحسابات والصلاحيات"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/settings",
+      "title": "الإعدادات والأمان"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/integrations",
+      "title": "الخدمات والتشغيل"
+    },
+    {
+      "brokenImages": 0,
+      "errors": [],
+      "overflow": false,
+      "path": "/support",
+      "title": "المساعدة والدعم"
+    }
+  ],
+  "mobile": [
+    {
+      "overflow": false,
+      "path": "/",
+      "title": "نظرة عامة"
+    },
+    {
+      "overflow": false,
+      "path": "/courses",
+      "title": "الدورات التدريبية"
+    },
+    {
+      "overflow": false,
+      "path": "/students",
+      "title": "الطلاب والمتدربون"
+    },
+    {
+      "overflow": false,
+      "path": "/assignments",
+      "title": "الواجبات والتكليفات"
+    },
+    {
+      "overflow": false,
+      "path": "/quizzes",
+      "title": "الاختبارات"
+    },
+    {
+      "overflow": false,
+      "path": "/schedule",
+      "title": "الجدول التدريبي"
+    },
+    {
+      "overflow": false,
+      "path": "/attendance",
+      "title": "الحضور والغياب"
+    },
+    {
+      "overflow": false,
+      "path": "/files",
+      "title": "مكتبة الملفات"
+    },
+    {
+      "overflow": false,
+      "path": "/bags",
+      "title": "الحقائب التعليمية"
+    },
+    {
+      "overflow": false,
+      "path": "/videos",
+      "title": "مكتبة الفيديو السحابي"
+    },
+    {
+      "overflow": false,
+      "path": "/catalog",
+      "title": "التسجيل في الدورات"
+    },
+    {
+      "overflow": false,
+      "path": "/payments",
+      "title": "المدفوعات والتسجيل"
+    },
+    {
+      "overflow": false,
+      "path": "/notifications",
+      "title": "رسائل الغياب"
+    },
+    {
+      "overflow": false,
+      "path": "/certificates",
+      "title": "الشهادات"
+    },
+    {
+      "overflow": false,
+      "path": "/reports",
+      "title": "التقارير والإحصاءات"
+    },
+    {
+      "overflow": false,
+      "path": "/announcements",
+      "title": "إعلانات المركز"
+    },
+    {
+      "overflow": false,
+      "path": "/users",
+      "title": "الحسابات والصلاحيات"
+    },
+    {
+      "overflow": false,
+      "path": "/settings",
+      "title": "الإعدادات والأمان"
+    },
+    {
+      "overflow": false,
+      "path": "/integrations",
+      "title": "الخدمات والتشغيل"
+    },
+    {
+      "overflow": false,
+      "path": "/support",
+      "title": "المساعدة والدعم"
+    }
+  ],
+  "logs": []
+}

@@ -1,3 +1,4 @@
+import { extendedApi, previewAbsences } from "./extended";
 import type { Course, Data, Question, Role, User } from "../types";
 import {
   dbState,
@@ -23,14 +24,14 @@ function required(v: unknown, label = "الحقل") {
   if (s.length < 2) throw new Error(`أكمل ${label}.`);
   return s;
 }
-function actor(roles?: Role[]) {
+export function actor(roles?: Role[]) {
   const u = sessionUser();
   if (!u) throw new Error("اختر حساب عرض للمتابعة.");
   if (roles && !roles.includes(u.role))
     throw new Error("هذه الوظيفة غير متاحة لهذا النوع من الحسابات.");
   return u;
 }
-function canStudent(u: User, id: string, privateData = false) {
+export function canStudent(u: User, id: string, privateData = false) {
   const s = dbState();
   if (u.role === "admin" || u.id === id) return true;
   if (u.role === "guardian") return s.profiles[id]?.guardian_id === u.id;
@@ -42,7 +43,7 @@ function canStudent(u: User, id: string, privateData = false) {
     );
   return false;
 }
-function canCourse(u: User, id: string, write = false) {
+export function canCourse(u: User, id: string, write = false) {
   const s = dbState();
   const c = s.courses.find((c) => c.id === id);
   if (!c) return false;
@@ -61,7 +62,7 @@ function canCourse(u: User, id: string, write = false) {
           s.profiles[e.student_id]?.guardian_id === u.id),
   );
 }
-function course(u: User, id: string, write = false) {
+export function course(u: User, id: string, write = false) {
   const c = dbState().courses.find((c) => c.id === id);
   if (!c || !canCourse(u, id, write))
     throw new Error("هذه الدورة غير متاحة لحساب العرض الحالي.");
@@ -153,6 +154,8 @@ function dataFor(u: User): Data {
       (p) => sid.has(p.student_id) && lessons.some((l) => l.id === p.lesson_id),
     ),
     files: s.files.filter((f) => fileAllowed(u, f)),
+    commerce: u.role === "admin" ? (s.extensions?.commerce ?? []) : [],
+    capabilities: { zoom: false, video: false, payments: false },
     announcements: s.announcements.filter(
       (a) => !a.course_id || ids.has(a.course_id),
     ),
@@ -204,15 +207,24 @@ function checkCertificate(courseId: string, studentId: string) {
   }
   const classes = s.classes.filter((c) => c.course_id === courseId);
   if (classes.length) {
-    const present = classes.filter((c) =>
-      s.attendance.some(
-        (a) =>
-          a.class_id === c.id &&
-          a.student_id === studentId &&
-          ["present", "late", "excused"].includes(a.status),
-      ),
+    const records = classes
+      .map((c) => {
+        if (new Date(c.ends_at).getTime() > Date.now())
+          throw new Error("لا تصدر الشهادة قبل انتهاء جميع حصص الدورة.");
+        const r = s.attendance.find(
+          (a) => a.class_id === c.id && a.student_id === studentId,
+        );
+        if (!r) throw new Error("أكمل رصد حضور الطالب في جميع حصص الدورة.");
+        return r;
+      })
+      .filter((r) => r.status !== "excused");
+    const present = records.filter((r) =>
+      ["present", "late"].includes(r.status),
     ).length;
-    if ((100 * present) / classes.length < s.settings.certificate_attendance)
+    if (
+      !records.length ||
+      (100 * present) / records.length < s.settings.certificate_attendance
+    )
       throw new Error("نسبة الحضور أقل من المطلوب لإصدار الشهادة.");
   }
 }
@@ -251,6 +263,8 @@ export async function previewApi<T>(
     throw new Error(
       "نسخة العرض تستخدم الحسابات التجريبية فقط. المصادقة وكلمات المرور تعمل عبر الخادم في النسخة النهائية.",
     );
+  const extended = await extendedApi<T>(action, d);
+  if (extended !== undefined) return structuredClone(extended);
   const u = actor();
   let result: unknown = { ok: true };
   switch (action) {
@@ -835,6 +849,11 @@ export async function previewApi<T>(
     default:
       throw new Error("هذه الوظيفة غير متاحة في نسخة العرض.");
   }
+  if (action === "attendance.save")
+    await previewAbsences(
+      String(d.class_id),
+      d.records as { student_id: string; status: string }[],
+    );
   await save();
   return structuredClone(result) as T;
 }

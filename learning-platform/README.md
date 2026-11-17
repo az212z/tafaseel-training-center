@@ -4,9 +4,10 @@
 
 ## التشغيل المحلي
 
-يتطلب Node.js 22.12+، PHP 8.3+ مع pdo_sqlite وmbstring وopenssl وfileinfo، وPython 3 للاختبارات.
+يتطلب Node.js 22.12+، PHP 8.3+ مع pdo_sqlite وmbstring وopenssl وfileinfo وcurl وSimpleXML وiconv، وComposer 2 وPython 3 للاختبارات.
 
 ```sh
+composer install --no-dev
 npm ci
 npm run setup
 npm start
@@ -23,10 +24,13 @@ npm run typecheck
 npm run build
 npm run check:php
 npm test
+npm run test:extensions
+npm run test:preview
+composer audit
 npm run package
 ```
 
-الأرشيف: `output/tafaseel-learning-hostinger.zip`. تفاصيل [النشر](docs/DEPLOYMENT.md)، [الحماية وحدودها](docs/SECURITY.md)، [الوظائف](docs/FEATURES.md)، [نتائج الاختبار](docs/QA.md)، [اتجاه التصميم](docs/DESIGN.md).
+الأرشيف: `output/tafaseel-learning-hostinger.zip`. تفاصيل [النشر](docs/DEPLOYMENT.md)، [الحماية وحدودها](docs/SECURITY.md)، [الوظائف](docs/FEATURES.md)، [نتائج الاختبار](docs/QA.md)، [اتجاه التصميم](docs/DESIGN.md)، [تفعيل الخدمات](docs/INTEGRATIONS.md)، [السعة والتشغيل](docs/ARCHITECTURE.md).
 
 اختبار MariaDB المحلي، باستخدام قاعدة مؤقتة مستقلة وخادم socket خاص:
 
@@ -39,3 +43,9 @@ TAFASEEL_TEST_MYSQL_SOCKET=/ABSOLUTE/PATH/mysql.sock npm test
 ## عرض GitHub Pages
 
 [افتح نسخة العرض](https://az212z.github.io/tafaseel-learning-preview/) — أربعة حسابات تجريبية وحفظ داخل المتصفح فقط. لا تستخدم بيانات حقيقية. [تفاصيل البناء والقيود](docs/GITHUB-PREVIEW.md).
+
+## إصدار 2.0
+
+تسجيل طلاب عام بمراجعة الإدارة، تسجيل دورات مجانية أو دفع مستضاف لدى ميسر، حقائب تعليمية، ربط زوم، طابور SMS للغياب عبر تقنيات، رفع فيديو كبير قابل للاستئناف إلى Bunny Stream، وتخزين S3 خاص للملفات المشفرة. التكاملات مكتوبة ومختبرة باستخدام بدائل محلية؛ حسابات الخدمات والمفاتيح غير موجودة، لذلك لم يُنفذ دفع أو SMS أو اجتماع خارجي حقيقي. يلزم إعدادها والتحقق الحي قبل التشغيل.
+
+المصادقة الثنائية إلزامية للإدارة والمدربين في الإنتاج افتراضيًا. التسجيل العام ينتج حساب طالب موقوفًا حتى المراجعة. لا يستطيع المتقدم اختيار دور آخر أو رفع هويته قبل تفعيل حسابه.

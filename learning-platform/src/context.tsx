@@ -76,3 +76,16 @@ export function downloadCsv(
   a.click();
   URL.revokeObjectURL(url);
 }
+
+// Rate uses recorded sessions only; excused absence is excluded, late counts as attended.
+export function attendancePercent(records: { status: string }[]) {
+  const eligible = records.filter((r) => r.status !== "excused");
+  return eligible.length
+    ? Math.round(
+        (100 *
+          eligible.filter((r) => ["present", "late"].includes(r.status))
+            .length) /
+          eligible.length,
+      )
+    : 0;
+}
