@@ -1,9 +1,12 @@
 {
   "core-sqlite-v2": {
     "database": "SQLite",
-    "passed": 54,
+    "passed": 57,
     "failed": 0,
     "checks": [
+      "Health response includes a non-sensitive request reference",
+      "Array action rejected as a bad request rather than a server failure",
+      "Malformed action rejected before dispatch",
       "Unauthenticated data denied",
       "Demo entry disabled outside demo configuration",
       "CSRF required before login",

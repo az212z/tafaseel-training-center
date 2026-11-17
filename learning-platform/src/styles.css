@@ -20,6 +20,22 @@
 body {
   margin: 0;
 }
+.application-error {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 32px;
+  text-align: center;
+}
+.application-error img {
+  width: 130px;
+}
+.application-error p {
+  max-width: 440px;
+}
 button,
 input,
 textarea,

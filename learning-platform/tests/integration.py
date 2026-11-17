@@ -66,6 +66,9 @@ with tempfile.TemporaryDirectory(prefix='tafaseel-test-') as temp:
         query_file=temp/'query.php';query_file.write_text("<?php require "+repr(str(ROOT/'server/bootstrap.php'))+"; $d=json_decode(stream_get_contents(STDIN),true);$s=db()->prepare($d['sql']);$s->execute($d['args']??[]);echo json_encode($s->fetchAll(PDO::FETCH_NUM));")
         def sql(query,args=[]):
             r=subprocess.run(['php',str(query_file)],input=json.dumps({'sql':query,'args':args}),env=env,text=True,capture_output=True,check=True);return json.loads(r.stdout)
+        health,health_headers=guest.call('health');check(health['ok'] and bool(re.fullmatch('[a-f0-9]{24}',health_headers.get('X-Request-ID',''))),'Health response includes a non-sensitive request reference')
+        guest.get('health&action[]=health',400);check(True,'Array action rejected as a bad request rather than a server failure')
+        guest.get('invalid%2Faction',400);check(True,'Malformed action rejected before dispatch')
         guest.get('data',401);check(True,'Unauthenticated data denied')
         guest.post('demo',{'role':'admin'},404);check(True,'Demo entry disabled outside demo configuration')
         guest.post('login',{'email':'admin@example.test','password':password},403,{'X-CSRF-Token':'invalid'});check(True,'CSRF required before login')

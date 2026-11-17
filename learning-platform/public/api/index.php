@@ -7,6 +7,8 @@ header("Cache-Control: no-store, private");
 header("X-Content-Type-Options: nosniff");
 header("X-Frame-Options: DENY");
 header("Referrer-Policy: strict-origin-when-cross-origin");
+$requestId = bin2hex(random_bytes(12));
+header("X-Request-ID: " . $requestId);
 try {
     $private =
         getenv("TAFASEEL_PRIVATE_DIR") ?:
@@ -14,6 +16,12 @@ try {
     require_once $private . "/api.php";
     $method = $_SERVER["REQUEST_METHOD"];
     $action = $_GET["action"] ?? "health";
+    if (
+        !is_string($action) ||
+        !preg_match('/^[a-z][a-z0-9.]{0,80}$/', $action)
+    ) {
+        fail(400, "عنوان الطلب غير صالح.");
+    }
     if (
         $method === "POST" &&
         str_starts_with($_SERVER["CONTENT_TYPE"] ?? "", "multipart/form-data")
@@ -52,19 +60,24 @@ try {
     http_response_code($status);
     if ($status === 500) {
         error_log(
-            "Tafaseel API: " .
-                get_class($e) .
-                " at " .
-                $e->getFile() .
-                ":" .
-                $e->getLine(),
+            json_encode(
+                [
+                    "service" => "tafaseel-api",
+                    "request_id" => $requestId,
+                    "exception" => get_class($e),
+                    "file" => basename($e->getFile()),
+                    "line" => $e->getLine(),
+                ],
+                JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+            ),
         );
     }
     echo json_encode(
         [
             "error" =>
                 $status === 500
-                    ? "تعذّر إتمام العملية. راجع إدارة المنصة."
+                    ? "تعذّر إتمام العملية. راجع إدارة المنصة برقم المتابعة: " .
+                        $requestId
                     : $e->getMessage(),
         ],
         JSON_UNESCAPED_UNICODE,

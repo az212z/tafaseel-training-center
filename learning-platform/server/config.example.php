@@ -3,7 +3,7 @@
 return [
     "environment" => "production",
     "demo" => false,
-    "origin" => "https://learn.tafaseel-training.com",
+    "origin" => "https://tafaseel-learn.com",
     "dsn" => "mysql:host=localhost;dbname=DATABASE;charset=utf8mb4",
     "db_user" => "DATABASE_USER",
     "db_password" => "",
