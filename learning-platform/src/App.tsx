@@ -251,21 +251,15 @@ function Login({
         </small>
       </div>
       <main className="login-main">
-        <Link
+        <a
           className="back-site"
-          to="/"
-          onClick={(e) => {
-            e.preventDefault();
-            window.open(
-              "https://tafaseel-training.com/",
-              "_blank",
-              "noopener,noreferrer",
-            );
-          }}
+          href="https://tafaseel-training.com/"
+          target="_blank"
+          rel="noopener noreferrer"
         >
           موقع المركز
           <ArrowSquareOut size={16} />
-        </Link>
+        </a>
         <div className="login-form">
           <span className="login-mark">
             <BookOpen size={29} weight="duotone" />

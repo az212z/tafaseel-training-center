@@ -1,0 +1,149 @@
+{
+  "recorded_at": "2026-11-17T12:19:09.462389+00:00",
+  "url": "https://tafaseel-learn.com",
+  "environment": "production",
+  "demo": false,
+  "live_api": {
+    "url": "https://tafaseel-learn.com",
+    "database": "MariaDB production",
+    "passed": 27,
+    "failed": 0,
+    "external_provider_transactions": 0,
+    "checks": [
+      "HTTPS API connects to production MariaDB",
+      "Production demo disabled and registration closed during QA",
+      "Anonymous private-data request rejected",
+      "Cross-origin login rejected",
+      "Production staff restricted until MFA enrollment",
+      "Staff MFA enrollment unlocks scoped data",
+      "Production cookie has Secure HttpOnly SameSite Strict and Host prefix",
+      "Minor registration requires guardian contact",
+      "Administrator creates student with encrypted guardian profile",
+      "Production staff restricted until MFA enrollment",
+      "Staff MFA enrollment unlocks scoped data",
+      "Guardian can access linked student profile",
+      "Unassigned instructor denied student profile",
+      "Student cannot create courses or escalate role",
+      "Course creation and enrollment persist; duplicate rejected",
+      "Instructor cannot read identity or guardian phone",
+      "Lesson creation and student completion persist",
+      "Authorized private PDF download decrypts original bytes",
+      "Anonymous private file download rejected",
+      "Learning bag and protected file visible to enrolled student",
+      "Assignment submission and instructor grading persist",
+      "Quiz answer key withheld from learner",
+      "Quiz scored by server and ignores submitted score",
+      "Absence creates one notice visible to linked guardian without sending via disabled provider",
+      "Attendance correction cancels pending absence notice",
+      "Certificate issued after completed learning, passing marks and late attendance counted present",
+      "Unavailable paid services reported honestly as not configured"
+    ]
+  },
+  "desktop_pages": 20,
+  "mobile_pages": 20,
+  "mobile_viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "browser_errors_observed": 0,
+  "roles_ui": [
+    {
+      "role": "student",
+      "adminAccountsMenuVisible": false,
+      "brokenImages": 0,
+      "heading": "مساحتي التعليمية",
+      "overflow": false
+    },
+    {
+      "role": "guardian",
+      "adminAccountsMenuVisible": false,
+      "brokenImages": 0,
+      "heading": "مساحتي التعليمية",
+      "overflow": false
+    },
+    {
+      "role": "instructor",
+      "adminAccountsMenuVisible": false,
+      "brokenImages": 0,
+      "heading": "نظرة عامة",
+      "overflow": false
+    }
+  ],
+  "registration": {
+    "adult": {
+      "inactive_pending_review": true,
+      "student_role_only": true,
+      "profile_present": true,
+      "guardian_encrypted": null
+    },
+    "minor": {
+      "inactive_pending_review": true,
+      "student_role_only": true,
+      "profile_present": true,
+      "guardian_encrypted": true
+    },
+    "temporary_registrations_removed": 2,
+    "remaining_users": 1,
+    "draft_courses": 20,
+    "published_courses": 0,
+    "remaining_qa_accounts": 0,
+    "registration_enabled": true
+  },
+  "restore": {
+    "restored": "qa-restore",
+    "verified_tables": 32,
+    "checksums_verified": true,
+    "owner_activity_guard": true,
+    "non_qa_accounts_guard": true
+  },
+  "restored_data": {
+    "restored_private_pdf_matches": true,
+    "restored_certificate_present": true,
+    "restored_guardian_phone_decrypts": true
+  },
+  "static_files_matched": 45,
+  "private_paths_denied": 10,
+  "canonical_redirects": [
+    {
+      "from": "http://tafaseel-learn.com/",
+      "status": 301,
+      "location": "https://tafaseel-learn.com/",
+      "correct": true
+    },
+    {
+      "from": "https://www.tafaseel-learn.com/",
+      "status": 301,
+      "location": "https://tafaseel-learn.com/",
+      "correct": true
+    }
+  ],
+  "security_headers": {
+    "strict-transport-security": "max-age=31536000",
+    "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://video.bunnycdn.com; media-src 'self' blob:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://player.mediadelivery.net; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "cache-control": "no-store",
+    "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()"
+  },
+  "current_center_site": [
+    {
+      "url": "https://tafaseel-training.com/",
+      "status": 200,
+      "sha256": "c86cd4b1f872d714043bc3769574229e48b495fed4d2b81a83a8a11a5704c5af",
+      "matches_baseline": true
+    },
+    {
+      "url": "https://tafaseel-training.com/admin/",
+      "status": 200,
+      "sha256": "a7aeaf4ca905bbaad9781efa4c40a3590fbf3c1989d5a20cadee05e1648a877c",
+      "matches_baseline": true
+    }
+  ],
+  "hostinger_daily_backups_enabled": true,
+  "first_automatic_snapshot_for_new_site_scheduled": "2026-11-18",
+  "private_off_host_initial_backup_created": true,
+  "provider_accounts_configured": false,
+  "owner_first_login_mfa_enrollment_required": true,
+  "load_test_performed": false,
+  "independent_penetration_test_performed": false
+}
