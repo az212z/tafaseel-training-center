@@ -15,7 +15,7 @@
     "trial": 20
   },
   "local_smtp_only": true,
-  "external_smtp_credentials_provided": false,
+  "external_smtp_credentials_provided": true,
   "ui": {
     "desktop": true,
     "mobile_width": 390,
@@ -36,5 +36,15 @@
     "rolling_daily_attempts": 80,
     "rolling_minute_attempts": 5
   },
-  "total_local_checks": 532
+  "total_local_checks": 532,
+  "connection_method": "Hostinger-generated application password; stored encrypted in Tafaseel",
+  "live_inbox_verified": true,
+  "message_authentication": {
+    "spf": "pass",
+    "dkim": "pass",
+    "dmarc": "pass"
+  },
+  "live_checks": 21,
+  "real_messages_sent_by_agent": 1,
+  "bulk_campaigns_sent": 0
 }
