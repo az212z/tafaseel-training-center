@@ -28,7 +28,7 @@ export function LearningNotificationBell({
 }: {
   onWorkspace: (id: string) => void;
 }) {
-  const { notify } = useApp();
+  const { data, notify } = useApp();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -178,6 +178,33 @@ export function LearningNotificationBell({
               size={result.page_size}
               onPage={setPage}
             />
+          )}
+          {data.announcements.some((a) => !a.course_id) && (
+            <section aria-label="إعلانات المركز">
+              <h3>إعلانات المركز</h3>
+              {data.announcements
+                .filter((a) => !a.course_id)
+                .slice(0, 3)
+                .map((a) => (
+                  <button
+                    key={a.id}
+                    className="learning-notification"
+                    onClick={() => {
+                      setOpen(false);
+                      navigate("/announcements");
+                    }}
+                  >
+                    <span className="update-icon">
+                      <Bell size={20} />
+                    </span>
+                    <span>
+                      <strong>{a.title}</strong>
+                      <small>{date(a.created_at)}</small>
+                    </span>
+                    <ArrowLeft size={18} />
+                  </button>
+                ))}
+            </section>
           )}
         </Modal>
       )}

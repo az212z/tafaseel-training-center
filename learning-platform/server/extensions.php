@@ -436,6 +436,13 @@ function extensionAction(
                 [uid(), $id, $file, $label, $sort],
             );
             audit($u, "bag.item_added", $id);
+            courseUpdate(
+                $bag["course_id"],
+                "bag_item",
+                $id . ":" . $file,
+                "مادة جديدة في الحقيبة: " . $label,
+                "/bags?course=" . $bag["course_id"],
+            );
             return ["ok" => true];
         case "guardian.preference":
         case "guardian.preference.save":

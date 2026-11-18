@@ -4,7 +4,7 @@
   "failed": 0,
   "checks": [
     "SMS connection requires administrator reauthentication and stores its token encrypted without returning it",
-    "Every new lesson, assignment, quiz, class, announcement, file and bag creates a learning notification",
+    "Every new lesson, assignment, quiz, class, announcement, file, bag and attached bag item creates a learning notification",
     "Notifications carry the correct course and a local content link",
     "Students outside the course cannot see its notifications",
     "Notification reads require student ownership, the correct HTTP method and CSRF protection",
