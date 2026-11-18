@@ -104,7 +104,7 @@ jobs:
       - run: sudo apt-get update -qq && sudo apt-get install -y mariadb-client socat ffmpeg
       - name: Connect the isolated test socket to the database service
         run: |
-          socat UNIX-LISTEN:/tmp/tafaseel-ci-mariadb.sock,fork TCP:127.0.0.1:33306 &
+          socat UNIX-LISTEN:/tmp/tafaseel-ci-mariadb.sock,fork TCP:127.0.0.1:33306,nodelay &
           for attempt in $(seq 1 30); do
             if mariadb --no-defaults --socket=/tmp/tafaseel-ci-mariadb.sock -u root -e 'SELECT VERSION()'; then exit 0; fi
             sleep 1
