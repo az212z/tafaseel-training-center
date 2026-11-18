@@ -132,9 +132,11 @@ export function Courses() {
 export function LessonViewer({
   lesson,
   onClose,
+  onEdit,
 }: {
   lesson: Lesson;
   onClose: () => void;
+  onEdit?: (lesson: Lesson) => void;
 }) {
   const { data, user, refresh, notify } = useApp();
   const [busy, setBusy] = useState(false);
@@ -144,11 +146,15 @@ export function LessonViewer({
   );
   const [lessonBody, setLessonBody] = useState(lesson.body);
   const [bodyError, setBodyError] = useState("");
+  const [bodyLoaded, setBodyLoaded] = useState(false);
   useEffect(() => {
     let live = true;
     get<{ lesson: Lesson }>("lesson", { id: lesson.id })
       .then((r) => {
-        if (live) setLessonBody(r.lesson.body);
+        if (live) {
+          setLessonBody(r.lesson.body);
+          setBodyLoaded(true);
+        }
       })
       .catch((e) => {
         if (live) setBodyError(e.message);
@@ -246,6 +252,18 @@ export function LessonViewer({
           تنزيل ملف الدرس
         </a>
       )}
+      {onEdit && (
+        <div className="lesson-footer">
+          <Button
+            variant="secondary"
+            disabled={!bodyLoaded}
+            onClick={() => onEdit({ ...lesson, body: lessonBody })}
+          >
+            <PencilSimple size={18} />
+            تعديل الدرس
+          </Button>
+        </div>
+      )}
       {user.role !== "guardian" && (
         <LessonNotebook lessonId={lesson.id} video={video} />
       )}
@@ -280,16 +298,18 @@ export function CourseDetail() {
   const { data, user } = useApp();
   const [tab, setTab] = useState("lessons");
   const [modal, setModal] = useState("");
-  const [lesson, setLesson] = useState<Lesson | null>(null);
-  const [params] = useSearchParams();
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [params, setParams] = useSearchParams();
   const targetLesson = params.get("lesson");
-  useEffect(() => {
-    if (targetLesson)
-      setLesson(
-        data.lessons.find((l) => l.id === targetLesson && l.course_id === id) ??
-          null,
-      );
-  }, [targetLesson, id, data.lessons]);
+  const lesson = data.lessons.find(
+    (item) => item.id === targetLesson && item.course_id === id,
+  );
+  const showLesson = (lessonId?: string) => {
+    const next = new URLSearchParams(params);
+    if (lessonId) next.set("lesson", lessonId);
+    else next.delete("lesson");
+    setParams(next, { replace: true });
+  };
   const c = data.courses.find((c) => c.id === id);
   if (!c)
     return (
@@ -435,7 +455,7 @@ export function CourseDetail() {
                   <button
                     className="lesson-row"
                     key={l.id}
-                    onClick={() => setLesson(l)}
+                    onClick={() => showLesson(l.id)}
                   >
                     <span className="lesson-number">
                       {ar(i + 1).padStart(2, "٠")}
@@ -626,8 +646,27 @@ export function CourseDetail() {
       {modal === "enroll" && (
         <EnrollForm courseId={c.id} onClose={() => setModal("")} />
       )}
+      {editingLesson && editingLesson.course_id === id && staff && (
+        <LessonForm
+          courseId={c.id}
+          lesson={editingLesson}
+          onClose={() => setEditingLesson(null)}
+        />
+      )}
       {lesson && (
-        <LessonViewer lesson={lesson} onClose={() => setLesson(null)} />
+        <LessonViewer
+          key={lesson.id}
+          lesson={lesson}
+          onClose={() => showLesson()}
+          onEdit={
+            staff && !lesson.video_asset_id
+              ? (selected) => {
+                  showLesson();
+                  setEditingLesson(selected);
+                }
+              : undefined
+          }
+        />
       )}
     </>
   );

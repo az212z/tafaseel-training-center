@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Plus, Trash } from "@phosphor-icons/react";
 import { api, get } from "../api";
 import { useApp } from "../context";
-import type { Course, Profile, Student, User } from "../types";
+import type { Course, Lesson, Profile, Student, User } from "../types";
 import { Field, Form, Modal, Button, FileUpload } from "./ui";
 export function CourseSelect({
   value,
@@ -375,22 +375,31 @@ export function UserForm({
 }
 export function LessonForm({
   courseId,
+  lesson,
   onClose,
 }: {
   courseId: string;
+  lesson?: Lesson;
   onClose: () => void;
 }) {
-  const { refresh, notify } = useApp();
-  const [kind, setKind] = useState("text");
-  const [file, setFile] = useState("");
+  const { data, refresh, notify } = useApp();
+  const [kind, setKind] = useState<string>(lesson?.kind ?? "text");
+  const [file, setFile] = useState(lesson?.file_id ?? "");
+  const savedFile = data.files.find((item) => item.id === file);
   const [videoAsset, setVideoAsset] = useState("");
   return (
-    <Modal title="إضافة درس جديد" onClose={onClose} wide>
+    <Modal
+      title={lesson ? "تعديل الدرس" : "إضافة درس جديد"}
+      onClose={onClose}
+      wide
+    >
       <Form
         onCancel={onClose}
+        submitLabel={lesson ? "حفظ التعديلات" : undefined}
         onSubmit={async (d) => {
           await api(kind === "cloud" ? "video.lesson" : "lesson.save", {
             ...d,
+            id: lesson?.id,
             kind,
             course_id: courseId,
             file_id: file || null,
@@ -399,12 +408,17 @@ export function LessonForm({
             sort_order: Number(d.sort_order),
           });
           await refresh();
-          notify("تمت إضافة الدرس.");
+          notify(lesson ? "تم حفظ تعديلات الدرس." : "تمت إضافة الدرس.");
           onClose();
         }}
       >
         <Field label="عنوان الدرس">
-          <input name="title" required maxLength={200} />
+          <input
+            name="title"
+            required
+            maxLength={200}
+            defaultValue={lesson?.title}
+          />
         </Field>
         <div className="form-grid">
           <Field label="نوع المحتوى">
@@ -417,7 +431,7 @@ export function LessonForm({
             >
               <option value="text">درس نصّي</option>
               <option value="video">فيديو مسجل</option>
-              {!isStaticPreview && (
+              {!isStaticPreview && !lesson && (
                 <option value="cloud">فيديو طويل من المكتبة السحابية</option>
               )}
               <option value="file">ملف تدريبي</option>
@@ -429,11 +443,16 @@ export function LessonForm({
               type="number"
               min={0}
               max={10000}
-              defaultValue={20}
+              defaultValue={lesson?.duration ?? 20}
             />
           </Field>
           <Field label="ترتيب الدرس">
-            <input name="sort_order" type="number" min={0} defaultValue={1} />
+            <input
+              name="sort_order"
+              type="number"
+              min={0}
+              defaultValue={lesson?.sort_order ?? 1}
+            />
           </Field>
         </div>
         {kind === "video" && (
@@ -443,6 +462,7 @@ export function LessonForm({
           >
             <input
               name="video_url"
+              defaultValue={lesson?.video_url ?? ""}
               type="url"
               dir="ltr"
               placeholder="https://www.youtube.com/watch?v=…"
@@ -457,13 +477,16 @@ export function LessonForm({
           />
         )}
         {kind !== "text" && kind !== "cloud" && (
-          <FileUpload
-            key={kind}
-            purpose="resource"
-            courseId={courseId}
-            onUploaded={(id) => setFile(id)}
-            accept={kind === "video" ? ".mp4" : ".pdf,.jpg,.jpeg,.png,.webp"}
-          />
+          <>
+            {savedFile && <p>الملف المرفق: {savedFile.name}</p>}
+            <FileUpload
+              key={kind}
+              purpose="resource"
+              courseId={courseId}
+              onUploaded={(id) => setFile(id)}
+              accept={kind === "video" ? ".mp4" : ".pdf,.jpg,.jpeg,.png,.webp"}
+            />
+          </>
         )}
         <Field
           label={kind === "text" ? "محتوى الدرس" : "ملاحظات الدرس (اختياري)"}
@@ -471,6 +494,7 @@ export function LessonForm({
           <textarea
             name="body"
             rows={6}
+            defaultValue={lesson?.body}
             maxLength={20000}
             required={kind === "text"}
           />
