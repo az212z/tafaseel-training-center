@@ -592,6 +592,7 @@
   font-weight: 500;
 }
 .site-course-foot > a {
+  margin-inline-start: auto;
   width: 34px;
   height: 34px;
   display: grid;
@@ -706,12 +707,7 @@
 .site-article-list > a:hover {
   background: #efefe8;
 }
-.site-article-list > a > span {
-  font-size: 13px;
-  color: #7c8a9b;
-  align-self: start;
-  padding-top: 8px;
-}
+
 .site-article-list small {
   font-size: 11px;
   color: var(--site-blue);
@@ -749,24 +745,10 @@
   color: var(--site-muted);
   line-height: 2;
 }
-.site-end {
-  background: #e9eddf;
-  padding: 55px 0;
-  margin-top: 50px;
-}
-.site-end > .site-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 35px;
-}
-.site-end .site-eyebrow {
-  margin-bottom: 10px;
-}
-.site-end h2 {
-  font-size: 36px;
-  font-weight: 500;
-}
+
+
+
+
 .site-footer {
   background: #f0f1ec;
   padding-top: 55px;
@@ -2263,9 +2245,7 @@
   .site-article-list p {
     font-size: 11px;
   }
-  .site-article-list > a > span {
-    font-size: 10px;
-  }
+
   .site-article-list > a > svg {
     width: 20px;
   }
@@ -2282,22 +2262,10 @@
   .site-faq-grid > div {
     padding: 21px 0;
   }
-  .site-end {
-    padding-block: 35px;
-    margin-top: 35px;
-  }
-  .site-end > .site-container {
-    display: block;
-  }
-  .site-end h2 {
-    font-size: 30px;
-  }
-  .site-end .site-button {
-    margin-top: 22px;
-    font-size: 12px;
-    padding: 12px 20px;
-    min-height: 45px;
-  }
+
+
+
+
   .site-footer {
     padding-top: 35px;
   }

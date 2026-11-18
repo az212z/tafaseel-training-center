@@ -153,11 +153,9 @@ function ProgramCard({ p, c }: { p: SiteProgram; c: SiteContent }) {
         </h3>
         <p>{p.description}</p>
         <div className="site-course-foot">
-          <span>
-            {p.availability?.open && p.availability.price_minor !== null
-              ? money(p.availability.price_minor)
-              : "تفاصيل قبل القرار"}
-          </span>
+          {p.availability?.open && p.availability.price_minor !== null && (
+            <span>{money(p.availability.price_minor)}</span>
+          )}
           <Link to={`/programs/${p.slug}`} aria-label={`تفاصيل ${p.title}`}>
             <ArrowUpLeft size={23} />
           </Link>
@@ -230,7 +228,7 @@ export default function PublicSite() {
       "/registration-policy": "سياسة التسجيل والإلغاء",
       "/verify": "التحقق من الشهادات",
       "/practice": "تمارين توضيحية",
-      "/register": "طلب إنشاء حساب",
+      "/register": "إنشاء حساب متدرب",
       "/sitemap": "خريطة الموقع",
     };
     document.title =
@@ -379,19 +377,6 @@ export default function PublicSite() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <section className="site-end">
-        <div className="site-container">
-          <div>
-            <span className="site-eyebrow">خطوتك التالية</span>
-            <h2>
-              ابدأ من هدفك.
-              <br />
-              واترك للتعلّم تفاصيله.
-            </h2>
-          </div>
-          <SiteLink to="/programs">اكتشف دورتك</SiteLink>
-        </div>
-      </section>
       <footer className="site-footer">
         <div className="site-container site-footer-grid">
           <div>
@@ -661,7 +646,7 @@ function Programs({ c }: { c: SiteContent }) {
     <div className="site-container">
       <Heading
         label="دليل تفاصيل"
-        title={group?.title || "خطوتك القادمة، تبدأ باختيارك."}
+        title={group?.title || "الدورات والبرامج"}
         text={
           group?.description ||
           "تصفّح برامج المركز، تعرّف على ما يناسبك، وتحقق من حالة التسجيل لكل دورة."
@@ -1323,21 +1308,15 @@ function LibraryPreview({ c }: { c: SiteContent }) {
     <section className="site-section site-container">
       <div className="site-section-heading">
         <div>
-          <span className="site-eyebrow">من مكتبة التعلّم</span>
-          <h2>
-            فكرة تقرأها.
-            <br />
-            وعادة تتغيّر.
-          </h2>
+          <h2>مكتبة التعلّم</h2>
         </div>
         <Link className="site-text-link" to="/library">
           اكتشف المكتبة <ArrowLeft size={19} />
         </Link>
       </div>
       <div className="site-article-list">
-        {c.articles.map((a, i) => (
+        {c.articles.map((a) => (
           <Link key={a.id} to={"/library/" + a.id}>
-            <span>0{i + 1}</span>
             <div>
               <small>
                 {a.category} · {a.minutes} دقائق قراءة
