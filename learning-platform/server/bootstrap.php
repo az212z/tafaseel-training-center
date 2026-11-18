@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . "/database-connection.php";
 final class ApiError extends RuntimeException
 {
     public function __construct(public int $status, string $message)
@@ -41,11 +42,25 @@ function db(): PDO
         return $p;
     }
     $c = cfg();
-    $p = new PDO($c["dsn"], $c["db_user"] ?? null, $c["db_password"] ?? null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ]);
+    $persistent =
+        str_starts_with($c["dsn"], "mysql:") &&
+        ($c["database_persistent"] ??
+            ($c["environment"] ?? "production") === "production" &&
+                PHP_SAPI !== "cli");
+    $p = connectDatabase(
+        fn() => new PDO(
+            $c["dsn"],
+            $c["db_user"] ?? null,
+            $c["db_password"] ?? null,
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_PERSISTENT => $persistent,
+            ],
+        ),
+        $persistent,
+    );
     if ($p->getAttribute(PDO::ATTR_DRIVER_NAME) === "sqlite") {
         $p->exec(
             "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=10000;",

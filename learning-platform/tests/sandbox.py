@@ -73,6 +73,8 @@ class Sandbox:
     def __exit__(self, kind, value, trace):
         if kind:
             self.log.flush(); print((self.folder/'server.log').read_text()[-2500:])
+            for line in (self.folder/'server.log').read_text().splitlines():
+                if '"service":"tafaseel-api"' in line: print(line)
         os.killpg(self.server.pid,signal.SIGTERM)
         try: self.server.wait(timeout=5)
         except subprocess.TimeoutExpired: os.killpg(self.server.pid,signal.SIGKILL); self.server.wait()

@@ -54,10 +54,15 @@ try {
     $status =
         $e instanceof ApiError
             ? $e->status
-            : ($e instanceof ProviderError
-                ? 502
-                : 500);
+            : ($e instanceof DatabaseBusyException
+                ? 503
+                : ($e instanceof ProviderError
+                    ? 502
+                    : 500));
     http_response_code($status);
+    if ($status === 503) {
+        header("Retry-After: 3");
+    }
     if ($status === 500) {
         error_log(
             json_encode(
@@ -67,6 +72,12 @@ try {
                     "exception" => get_class($e),
                     "file" => basename($e->getFile()),
                     "line" => $e->getLine(),
+                    ...$e instanceof PDOException
+                        ? [
+                            "sqlstate" => $e->errorInfo[0] ?? $e->getCode(),
+                            "driver_code" => $e->errorInfo[1] ?? null,
+                        ]
+                        : [],
                 ],
                 JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
             ),
