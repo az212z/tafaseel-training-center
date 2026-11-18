@@ -43,7 +43,15 @@ try:
     seed="""require 'server/api.php';foreach(['admin'=>'admin','trainer'=>'instructor','other'=>'instructor','s1'=>'student','s2'=>'student'] as $id=>$role){run('INSERT INTO users(id,name,email,password,role,created_at) VALUES(?,?,?,?,?,?)',[$id,$id,$id.'@example.test',password_hash(getenv('TAFASEEL_SIM_PASSWORD'),PASSWORD_DEFAULT),$role,now()]);}run('INSERT INTO courses(id,title,description,category,image,status,instructor_id,capacity,created_at) VALUES(?,?,?,?,?,?,?,?,?)',['c1','دورة اختبار البريد','دورة محلية فقط','اختبار','','published','trainer',20,now()]);foreach(['s1','s2'] as $id)run('INSERT INTO enrollments(id,course_id,student_id,created_at) VALUES(?,?,?,?)',[uid(),'c1',$id,now()]);"""
     s.php(['-r',seed]);admin=s.login('admin');student=s.login('s1');second=s.login('s2');trainer=s.login('trainer');other=s.login('other');anon=Client(s.base)
     anon.get('email.status',401);student.get('email.status',403);student.post('email.configure',{},403)
-    check(True,'Anonymous and learner accounts cannot read or change SMTP settings')
+    for client in [student,trainer,other]:
+      client.get('email.status',403);client.get('email.log',403)
+      client.get('integrations',403);client.get('launch.checklist',403)
+      for action in ['email.configure','email.test','email.dispatch']:client.post(action,{},403)
+    check(True,'SMTP configuration, diagnostics, worker controls and operational APIs are administrator-only')
+    unavailable={'kind':'training','course_id':'c1','subject':'تنبيه الدورة','body':'رسالة تدريبية'}
+    pending=trainer.post('email.campaign.preview',unavailable)
+    unavailable_error=trainer.post('email.campaign.send',{**unavailable,'fingerprint':pending['fingerprint'],'id':os.urandom(16).hex()},422)
+    check(not pending['can_schedule'] and 'configured' not in pending and unavailable_error['error']=='الإرسال غير متاح حاليًا. تواصل مع الإدارة.','Unavailable mail gives instructors a useful action without setup or server-test details')
     settings={'address':'admin@tafaseel-learn.com','name':'مركز تفاصيل للتدريب','port':465,'daily_limit':80,'enabled':True,'password':'Disposable-SMTP-Only','current':s.password}
     admin.post('email.configure',{**settings,'current':'incorrect'},422);admin.post('email.configure',{**settings,'address':'other@example.com'},422);admin.post('email.configure',{**settings,'port':500},422);admin.post('email.configure',{**settings,'password':''},422)
     check(True,'SMTP changes require owner password, center domain, permitted TLS port and mailbox secret')
@@ -56,6 +64,7 @@ try:
     check(admin.get('email.log')['items'][0]['status']=='accepted','SMTP acceptance recorded separately from inbox delivery')
     draft={'kind':'training','course_id':'c1','subject':'تنبيه تدريبي <script>','body':'موعد درس جديد\n<script>alert(1)</script>'}
     preview=trainer.post('email.campaign.preview',draft)
+    check(preview['can_schedule'] and 'configured' not in preview and admin.post('email.campaign.preview',draft)['configured'],'Trainer preview exposes scheduling availability while connection diagnostics remain administrator-only')
     check(preview['recipients']==2 and '&lt;script&gt;' in preview['html'] and '<script>alert' not in preview['html'],'Assigned trainer previews exact enrolled audience and escaped message content')
     other.post('email.campaign.preview',draft,403);student.post('email.campaign.preview',draft,403);trainer.post('email.campaign.preview',{**draft,'kind':'marketing'},403)
     check(True,'Other instructors, students and instructor marketing escalation rejected')
@@ -65,7 +74,9 @@ try:
     check(result['queued']==2 and again['existing'] and len(s.sql('SELECT id FROM email_outbox WHERE campaign_id=?',[payload['id']]))==2,'Preview changes require renewed approval and send retries remain idempotent')
     admin.post('email.dispatch',{});messages=SMTP.messages[-2:]
     check({str(m['To']) for m in messages}=={'s1@example.test','s2@example.test'} and all(not m['Cc'] and not m['Bcc'] and m['List-Unsubscribe'] for m in messages),'Campaign sends separate messages without exposing other recipients and includes unsubscribe headers')
-    campaign=trainer.get('email.campaigns')['items'][0];check(campaign['accepted']==2,'Broadcast report counts actual SMTP acceptances')
+    campaign=trainer.get('email.campaigns')['items'][0]
+    check('accepted' not in campaign and 'needs_review' not in campaign and campaign['recipients']==2,'Trainer can track own campaigns without provider acceptance or delivery diagnostics')
+    check(admin.get('email.campaigns')['items'][0]['accepted']==2,'Administrator broadcast report counts actual SMTP acceptances')
     marketing={'kind':'marketing','subject':'أخبار تفاصيل','body':'برامج جديدة من المركز'}
     check(admin.post('email.campaign.preview',marketing)['recipients']==0,'Marketing audience starts empty without affirmative subscription')
     student.post('email.preference.save',{'training_enabled':True,'marketing_enabled':True});p=admin.post('email.campaign.preview',marketing)

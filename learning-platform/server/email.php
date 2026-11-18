@@ -683,7 +683,8 @@ function emailAction(string $action, string $method, array $d): ?array
                 ),
                 "fingerprint" => $input["fingerprint"],
                 "sender" => emailConfig()["address"],
-                "configured" => emailReady(),
+                "can_schedule" => emailReady(),
+                ...$u["role"] === "admin" ? ["configured" => emailReady()] : [],
                 "html" => emailTemplate(
                     $input["subject"],
                     $input["body"],
@@ -695,7 +696,12 @@ function emailAction(string $action, string $method, array $d): ?array
             ];
         }
         if (!emailReady()) {
-            fail(422, "أكمل ربط البريد واختبار الإرسال أولًا.");
+            fail(
+                422,
+                $u["role"] === "admin"
+                    ? "أكمل ربط البريد واختبار الإرسال أولًا."
+                    : "الإرسال غير متاح حاليًا. تواصل مع الإدارة.",
+            );
         }
         if (
             !hash_equals(
@@ -768,8 +774,14 @@ function emailAction(string $action, string $method, array $d): ?array
         $page = number($d["page"] ?? 1, 1, 1000000);
         $where = $u["role"] === "admin" ? "1=1" : "c.author_id=?";
         $args = $u["role"] === "admin" ? [] : [$u["id"]];
+        $deliveryCounts =
+            $u["role"] === "admin"
+                ? ",(SELECT COUNT(*) FROM email_outbox o WHERE o.campaign_id=c.id AND o.status='accepted') accepted,(SELECT COUNT(*) FROM email_outbox o WHERE o.campaign_id=c.id AND o.status IN ('failed','uncertain')) needs_review"
+                : "";
         return pagedList(
-            "SELECT c.id,c.subject,c.kind,c.course_id,c.status,c.recipients,c.created_at,(SELECT COUNT(*) FROM email_outbox o WHERE o.campaign_id=c.id AND o.status='accepted') accepted,(SELECT COUNT(*) FROM email_outbox o WHERE o.campaign_id=c.id AND o.status IN ('failed','uncertain')) needs_review FROM email_campaigns c WHERE " .
+            "SELECT c.id,c.subject,c.kind,c.course_id,c.status,c.recipients,c.created_at" .
+                $deliveryCounts .
+                " FROM email_campaigns c WHERE " .
                 $where .
                 " ORDER BY c.created_at DESC,c.id",
             "SELECT COUNT(*) n FROM email_campaigns c WHERE " . $where,

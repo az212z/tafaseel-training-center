@@ -116,6 +116,9 @@ function notificationRows(array $u, int $page = 1): array
     foreach ($items as &$item) {
         $phone = dec($item["recipient"]);
         $item["recipient"] = "••••" . substr($phone, -4);
+        if ($u["role"] !== "admin") {
+            unset($item["attempts"], $item["provider_id"], $item["error_code"]);
+        }
     }
     return [
         "items" => $items,

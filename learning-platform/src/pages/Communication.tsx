@@ -32,8 +32,18 @@ const notificationStatus: Record<string, string> = {
   failed: "رفض الإرسال",
   cancelled: "أُلغي قبل الإرسال",
 };
+const recipientStatus: Record<string, string> = {
+  blocked: "قيد الانتظار",
+  pending: "قيد الانتظار",
+  retry: "قيد الانتظار",
+  sending: "جارٍ الإرسال",
+  accepted: "أُرسل طلب الرسالة",
+  uncertain: "تتابعها الإدارة",
+  failed: "تعذّر الإرسال",
+  cancelled: "أُلغيت",
+};
 export function GuardianPreference({ studentId }: { studentId: string }) {
-  const { notify } = useApp();
+  const { user, notify } = useApp();
   const remote = useRemote<{ sms_enabled: boolean; consent_at: string | null }>(
     "guardian.preference",
     { student_id: studentId },
@@ -83,8 +93,9 @@ export function GuardianPreference({ studentId }: { studentId: string }) {
             </small>
           )}
           <p className="muted">
-            يُمهل الرصد خمس دقائق للمراجعة. تصحيح الغياب أو إلغاء الاشتراك يلغي
-            الرسالة المنتظرة. لا يمكن إلغاء رسالة قبلها المزود.
+            {user.role === "admin"
+              ? "يُمهل الرصد خمس دقائق للمراجعة. تصحيح الغياب أو إلغاء الاشتراك يلغي الرسالة المنتظرة. لا يمكن إلغاء رسالة قبلها المزود."
+              : "تصل تنبيهات الغياب إلى رقم ولي الأمر المسجل. يمكنك إيقاف الرسائل اللاحقة بتغيير هذا التفضيل."}
           </p>
         </Form>
       )}
@@ -93,6 +104,7 @@ export function GuardianPreference({ studentId }: { studentId: string }) {
 }
 export function Notifications() {
   const { user, notify } = useApp();
+  const admin = user.role === "admin";
   const [page, setPage] = useState(1);
   const remote = useRemote<PageResult<NotificationRecord>>("notifications", {
     page: String(page),
@@ -101,7 +113,11 @@ export function Notifications() {
     <>
       <PageHead
         title="رسائل الغياب"
-        subtitle="سجل واضح للانتظار والقبول والفشل، مع إخفاء معظم رقم ولي الأمر."
+        subtitle={
+          admin
+            ? "سجل واضح للانتظار والقبول والفشل، مع إخفاء معظم رقم ولي الأمر."
+            : "تابع تنبيهات الغياب المتعلقة بأبنائك."
+        }
       >
         <Button variant="secondary" onClick={remote.reload}>
           <ArrowsClockwise size={18} />
@@ -115,8 +131,9 @@ export function Notifications() {
       )}
       <div className="alert">
         <Bell size={20} />
-        تُنشأ الرسالة عند رصد الغياب لطالب فُعّلت رسائله بموافقة ولي الأمر. «قبله
-        المزود» يعني قبول طلب الإرسال، ولا يثبت وصول الرسالة إلى الهاتف.
+        {admin
+          ? "تُنشأ الرسالة عند رصد الغياب لطالب فُعّلت رسائله بموافقة ولي الأمر. «قبله المزود» يعني قبول طلب الإرسال، ولا يثبت وصول الرسالة إلى الهاتف."
+          : "تظهر هنا التنبيهات المرتبطة بمتابعة الغياب. إذا لم تصلك رسالة متوقعة، تواصل مع الإدارة."}
       </div>
       <RemoteState {...remote} />
       <Panel>
@@ -127,7 +144,7 @@ export function Notifications() {
               "الحصة",
               "المستلم",
               "الحالة",
-              "المحاولات",
+              ...(admin ? ["المحاولات"] : []),
               "التاريخ",
               "",
             ]}
@@ -147,15 +164,17 @@ export function Notifications() {
                           : "amber"
                     }
                   >
-                    {notificationStatus[n.status] || n.status}
+                    {(admin
+                      ? notificationStatus[n.status]
+                      : recipientStatus[n.status]) || "قيد المتابعة"}
                   </Badge>
-                  {n.status === "uncertain" && (
+                  {admin && n.status === "uncertain" && (
                     <small className="block muted">
                       لا تُكرر تلقائيًا لتجنّب تكرار الرسالة؛ راجع لوحة المزود.
                     </small>
                   )}
                 </td>
-                <td>{n.attempts}</td>
+                {admin && <td>{n.attempts}</td>}
                 <td>{date(n.created_at)}</td>
                 <td>
                   {user.role === "admin" &&

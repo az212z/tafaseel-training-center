@@ -282,9 +282,9 @@ export interface NotificationRecord {
   student_id: string;
   class_id: string;
   status: string;
-  attempts: number;
-  provider_id: string | null;
-  error_code: string | null;
+  attempts?: number;
+  provider_id?: string | null;
+  error_code?: string | null;
   created_at: string;
   updated_at: string;
   recipient: string;

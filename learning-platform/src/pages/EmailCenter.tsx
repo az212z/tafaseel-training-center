@@ -276,7 +276,8 @@ type Preview = {
   sample: string[];
   fingerprint: string;
   sender: string;
-  configured: boolean;
+  can_schedule: boolean;
+  configured?: boolean;
   html: string;
 };
 type Campaign = {
@@ -285,12 +286,13 @@ type Campaign = {
   kind: string;
   status: string;
   recipients: number;
-  accepted: number;
-  needs_review: number;
+  accepted?: number;
+  needs_review?: number;
   created_at: string;
 };
 function CampaignComposer() {
   const { data, user, notify } = useApp();
+  const admin = user.role === "admin";
   const [kind, setKind] = useState("training");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [draft, setDraft] = useState<Record<string, FormDataEntryValue> | null>(
@@ -332,7 +334,11 @@ function CampaignComposer() {
     <>
       <Panel
         title="بث رسالة بريدية"
-        description="تنبيه لطلاب دورة محددة، أو نشرة للمشتركين في أخبار المركز."
+        description={
+          admin
+            ? "تنبيه لطلاب دورة محددة، أو نشرة للمشتركين في أخبار المركز."
+            : "أرسل تنبيهًا إلى طلاب دورتك وتابع رسائلك من هنا."
+        }
       >
         <div
           onChange={() => {
@@ -405,8 +411,12 @@ function CampaignComposer() {
                   </p>
                 )}
               </div>
-              <Badge tone={preview.configured ? "green" : "amber"}>
-                {preview.configured ? "جاهز للجدولة" : "اربط البريد أولًا"}
+              <Badge tone={preview.can_schedule ? "green" : "amber"}>
+                {preview.can_schedule
+                  ? "جاهز للجدولة"
+                  : admin
+                    ? "اربط البريد أولًا"
+                    : "الإرسال غير متاح حاليًا؛ تواصل مع الإدارة"}
               </Badge>
             </div>
             <iframe
@@ -416,7 +426,9 @@ function CampaignComposer() {
               className="email-preview"
             />
             <Button
-              disabled={!preview.configured || preview.recipients === 0 || busy}
+              disabled={
+                !preview.can_schedule || preview.recipients === 0 || busy
+              }
               onClick={send}
             >
               {busy
@@ -424,8 +436,9 @@ function CampaignComposer() {
                 : `جدولة الإرسال إلى ${preview.recipients} مستلمًا`}
             </Button>
             <p className="muted">
-              يُطبّق حد المنصة اليومي، وقد يمتد الإرسال لأكثر من يوم. إيقاف
-              الاشتراك أو إلغاء تسجيل الطالب يُراجع قبل إرسال كل رسالة.
+              {admin
+                ? "يُطبّق حد المنصة اليومي، وقد يمتد الإرسال لأكثر من يوم. إيقاف الاشتراك أو إلغاء تسجيل الطالب يُراجع قبل إرسال كل رسالة."
+                : "تُرسل الرسائل بالتدريج إلى طلاب الدورة المشتركين في تنبيهاتها. يمكنك إلغاء الرسائل المتبقية من سجل البث."}
             </p>
           </section>
         )}
@@ -439,7 +452,13 @@ function CampaignComposer() {
         <RemoteState {...remote} />
         {remote.result?.items.length ? (
           <Table
-            headers={["الرسالة", "الجمهور", "قُبلت", "للمراجعة", "الحالة", ""]}
+            headers={[
+              "الرسالة",
+              "الجمهور",
+              ...(admin ? ["قُبلت", "للمراجعة"] : []),
+              "الحالة",
+              "",
+            ]}
           >
             {remote.result.items.map((c) => (
               <tr key={c.id}>
@@ -448,10 +467,12 @@ function CampaignComposer() {
                   <small className="block muted">{date(c.created_at)}</small>
                 </td>
                 <td>{c.recipients}</td>
-                <td>{c.accepted}</td>
-                <td>{c.needs_review}</td>
+                {admin && <td>{c.accepted}</td>}
+                {admin && <td>{c.needs_review}</td>}
                 <td>
-                  {c.status === "cancelled" ? "أُلغي المتبقي" : "في سجل الإرسال"}
+                  {c.status === "cancelled"
+                    ? "أُلغي المتبقي"
+                    : "تمت جدولة الرسالة"}
                 </td>
                 <td>
                   {c.status !== "cancelled" && (

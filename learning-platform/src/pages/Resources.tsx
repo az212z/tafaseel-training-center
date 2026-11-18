@@ -453,7 +453,7 @@ const videoStatus: Record<string, string> = {
   rejected: "تجاوز الحجم المعتمد",
 };
 export function Videos() {
-  const { data, notify } = useApp();
+  const { data, user, notify } = useApp();
   const [course, setCourse] = useState(data.courses[0]?.id ?? "");
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState("");
@@ -470,7 +470,11 @@ export function Videos() {
     <>
       <PageHead
         title="مكتبة الفيديو السحابي"
-        subtitle="رفع قابل للاستئناف وتجهيز للبث، مع روابط تشغيل محددة المدة."
+        subtitle={
+          user.role === "admin"
+            ? "رفع قابل للاستئناف وتجهيز للبث، مع روابط تشغيل محددة المدة."
+            : "ارفع شروحات دوراتك وأضفها إلى الدروس من مكان واحد."
+        }
       >
         <Button
           disabled={!course || !data.capabilities?.video || isStaticPreview}
@@ -482,9 +486,9 @@ export function Videos() {
       </PageHead>
       {!data.capabilities?.video && (
         <div className="alert">
-          استضافة الفيديو تحتاج إعداد حساب المركز. لا تُحفظ المقاطع الطويلة داخل
-          قاعدة البيانات؛ يمكنك متابعة تجهيز بقية المنصة وإضافة الشروحات النصية
-          والملفات.
+          {user.role === "admin"
+            ? "استضافة الفيديو تحتاج إعداد حساب المركز. لا تُحفظ المقاطع الطويلة داخل قاعدة البيانات؛ يمكنك متابعة تجهيز بقية المنصة وإضافة الشروحات النصية والملفات."
+            : "رفع الفيديو غير متاح حاليًا. تواصل مع الإدارة لتفعيله، ويمكنك إضافة الشروحات النصية والملفات إلى دروسك الآن."}
         </div>
       )}
       <div className="filter-bar">

@@ -408,11 +408,17 @@ export function Settings() {
             <ShieldCheck size={44} weight="duotone" />
             <div>
               <h2>حماية تبدأ من كل تفصيلة</h2>
-              <p>صلاحيات من الخادم، بيانات خاصة مشفرة، وسجل للعمليات المهمة.</p>
+              <p>
+                {admin
+                  ? "صلاحيات من الخادم، بيانات خاصة مشفرة، وسجل للعمليات المهمة."
+                  : "تحكّم في أمان حسابك واحفظ بيانات دخولك بشكل خاص."}
+              </p>
             </div>
-            <Badge tone={data.demo ? "amber" : "green"}>
-              {data.demo ? "بيئة محلية" : "بيئة تشغيل"}
-            </Badge>
+            {admin && (
+              <Badge tone={data.demo ? "amber" : "green"}>
+                {data.demo ? "بيئة محلية" : "بيئة تشغيل"}
+              </Badge>
+            )}
           </div>
           <div className="settings-grid">
             <Panel
@@ -507,28 +513,30 @@ export function Settings() {
                 </p>
               </div>
             </Panel>
-            <Panel title="قبل التشغيل الفعلي">
-              <div className="security-list">
-                <p>
-                  <WarningCircle size={20} />
-                  <span>
-                    تفعيل HTTPS والتحقق من النسخ الاحتياطية والاستعادة.
-                  </span>
-                </p>
-                <p>
-                  <WarningCircle size={20} />
-                  <span>
-                    مراجعة الأذونات والخصوصية وفترة الاحتفاظ ببيانات الطلاب.
-                  </span>
-                </p>
-                <p>
-                  <WarningCircle size={20} />
-                  <span>
-                    اختبار الربط على استضافة المركز وفحص الملفات المرفوعة.
-                  </span>
-                </p>
-              </div>
-            </Panel>
+            {admin && (
+              <Panel title="قبل التشغيل الفعلي">
+                <div className="security-list">
+                  <p>
+                    <WarningCircle size={20} />
+                    <span>
+                      تفعيل HTTPS والتحقق من النسخ الاحتياطية والاستعادة.
+                    </span>
+                  </p>
+                  <p>
+                    <WarningCircle size={20} />
+                    <span>
+                      مراجعة الأذونات والخصوصية وفترة الاحتفاظ ببيانات الطلاب.
+                    </span>
+                  </p>
+                  <p>
+                    <WarningCircle size={20} />
+                    <span>
+                      اختبار الربط على استضافة المركز وفحص الملفات المرفوعة.
+                    </span>
+                  </p>
+                </div>
+              </Panel>
+            )}
           </div>
         </>
       )}
