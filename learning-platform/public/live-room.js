@@ -73,7 +73,7 @@ async function loadZoom() {
   }
   window.ZoomMtg.setZoomJSLib(`${zoomOrigin}/${zoomVersion}/lib`, "/av");
   window.ZoomMtg.preLoadWasm();
-  window.ZoomMtg.prepareWebSDK();
+  await window.ZoomMtg.prepareWebSDK();
 }
 
 async function joinRoom() {
