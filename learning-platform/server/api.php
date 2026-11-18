@@ -6,6 +6,31 @@ require_once __DIR__ . "/website.php";
 require_once __DIR__ . "/learning-tools.php";
 require_once __DIR__ . "/email.php";
 require_once __DIR__ . "/account-invitations.php";
+function quizFieldText(
+    mixed $value,
+    int $max,
+    string $label,
+    int $min = 2,
+): string {
+    if (!is_string($value)) {
+        fail(422, "$label يجب أن يكون نصًا.");
+    }
+    $value = trim($value);
+    $length = mb_strlen($value);
+    if ($length === 0) {
+        fail(422, "$label مطلوب.");
+    }
+    if ($length < $min) {
+        fail(422, "$label يجب أن يتكون من حرفين على الأقل.");
+    }
+    if ($length > $max) {
+        fail(422, "$label يتجاوز الحد الأقصى المسموح ($max حرفًا).");
+    }
+    if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u', $value)) {
+        fail(422, "$label يحتوي على محارف غير مسموحة.");
+    }
+    return $value;
+}
 function visibleCourses(array $u): array
 {
     $sql =
@@ -1120,6 +1145,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
     if ($action === "quiz.save") {
         $course = str($d["course_id"] ?? "", 40);
         courseAccess($u, $course, true);
+        $title = quizFieldText($d["title"] ?? "", 200, "اسم الاختبار");
         $questions = $d["questions"] ?? [];
         if (
             !is_array($questions) ||
@@ -1129,18 +1155,41 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             fail(422, "أضف من سؤال واحد إلى ٥٠ سؤالًا.");
         }
         $clean = [];
-        foreach ($questions as $q) {
+        foreach (array_values($questions) as $index => $q) {
+            $question = $index + 1;
+            if (!is_array($q)) {
+                fail(422, "بيانات السؤال $question غير صحيحة.");
+            }
             $opts = $q["options"] ?? [];
             if (!is_array($opts) || count($opts) < 2 || count($opts) > 6) {
-                fail(422, "أضف من خيارين إلى ٦ خيارات لكل سؤال.");
+                fail(422, "أضف من خيارين إلى ٦ خيارات للسؤال $question.");
+            }
+            $options = [];
+            foreach (array_values($opts) as $choice => $value) {
+                $option = $choice + 1;
+                $options[] = quizFieldText(
+                    $value,
+                    500,
+                    "الخيار $option في السؤال $question",
+                    1,
+                );
+            }
+            $correct = filter_var($q["correct"] ?? null, FILTER_VALIDATE_INT);
+            if (
+                $correct === false ||
+                $correct < 0 ||
+                $correct >= count($options)
+            ) {
+                fail(422, "حدد الإجابة الصحيحة للسؤال $question.");
             }
             $clean[] = [
-                "text" => str($q["text"] ?? "", 1000),
-                "options" => array_map(
-                    fn($v) => str($v, 500),
-                    array_values($opts),
+                "text" => quizFieldText(
+                    $q["text"] ?? "",
+                    1000,
+                    "نص السؤال $question",
                 ),
-                "correct" => number($q["correct"] ?? "", 0, count($opts) - 1),
+                "options" => $options,
+                "correct" => $correct,
             ];
         }
         $id = uid();
@@ -1149,7 +1198,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             [
                 $id,
                 $course,
-                str($d["title"] ?? "", 200),
+                $title,
                 number($d["minutes"] ?? 30, 1, 180),
                 number($d["passing"] ?? 60, 1, 100),
                 number($d["max_attempts"] ?? 2, 1, 10),

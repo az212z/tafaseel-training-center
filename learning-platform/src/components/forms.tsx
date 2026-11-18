@@ -613,13 +613,14 @@ export function QuizForm({
           <CourseSelect value={courseId} />
         </Field>
         <Field label="اسم الاختبار">
-          <input name="title" required />
+          <input name="title" required minLength={2} maxLength={200} />
         </Field>
         <div className="form-grid three">
           <Field label="المدة بالدقائق">
             <input
               name="minutes"
               type="number"
+              required
               min={1}
               max={180}
               defaultValue={30}
@@ -629,6 +630,7 @@ export function QuizForm({
             <input
               name="passing"
               type="number"
+              required
               min={1}
               max={100}
               defaultValue={60}
@@ -638,6 +640,7 @@ export function QuizForm({
             <input
               name="max_attempts"
               type="number"
+              required
               min={1}
               max={10}
               defaultValue={2}
@@ -666,6 +669,8 @@ export function QuizForm({
               required
               aria-label={`نص السؤال ${i + 1}`}
               placeholder="اكتب السؤال هنا"
+              minLength={2}
+              maxLength={1000}
               value={q.text}
               onChange={(e) =>
                 setQuestions(
@@ -694,6 +699,7 @@ export function QuizForm({
                 <input
                   required
                   aria-label={`الخيار ${j + 1} للسؤال ${i + 1}`}
+                  maxLength={500}
                   value={o}
                   placeholder={`الخيار ${j + 1}`}
                   onChange={(e) =>

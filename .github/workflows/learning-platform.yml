@@ -43,6 +43,7 @@ jobs:
       - run: npm run test:learning
       - run: npm run test:email
       - run: npm run test:accounts
+      - run: npm run test:quizzes
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: tafaseel-learning-hostinger
@@ -115,6 +116,7 @@ jobs:
       - run: npm run test:learning
       - run: npm run test:email
       - run: npm run test:accounts
+      - run: npm run test:quizzes
       - run: npm run test:simulation
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

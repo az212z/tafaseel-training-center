@@ -1,0 +1,29 @@
+{
+  "database": "SQLite",
+  "passed": 21,
+  "failed": 0,
+  "checks": [
+    "Administrator can create and retrieve single-character answers: ٢,٣,٤,٥",
+    "Administrator can create and retrieve single-character answers: 0,1,2,3",
+    "Administrator can create and retrieve single-character answers: أ,ب,ج,د",
+    "Administrator can create and retrieve single-character answers: A,B,C,D",
+    "Assigned instructor can create and retrieve the same short-answer quiz",
+    "Student sees short answer choices without the answer key",
+    "Short answer choices are graded correctly by the server",
+    "Whitespace is trimmed without rejecting a one-character answer",
+    "Quiz title, question and answer maximum lengths remain supported",
+    "Invalid blank option identifies its field instead of a generic length error",
+    "Invalid oversized option identifies its field instead of a generic length error",
+    "Invalid non-text option identifies its field instead of a generic length error",
+    "Invalid blank question identifies its field instead of a generic length error",
+    "Invalid oversized question identifies its field instead of a generic length error",
+    "Invalid oversized title identifies its field instead of a generic length error",
+    "Invalid one-character title identifies its field instead of a generic length error",
+    "Invalid missing title identifies its field instead of a generic length error",
+    "Invalid invalid answer key identifies its field instead of a generic length error",
+    "Invalid malformed question identifies its field instead of a generic length error",
+    "Rejected quizzes never leave a partially created quiz",
+    "Student and unrelated instructor cannot create a quiz in this course"
+  ],
+  "production_data_used": false
+}
