@@ -1,5 +1,8 @@
 Options -Indexes
 DirectoryIndex site.php index.html
+<IfModule mod_mime.c>
+ AddType application/javascript .mjs
+</IfModule>
 <IfModule mod_rewrite.c>
  RewriteEngine On
  RewriteCond %{HTTP_HOST} !^tafaseel-learn\.com$ [NC,OR]
