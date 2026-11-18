@@ -8,8 +8,8 @@ import {
   ArrowsClockwise,
 } from "@phosphor-icons/react";
 import { api, get } from "../api";
-import { date, useApp } from "../context";
-import { isStaticPreview } from "../environment";
+import { date, time, useApp } from "../context";
+import { asset, isStaticPreview } from "../environment";
 import type { NotificationRecord, PageResult } from "../types";
 import {
   PageHead,
@@ -339,10 +339,14 @@ export function ZoomControl({
   classId,
   status,
   canHost,
+  opensAt,
+  closed,
 }: {
   classId: string;
   status?: string | null;
   canHost: boolean;
+  opensAt?: string;
+  closed: boolean;
 }) {
   const { data, user, refresh, notify } = useApp();
   const [create, setCreate] = useState(false);
@@ -357,6 +361,14 @@ export function ZoomControl({
     }[];
   } | null>(null);
   async function open(host: boolean) {
+    if (data.capabilities?.zoom_embed) {
+      const query = new URLSearchParams({
+        class: classId,
+        host: host ? "1" : "0",
+      });
+      window.location.assign(asset("/live-room.html") + "?" + query);
+      return;
+    }
     setBusy(true);
     try {
       const r = await api<{ url: string }>("zoom.link", {
@@ -370,26 +382,24 @@ export function ZoomControl({
       setBusy(false);
     }
   }
+  const unavailable = busy || isStaticPreview || Boolean(opensAt) || closed;
   return (
     <>
       {status === "ready" ? (
         <>
           {!canHost && (
-            <Button
-              disabled={busy || isStaticPreview}
-              onClick={() => open(false)}
-            >
-              انضم إلى الحصة
+            <Button disabled={unavailable} onClick={() => open(false)}>
+              دخول الحصة
             </Button>
           )}
           {canHost && (
             <>
               <Button
                 variant="secondary"
-                disabled={busy || isStaticPreview}
+                disabled={unavailable}
                 onClick={() => open(true)}
               >
-                بدء حصة زوم
+                بدء الحصة
               </Button>
               <button
                 className="text-link"
@@ -407,9 +417,17 @@ export function ZoomControl({
               </button>
             </>
           )}
+          {closed ? (
+            <span className="muted">انتهت الحصة</span>
+          ) : opensAt ? (
+            <span className="muted">
+              يفتح الرابط {date(opensAt)}، {time(opensAt)}
+            </span>
+          ) : null}
         </>
       ) : (
-        canHost && (
+        canHost &&
+        !closed && (
           <Button
             variant="secondary"
             disabled={
@@ -448,10 +466,6 @@ export function ZoomControl({
             ) : (
               <p>سيُنشأ اللقاء باستعمال مضيف المركز.</p>
             )}
-            <p className="muted">
-              يُنشأ لقاء بقاعة انتظار ورمز دخول، ويُمنع الدخول قبل المضيف. تسجيل
-              الفيديو التلقائي مغلق. افتح البدء قبل الحصة بنصف ساعة.
-            </p>
           </Form>
         </Modal>
       )}

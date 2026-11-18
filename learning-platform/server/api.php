@@ -40,7 +40,9 @@ function quizFieldText(
 function visibleCourses(array $u): array
 {
     $sql =
-        "SELECT c.*,u.name AS instructor_name,(SELECT COUNT(*) FROM enrollments e WHERE e.course_id=c.id) AS students_count,(SELECT COUNT(*) FROM lessons l WHERE l.course_id=c.id AND " .
+        "SELECT c.*,u.name AS instructor_name,(SELECT COUNT(*) FROM enrollments e WHERE e.course_id=c.id AND " .
+        recordAvailable("account", "e.student_id") .
+        ") AS students_count,(SELECT COUNT(*) FROM lessons l WHERE l.course_id=c.id AND " .
         recordAvailable("lesson", "l.id") .
         ") AS lessons_count FROM courses c LEFT JOIN users u ON u.id=c.instructor_id";
     $args = [];
@@ -77,7 +79,9 @@ function visibleStudents(
     $args = [];
     if ($u["role"] === "instructor") {
         $sql .=
-            " AND u.id IN (SELECT e.student_id FROM enrollments e JOIN courses c ON e.course_id=c.id WHERE c.instructor_id=?)";
+            " AND u.id IN (SELECT e.student_id FROM enrollments e JOIN courses c ON e.course_id=c.id WHERE c.instructor_id=? AND " .
+            recordAvailable("course", "c.id") .
+            ")";
         $args = [$u["id"]];
     }
     if ($u["role"] === "guardian") {
@@ -221,7 +225,7 @@ function dataFor(array $u, array $scope = []): array
         )["n"];
         $overviewClasses = $overview
             ? rows(
-                "SELECT * FROM classes k WHERE course_id IN ($holders) AND " .
+                "SELECT k.*,z.status AS zoom_status FROM classes k LEFT JOIN zoom_meetings z ON z.class_id=k.id WHERE k.course_id IN ($holders) AND " .
                     recordAvailable("class", "k.id") .
                     " AND ends_at>=? ORDER BY starts_at LIMIT 30",
                 [...$ids, now()],
@@ -293,7 +297,7 @@ function dataFor(array $u, array $scope = []): array
         ),
         "quizzes" => $quizzes,
         "classes" => rows(
-            "SELECT * FROM classes k WHERE course_id IN ($holders) AND " .
+            "SELECT k.*,z.status AS zoom_status FROM classes k LEFT JOIN zoom_meetings z ON z.class_id=k.id WHERE k.course_id IN ($holders) AND " .
                 recordAvailable("class", "k.id") .
                 " ORDER BY starts_at",
             $ids,
@@ -350,15 +354,18 @@ function dataFor(array $u, array $scope = []): array
     $fileArgs = [];
     if ($u["role"] === "instructor") {
         $fileWhere =
-            "f.purpose<>'identity' AND f.course_id IN (SELECT id FROM courses WHERE instructor_id=?)";
+            "f.purpose<>'identity' AND f.course_id IN (SELECT c.id FROM courses c WHERE c.instructor_id=? AND " .
+            recordAvailable("course", "c.id") . ")";
         $fileArgs = [$u["id"]];
     } elseif ($u["role"] === "student") {
         $fileWhere =
-            "f.owner_id=? OR (f.purpose IN ('identity','submission') AND f.student_id=?) OR (f.purpose='resource' AND f.course_id IN (SELECT e.course_id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.student_id=? AND c.status='published'))";
+            "(f.owner_id=? OR (f.purpose IN ('identity','submission') AND f.student_id=?) OR (f.purpose='resource' AND f.course_id IS NOT NULL)) AND (f.course_id IS NULL OR f.course_id IN (SELECT e.course_id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.student_id=? AND c.status='published' AND " .
+            recordAvailable("course", "c.id") . "))";
         $fileArgs = [$u["id"], $u["id"], $u["id"]];
     } elseif ($u["role"] === "guardian") {
         $fileWhere =
-            "f.owner_id=? OR (f.purpose IN ('identity','submission') AND f.student_id IN (SELECT user_id FROM profiles WHERE guardian_id=?)) OR (f.purpose='resource' AND f.course_id IN (SELECT e.course_id FROM enrollments e JOIN profiles p ON p.user_id=e.student_id JOIN courses c ON c.id=e.course_id WHERE p.guardian_id=? AND c.status='published'))";
+            "(f.owner_id=? OR (f.purpose IN ('identity','submission') AND f.student_id IN (SELECT user_id FROM profiles WHERE guardian_id=?)) OR (f.purpose='resource' AND f.course_id IS NOT NULL)) AND (f.course_id IS NULL OR f.course_id IN (SELECT e.course_id FROM enrollments e JOIN profiles p ON p.user_id=e.student_id JOIN courses c ON c.id=e.course_id WHERE p.guardian_id=? AND c.status='published' AND " .
+            recordAvailable("course", "c.id") . "))";
         $fileArgs = [$u["id"], $u["id"], $u["id"]];
     }
     $out["files"] = rows(
@@ -369,7 +376,9 @@ function dataFor(array $u, array $scope = []): array
     );
     if ($u["role"] === "admin") {
         $out["users"] = rows(
-            "SELECT id,name,email,role,active,created_at FROM users WHERE role<>'student' ORDER BY created_at DESC",
+            "SELECT id,name,email,role,active,created_at FROM users u WHERE role<>'student' AND " .
+                recordAvailable("account", "u.id") .
+                " ORDER BY created_at DESC",
         );
         $out["audit"] = rows(
             "SELECT a.*,u.name AS actor_name FROM audit a LEFT JOIN users u ON a.actor_id=u.id ORDER BY a.created_at DESC LIMIT 200",
@@ -378,17 +387,13 @@ function dataFor(array $u, array $scope = []): array
     if ($overview) {
         $out["classes"] = $overviewClasses;
     }
-    $zoomRows = rows(
-        "SELECT z.class_id,z.status,z.meeting_id FROM zoom_meetings z JOIN classes c ON c.id=z.class_id WHERE c.course_id IN ($holders)",
-        $ids,
-    );
-    foreach ($out["classes"] as &$class) {
-        $z = array_values(
-            array_filter($zoomRows, fn($z) => $z["class_id"] === $class["id"]),
-        );
-        $class["zoom_status"] = $z[0]["status"] ?? null;
+    if (!$staff) {
+        foreach ($out["classes"] as &$class) {
+            $class["zoom_status"] =
+                $u["role"] === "student" && $class["zoom_status"] === "ready" ? "ready" : null;
+        }
+        unset($class);
     }
-    unset($class);
     automationClassDetails($out["classes"], $staff);
     $videoMap = array_column(
         rows(
@@ -411,6 +416,7 @@ function dataFor(array $u, array $scope = []): array
     $out["capabilities"] = [
         "video" => integrationEnabled("video"),
         "zoom" => integrationEnabled("zoom"),
+        "zoom_embed" => zoomEmbedConfigured(),
         "payments" => integrationEnabled("moyasar"),
     ];
     $out["mfa_available"] = (bool) (cfg()["staff_mfa_enabled"] ?? true);

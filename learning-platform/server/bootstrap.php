@@ -481,7 +481,8 @@ function studentAccess(array $u, string $id, bool $sensitive = false): array
         !$sensitive &&
         $u["role"] === "instructor" &&
         one(
-            "SELECT e.id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.student_id=? AND c.instructor_id=?",
+            "SELECT e.id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.student_id=? AND c.instructor_id=? AND " .
+                recordAvailable("course", "c.id"),
             [$id, $u["id"]],
         )
     ) {
@@ -525,6 +526,9 @@ function fileAccess(array $u, array $f): bool
     if ($f["purpose"] === "resource" && $f["course_id"]) {
         courseAccess($u, $f["course_id"]);
         return true;
+    }
+    if ($f["course_id"] && $u["role"] !== "admin") {
+        courseAccess($u, $f["course_id"]);
     }
     if ($u["role"] === "admin" || $f["owner_id"] === $u["id"]) {
         return true;

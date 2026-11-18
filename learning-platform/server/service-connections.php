@@ -34,6 +34,15 @@ function serviceDefinitions(): array
                     "label" => "بريد المضيف الافتراضي",
                     "optional" => true,
                 ],
+                "sdk_client_id" => [
+                    "label" => "معرّف تطبيق Meeting SDK للبث داخل تفاصيل",
+                    "optional" => true,
+                ],
+                "sdk_client_secret" => [
+                    "label" => "مفتاح تطبيق Meeting SDK السري",
+                    "optional" => true,
+                    "secret" => true,
+                ],
             ],
         ],
         "video" => [
@@ -183,6 +192,9 @@ function serviceConnectionAction(
         !filter_var($config["default_host"], FILTER_VALIDATE_EMAIL)
     ) {
         fail(422, "أدخل بريدًا صحيحًا للمضيف.");
+    }
+    if ($name === "zoom" && ($config["sdk_client_id"] === "") !== ($config["sdk_client_secret"] === "")) {
+        fail(422, "أكمل معرّف تطبيق Meeting SDK ومفتاحه السري.");
     }
     if (
         $name === "video" &&

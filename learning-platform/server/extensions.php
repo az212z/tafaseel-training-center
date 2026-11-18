@@ -41,11 +41,12 @@ function pagedList(
     array $args,
     int $page,
     int $size = 25,
+    array $selectArgs = [],
 ): array {
     return [
         "items" => rows(
             $query . " LIMIT " . $size . " OFFSET " . ($page - 1) * $size,
-            $args,
+            [...$selectArgs, ...$args],
         ),
         "total" => (int) one($count, $args)["n"],
         "page" => $page,
@@ -89,6 +90,7 @@ function extensionAction(
         "notification.retry",
         "zoom.create",
         "zoom.link",
+        "zoom.embed",
         "zoom.webhook",
         "video.create",
         "video.credentials",
@@ -562,6 +564,12 @@ function extensionAction(
                 str($d["class_id"] ?? "", 40),
                 ($d["host"] ?? false) === true,
             );
+        case "zoom.embed":
+            return zoomEmbed(
+                $u,
+                str($d["class_id"] ?? "", 40),
+                ($d["host"] ?? false) === true,
+            );
         case "zoom.presence":
             $cid = str($d["class_id"] ?? "", 40);
             $c = one(
@@ -771,9 +779,15 @@ function extensionAction(
                 " FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.role='student' AND " .
                 recordAvailable("account", "u.id");
             $args = [];
+            $countScope = "";
+            $countArgs = [];
             if ($u["role"] === "instructor") {
+                $countScope = " AND c.instructor_id=? AND " . recordAvailable("course", "c.id");
+                $countArgs = [$u["id"]];
                 $sql .=
-                    " AND u.id IN (SELECT e.student_id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE c.instructor_id=?)";
+                    " AND u.id IN (SELECT e.student_id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE c.instructor_id=? AND " .
+                    recordAvailable("course", "c.id") .
+                    ")";
                 $args[] = $u["id"];
             } elseif ($u["role"] === "guardian") {
                 $sql .= " AND p.guardian_id=?";
@@ -785,12 +799,14 @@ function extensionAction(
                 $args[] = "%" . $search . "%";
             }
             return pagedList(
-                "SELECT u.id,u.name,u.email,u.active,u.role,u.created_at,p.city,(SELECT COUNT(*) FROM enrollments e WHERE e.student_id=u.id) courses_count" .
+                "SELECT u.id,u.name,u.email,u.active,u.role,u.created_at,p.city,(SELECT COUNT(*) FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.student_id=u.id$countScope) courses_count" .
                     $sql .
                     " ORDER BY u.created_at DESC,u.id",
                 "SELECT COUNT(*) n" . $sql,
                 $args,
                 $page,
+                25,
+                $countArgs,
             );
     }
     throw new LogicException("Unhandled extension");

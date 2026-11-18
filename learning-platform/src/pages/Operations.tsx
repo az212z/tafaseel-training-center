@@ -3,7 +3,7 @@ import { ResourcePreview, canPreview } from "../components/ResourcePreview";
 import { TrainingReport } from "./LearningTools";
 import { ZoomControl } from "./Communication";
 import { asset, isStaticPreview } from "../environment";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDurableChanges } from "../hooks/useDurableChanges";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -59,21 +59,23 @@ export function Schedule() {
   const [add, setAdd] = useState(false);
   const [filter, setFilter] = useState("upcoming");
   const [course, setCourse] = useState(params.get("course") ?? "");
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const clock = window.setInterval(() => setNow(Date.now()), 15000);
+    return () => window.clearInterval(clock);
+  }, []);
   const staff = ["admin", "instructor"].includes(user.role);
   const classes = data.classes.filter(
     (c) =>
       (!course || c.course_id === course) &&
       (filter === "all" ||
         (filter === "upcoming"
-          ? new Date(c.ends_at) >= new Date()
-          : new Date(c.ends_at) < new Date())),
+          ? Date.parse(c.ends_at) >= now
+          : Date.parse(c.ends_at) < now)),
   );
   return (
     <>
-      <PageHead
-        title="الجدول التدريبي"
-        subtitle="مواعيد واضحة، ورحلة تعلم أكثر تنظيمًا."
-      >
+      <PageHead title={staff ? "جدول الحصص" : "حصصي"}>
         {staff && (
           <Button onClick={() => setAdd(true)}>
             <Plus size={18} />
@@ -111,73 +113,82 @@ export function Schedule() {
         </select>
       </div>
       <div className="schedule-list">
-        {classes.map((c) => (
-          <Panel key={c.id}>
-            <div className="schedule-row">
-              <div className="date-tile">
-                <strong>{date(c.starts_at, { day: "numeric" })}</strong>
-                <span>{date(c.starts_at, { month: "short" })}</span>
-              </div>
-              <div className="schedule-main">
-                <Badge tone="green">
-                  {data.courses.find((x) => x.id === c.course_id)?.category}
-                </Badge>
-                <h2>{c.title}</h2>
-                <p>{data.courses.find((x) => x.id === c.course_id)?.title}</p>
-                <div className="schedule-meta">
-                  <span>
-                    <CalendarBlank size={17} />
-                    {date(c.starts_at, {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                    })}
-                  </span>
-                  <span>
-                    <Clock size={17} />
-                    {time(c.starts_at)} – {time(c.ends_at)}
-                  </span>
-                  <span>
-                    <VideoCamera size={17} />
-                    {c.location}
-                  </span>
+        {classes.map((c) => {
+          const opens = Date.parse(c.starts_at) - 30 * 60 * 1000;
+          const closed = now > Date.parse(c.ends_at) + 60 * 60 * 1000;
+          const showZoom = c.zoom_status === "ready" || !c.join_url;
+          return (
+            <Panel key={c.id}>
+              <div className="schedule-row">
+                <div className="date-tile">
+                  <strong>{date(c.starts_at, { day: "numeric" })}</strong>
+                  <span>{date(c.starts_at, { month: "short" })}</span>
+                </div>
+                <div className="schedule-main">
+                  <Badge tone="green">
+                    {data.courses.find((x) => x.id === c.course_id)?.category}
+                  </Badge>
+                  <h2>{c.title}</h2>
+                  <p>{data.courses.find((x) => x.id === c.course_id)?.title}</p>
+                  <div className="schedule-meta">
+                    <span>
+                      <CalendarBlank size={17} />
+                      {date(c.starts_at, {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                      })}
+                    </span>
+                    <span>
+                      <Clock size={17} />
+                      {time(c.starts_at)} – {time(c.ends_at)}
+                    </span>
+                    <span>
+                      <VideoCamera size={17} />
+                      {c.location}
+                    </span>
+                  </div>
+                </div>
+                <div className="schedule-actions">
+                  {staff && (
+                    <TrashButton kind="class" id={c.id} title={c.title} />
+                  )}
+                  {showZoom && (staff || user.role === "student") && (
+                    <ZoomControl
+                      classId={c.id}
+                      status={c.zoom_status}
+                      canHost={staff}
+                      opensAt={
+                        now < opens ? new Date(opens).toISOString() : undefined
+                      }
+                      closed={closed}
+                    />
+                  )}
+                  {c.join_url && c.zoom_status !== "ready" && !closed ? (
+                    <a
+                      href={c.join_url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="btn btn-primary"
+                    >
+                      دخول اللقاء
+                      <ArrowSquareOut size={17} />
+                    </a>
+                  ) : null}
+                  {staff && (
+                    <Link
+                      to={`/attendance?class=${c.id}`}
+                      className="text-link"
+                    >
+                      <UserCheck size={18} />
+                      رصد الحضور
+                    </Link>
+                  )}
                 </div>
               </div>
-              <div className="schedule-actions">
-                {staff && (
-                  <TrashButton kind="class" id={c.id} title={c.title} />
-                )}
-                {(staff || user.role === "student") && (
-                  <ZoomControl
-                    classId={c.id}
-                    status={c.zoom_status}
-                    canHost={staff}
-                  />
-                )}
-                {staff && c.zoom_status && c.zoom_status !== "ready" && (
-                  <Badge tone="amber">لقاء زوم يحتاج مراجعة الإعداد</Badge>
-                )}
-                {c.join_url ? (
-                  <a
-                    href={c.join_url}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="btn btn-primary"
-                  >
-                    دخول اللقاء
-                    <ArrowSquareOut size={17} />
-                  </a>
-                ) : null}
-                {staff && (
-                  <Link to={`/attendance?class=${c.id}`} className="text-link">
-                    <UserCheck size={18} />
-                    رصد الحضور
-                  </Link>
-                )}
-              </div>
-            </div>
-          </Panel>
-        ))}
+            </Panel>
+          );
+        })}
       </div>
       {!classes.length && (
         <Empty
@@ -189,7 +200,7 @@ export function Schedule() {
         <Clock size={16} />
         جميع المواعيد المعروضة بتوقيت المملكة العربية السعودية.
       </p>
-      {add && <ClassForm onClose={() => setAdd(false)} />}
+      {add && <ClassForm courseId={course} onClose={() => setAdd(false)} />}
     </>
   );
 }

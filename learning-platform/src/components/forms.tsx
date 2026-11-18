@@ -591,19 +591,39 @@ export function ClassForm({
   courseId?: string;
 }) {
   const { data, refresh, notify } = useApp();
+  const [meetingMode, setMeetingMode] = useState("in_person");
   return (
     <Modal title="جدولة حصة تدريبية" onClose={onClose}>
       <Form
         onCancel={onClose}
         onSubmit={async (d) => {
-          await api("class.save", {
+          const { id } = await api<{ id: string }>("class.save", {
             ...d,
-            starts_at: new Date(d.starts_at as string).toISOString(),
-            ends_at: new Date(d.ends_at as string).toISOString(),
+            starts_at: `${d.starts_at}+03:00`,
+            ends_at: `${d.ends_at}+03:00`,
+            location:
+              meetingMode === "zoom"
+                ? "زوم"
+                : meetingMode === "external"
+                  ? "عن بُعد"
+                  : d.location,
             automatic_absence: d.automatic_absence === "on",
+            attendance_mode: meetingMode === "zoom" ? "zoom" : "manual",
           });
+          let zoomError = false;
+          if (meetingMode === "zoom") {
+            try {
+              await api("zoom.create", { class_id: id });
+            } catch {
+              zoomError = true;
+            }
+          }
           await refresh();
-          notify("تمت جدولة الحصة.");
+          if (zoomError) {
+            notify("حُفظ الموعد. راجع حالة لقاء زوم من الجدول.", "error");
+          } else {
+            notify("تمت جدولة الحصة.");
+          }
           onClose();
         }}
       >
@@ -614,37 +634,43 @@ export function ClassForm({
           <input name="title" required maxLength={200} />
         </Field>
         <div className="form-grid">
-          <Field label="بداية الحصة">
+          <Field label="البداية بتوقيت السعودية">
             <input name="starts_at" type="datetime-local" required />
           </Field>
-          <Field label="نهاية الحصة">
+          <Field label="النهاية بتوقيت السعودية">
             <input name="ends_at" type="datetime-local" required />
           </Field>
         </div>
-        <Field label="مكان الحصة">
-          <input name="location" required placeholder="قاعة تفاصيل / عن بُعد" />
+        <Field label="طريقة انعقاد الحصة">
+          <select
+            value={meetingMode}
+            onChange={(e) => setMeetingMode(e.target.value)}
+          >
+            <option value="in_person">حضوري</option>
+            <option value="zoom" disabled={!data.capabilities?.zoom}>
+              لقاء زوم
+            </option>
+            <option value="external">رابط خارجي</option>
+          </select>
         </Field>
-        <Field
-          label="رابط اللقاء (اختياري)"
-          hint="رابط اجتماع HTTPS من مزود اللقاءات الذي يستخدمه المركز."
-        >
-          <input name="join_url" type="url" dir="ltr" />
-        </Field>
+        {meetingMode === "in_person" && (
+          <Field label="القاعة">
+            <input name="location" required placeholder="اسم القاعة" />
+          </Field>
+        )}
+        {meetingMode === "external" && (
+          <Field label="رابط اللقاء">
+            <input name="join_url" type="url" dir="ltr" required />
+          </Field>
+        )}
         <label className="check-label">
           <input name="automatic_absence" type="checkbox" defaultChecked />
           التغييب وإشعار ولي الأمر بعد مهلة حضور ٢٠ دقيقة
         </label>
-        <Field label="مصدر رصد الحضور">
-          <select name="attendance_mode" defaultValue="manual">
-            <option value="manual">رصد المعلم داخل تفاصيل</option>
-            <option value="zoom" disabled={!data.capabilities?.zoom}>
-              الحضور الفعلي من زوم
-            </option>
-          </select>
-        </Field>
         <p className="muted">
-          للرصد اليدوي ابدأ المهلة من صفحة الحضور عند بدء الحصة، وسجّل الحاضرين
-          قبل انتهائها. عند استخدام زوم تبدأ المهلة من بدء اللقاء المرتبط.
+          {meetingMode === "zoom"
+            ? "تبدأ مهلة الحضور عند بدء اللقاء في زوم."
+            : "لبدء المهلة، افتح صفحة الحضور عند بدء الحصة."}
         </p>
       </Form>
     </Modal>

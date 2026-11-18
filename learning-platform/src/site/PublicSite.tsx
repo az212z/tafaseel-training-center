@@ -511,14 +511,14 @@ function Home({ c }: { c: SiteContent }) {
             />
             <span className="site-photo-caption">من داخل مركز تفاصيل</span>
           </div>
-          <div className="site-hero-note">
+          <Link to="/programs" className="site-hero-note">
             <BookOpen size={31} weight="duotone" />
             <div>
               <strong>دورات حضورية وعن بُعد</strong>
-              <span>اختر الدورة وابدأ التسجيل</span>
+              <span>تصفّح الدورات ومواعيد التسجيل</span>
             </div>
             <ArrowUpLeft size={23} />
-          </div>
+          </Link>
         </div>
       </section>
       <section className="site-section site-container">

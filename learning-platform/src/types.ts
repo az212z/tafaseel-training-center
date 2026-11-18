@@ -193,7 +193,12 @@ export interface Data {
     price_minor: number;
     enrollment_open: number;
   }[];
-  capabilities?: { video: boolean; zoom: boolean; payments: boolean };
+  capabilities?: {
+    video: boolean;
+    zoom: boolean;
+    zoom_embed?: boolean;
+    payments: boolean;
+  };
   mfa_setup_required?: boolean;
   mfa_available?: boolean;
   user: User;

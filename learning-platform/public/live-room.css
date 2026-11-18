@@ -1,0 +1,45 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #162540;
+  background: #f5f6f9;
+}
+
+body {
+  margin: 0;
+}
+
+#room-entry {
+  max-width: 32rem;
+  margin: clamp(2rem, 15vh, 9rem) auto 2rem;
+  padding: 1.75rem;
+  background: white;
+  border: 1px solid #dce2ea;
+  border-radius: 18px;
+  text-align: center;
+}
+
+#room-status {
+  line-height: 1.7;
+}
+
+#room-back,
+#room-retry {
+  display: inline-block;
+  margin: 0.25rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid #cbd4e3;
+  border-radius: 8px;
+  background: white;
+  color: #1f4b99;
+  font: inherit;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 36rem) {
+  #room-entry {
+    margin-inline: 1rem;
+  }
+}

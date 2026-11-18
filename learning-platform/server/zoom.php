@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
-function zoomToken(): string
+function zoomToken(bool $refresh = false): string
 {
     $c = requireIntegration("zoom");
     $cached = setting("zoom_token");
-    if ($cached && ($cached["expires"] ?? 0) > time() + 90) {
+    if (!$refresh && $cached && ($cached["expires"] ?? 0) > time() + 90) {
         return dec($cached["token"]);
     }
     $r = providerRequest(
@@ -126,7 +126,11 @@ function createZoom(array $u, string $classId, string $host = ""): array
         if (!preg_match('/^[0-9]{9,12}$/', $mid)) {
             throw new ProviderError("zoom_meeting_id", true);
         }
-        $join = validZoomUrl($r["join_url"] ?? "");
+        try {
+            $join = validZoomUrl($r["join_url"] ?? "");
+        } catch (ProviderError) {
+            throw new ProviderError("zoom_join_url", true);
+        }
         run(
             "UPDATE zoom_meetings SET meeting_id=?,join_url=?,status='ready',updated_at=? WHERE class_id=?",
             [$mid, enc($join), now(), $classId],
@@ -151,7 +155,7 @@ function createZoom(array $u, string $classId, string $host = ""): array
     }
     return ["ok" => true];
 }
-function zoomLink(array $u, string $id, bool $host = false): array
+function zoomSession(array $u, string $id, bool $host): array
 {
     $c = one(
         "SELECT * FROM classes k WHERE id=? AND " .
@@ -172,21 +176,139 @@ function zoomLink(array $u, string $id, bool $host = false): array
     if (!$z) {
         fail(404, "لقاء زوم لم يُجهّز بعد.");
     }
-    if (
-        time() < strtotime($c["starts_at"]) - 1800 ||
-        time() > strtotime($c["ends_at"]) + 3600
-    ) {
-        fail(409, "يفتح اللقاء قبل موعده بنصف ساعة وحتى ساعة بعد نهايته.");
+    if (time() < strtotime($c["starts_at"]) - 1800) {
+        fail(409, "يفتح رابط الحصة قبل موعدها بنصف ساعة.");
     }
-    if ($host) {
-        $r = zoomRequest("GET", "/meetings/" . rawurlencode($z["meeting_id"]));
-        $url = validZoomUrl($r["start_url"] ?? "");
-    } else {
-        $url = validZoomUrl(dec($z["join_url"]));
+    if (time() > strtotime($c["ends_at"]) + 3600) {
+        fail(409, "انتهت الحصة وأُغلق رابطها.");
+    }
+    return [$c, $z];
+}
+
+function zoomMeetingDetails(string $meetingId): array
+{
+    $path = "/meetings/" . rawurlencode($meetingId);
+    try {
+        return zoomRequest("GET", $path);
+    } catch (ProviderError $error) {
+        if ($error->reason !== "http_401") {
+            throw $error;
+        }
+        return providerRequest("zoom", "GET", $path, null, [
+            "Authorization: Bearer " . zoomToken(true),
+        ]);
+    }
+}
+
+function zoomLink(array $u, string $id, bool $host = false): array
+{
+    [, $z] = zoomSession($u, $id, $host);
+    try {
+        $url = $host
+            ? validZoomUrl(zoomMeetingDetails($z["meeting_id"])["start_url"] ?? "")
+            : validZoomUrl(dec($z["join_url"]));
+    } catch (ProviderError $error) {
+        audit($u, "zoom.link_unavailable", $id);
+        if ($host && $error->reason === "http_404") {
+            fail(502, "لم يجد زوم اللقاء في حساب المركز. راجع إدارة المركز للتحقق من اللقاء قبل تجهيز بديل.");
+        }
+        fail(502, $host
+            ? "تعذّر فتح رابط المضيف. حاول مجددًا، وإذا تكرر الخطأ تواصل مع إدارة المركز."
+            : "رابط الحصة غير متاح حاليًا. تواصل مع المدرب.");
     }
     audit($u, $host ? "zoom.host_opened" : "zoom.join_opened", $id);
     return ["url" => $url];
 }
+
+function zoomEmbedConfigured(): bool
+{
+    $config = integrationConfig("zoom");
+    return integrationEnabled("zoom") &&
+        !empty($config["sdk_client_id"]) && !empty($config["sdk_client_secret"]);
+}
+
+function zoomEmbedSignature(string $meeting, bool $host, array $config): string
+{
+    $encode = fn(string $value): string => rtrim(strtr(base64_encode($value), "+/", "-_"), "=");
+    $issued = time() - 30;
+    $expires = $issued + 1800;
+    $header = $encode('{"alg":"HS256","typ":"JWT"}');
+    $payload = $encode(json_encode([
+        "appKey" => $config["sdk_client_id"],
+        "mn" => $meeting,
+        "role" => $host ? 1 : 0,
+        "iat" => $issued,
+        "exp" => $expires,
+        "tokenExp" => $expires,
+    ], JSON_THROW_ON_ERROR));
+    return "$header.$payload." . $encode(hash_hmac("sha256", "$header.$payload",
+        $config["sdk_client_secret"], true));
+}
+
+function zoomStudentKey(string $class, string $student): string
+{
+    return "tf" . substr(hash_hmac("sha256", "zoom-student:$class:$student", cfg()["key"]), 0, 32);
+}
+
+function zoomEmbed(array $u, string $id, bool $host): array
+{
+    [$class, $meeting] = zoomSession($u, $id, $host);
+    if (!zoomEmbedConfigured()) {
+        fail(409, "الحصة داخل تفاصيل تحتاج تفعيل البث من الإدارة.");
+    }
+    rate("zoom-embed:" . $u["id"] . ":" . $id, 12, 300);
+    $number = $meeting["meeting_id"];
+    try {
+        $details = zoomMeetingDetails($number);
+        $zak = "";
+        if ($host) {
+            $startUrl = validZoomUrl($details["start_url"] ?? "");
+            parse_str(parse_url($startUrl, PHP_URL_QUERY) ?? "", $query);
+            $zak = $query["zak"] ?? "";
+            if (!is_string($zak) || $zak === "") {
+                throw new ProviderError("zoom_host_credential");
+            }
+        }
+    } catch (ProviderError) {
+        audit($u, "zoom.embed_unavailable", $id);
+        fail(502, "تعذّر فتح الحصة داخل تفاصيل. حاول مجددًا أو تواصل مع المركز.");
+    }
+    $passcode = $details["password"] ?? "";
+    if (!is_string($passcode)) {
+        fail(502, "تعذّر قراءة رمز دخول الحصة من زوم.");
+    }
+    audit($u, $host ? "zoom.embed_host_requested" : "zoom.embed_join_requested", $id);
+    return [
+        "title" => $class["title"],
+        "course_id" => $class["course_id"],
+        "meetingNumber" => $number,
+        "signature" => zoomEmbedSignature($number, $host, integrationConfig("zoom")),
+        "passWord" => $passcode,
+        "userName" => $u["name"],
+        ...($host ? ["zak" => $zak] : []),
+        ...($u["role"] === "student" ? ["customerKey" => zoomStudentKey($id, $u["id"])] : []),
+    ];
+}
+
+function zoomParticipantStudent(string $class, array $participant): ?array
+{
+    $roster = "SELECT u.id FROM users u JOIN enrollments e ON e.student_id=u.id JOIN classes c ON c.course_id=e.course_id WHERE c.id=? AND u.role='student' AND u.active=1";
+    $key = $participant["customer_key"] ?? "";
+    if (is_string($key) && str_starts_with($key, "tf")) {
+        if (!preg_match('/^tf[a-f0-9]{32}$/D', $key)) {
+            return null;
+        }
+        foreach (rows($roster, [$class]) as $student) {
+            if (hash_equals(zoomStudentKey($class, $student["id"]), $key)) {
+                return $student;
+            }
+        }
+        return null;
+    }
+    $mail = strtolower(trim((string) ($participant["email"] ?? ($participant["user_email"] ?? ""))));
+    return $mail ? one($roster . " AND u.email=?", [$class, $mail]) : null;
+}
+
 function zoomWebhook(string $raw, array $data): array
 {
     $config = requireIntegration("zoom");
@@ -243,6 +365,15 @@ function zoomWebhook(string $raw, array $data): array
     $key = hash("sha256", "zoom:" . $raw);
     return tx(function () use ($key, $event, $object, $z) {
         lockRow("classes", $z["class_id"]);
+        $class = one(
+            "SELECT k.* FROM classes k WHERE k.id=? AND " .
+                recordAvailable("class", "k.id") . " AND " .
+                recordAvailable("course", "k.course_id"),
+            [$z["class_id"]],
+        );
+        if (!$class) {
+            return ["ok" => true];
+        }
         if (one("SELECT id FROM provider_events WHERE id=?", [$key])) {
             return ["ok" => true];
         }
@@ -259,16 +390,7 @@ function zoomWebhook(string $raw, array $data): array
             )
         ) {
             $p = $object["participant"] ?? [];
-            $mail = strtolower(
-                trim((string) ($p["email"] ?? ($p["user_email"] ?? ""))),
-            );
-            // Unverified display names and missing emails are never matched to students.
-            $student = $mail
-                ? one(
-                    "SELECT u.id FROM users u JOIN enrollments e ON e.student_id=u.id JOIN classes c ON c.course_id=e.course_id WHERE c.id=? AND u.email=? AND u.role='student' AND u.active=1",
-                    [$z["class_id"], $mail],
-                )
-                : null;
+            $student = is_array($p) ? zoomParticipantStudent($z["class_id"], $p) : null;
             if ($student) {
                 if ($event === "meeting.participant_joined") {
                     $joined = dateInput($p["join_time"] ?? now());
@@ -292,18 +414,22 @@ function zoomWebhook(string $raw, array $data): array
                     }
                 } else {
                     $left = dateInput($p["leave_time"] ?? now());
-                    run(
-                        "UPDATE zoom_presence SET left_at=? WHERE class_id=? AND student_id=? AND left_at IS NULL AND joined_at<=?",
-                        [$left, $z["class_id"], $student["id"], $left],
+                    $params = [$z["class_id"], $student["id"], $left];
+                    $filter = "joined_at<=?";
+                    if (!empty($p["join_time"])) {
+                        $filter .= " AND joined_at=?";
+                        $params[] = dateInput($p["join_time"]);
+                    }
+                    $presence = one(
+                        "SELECT id FROM zoom_presence WHERE class_id=? AND student_id=? AND left_at IS NULL AND $filter ORDER BY joined_at DESC LIMIT 1",
+                        $params,
                     );
+                    if ($presence) {
+                        run("UPDATE zoom_presence SET left_at=? WHERE id=?", [$left, $presence["id"]]);
+                    }
                 }
             }
         }
-        $class = one(
-            "SELECT * FROM classes k WHERE id=? AND " .
-                recordAvailable("class", "k.id"),
-            [$z["class_id"]],
-        );
         automationZoomEvent($class, $z, $event, $object, $student);
         return ["ok" => true];
     });

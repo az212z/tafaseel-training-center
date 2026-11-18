@@ -140,7 +140,6 @@ const navigation: Record<
     ],
     more: [
       requests,
-      { to: "/programs", label: "استعراض الدورات", icon: BookOpen },
       certificates,
       { to: "/notebook", label: "دفتر المراجعة", icon: BookOpen },
       files,
