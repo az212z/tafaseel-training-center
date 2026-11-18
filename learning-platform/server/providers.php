@@ -11,6 +11,12 @@ final class ProviderError extends RuntimeException
 }
 function integrationConfig(string $name): array
 {
+    if ($name === "sms") {
+        $stored = setting("sms_connection", "");
+        if ($stored) {
+            return json_decode(dec($stored), true, 16, JSON_THROW_ON_ERROR);
+        }
+    }
     return cfg()["integrations"][$name] ?? [];
 }
 function integrationEnabled(string $name): bool
@@ -188,6 +194,7 @@ function migrateSchema(): void
             "schema-v4.sql",
             "schema-v5.sql",
             "schema-v6.sql",
+            "schema-v7.sql",
         ]
         as $name
     ) {

@@ -4,6 +4,7 @@ import catalog from "../../server/catalog.json";
 export interface PreviewState extends Omit<Data, "user" | "demo" | "mfa"> {
   version: 1;
   extensions?: PreviewExtras;
+  learningReads?: Record<string, Record<string, string>>;
   users: User[];
   profiles: Record<string, Profile>;
   questions: Record<string, Question[]>;

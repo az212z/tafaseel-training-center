@@ -16,6 +16,7 @@ import {
   useLocation,
   Link,
 } from "react-router-dom";
+import { LearningNotificationBell } from "./components/LearningNotifications";
 import {
   SquaresFour,
   Wallet,
@@ -717,14 +718,18 @@ function Shell({
               <kbd>⌘ K</kbd>
             </button>
             <span className="topbar-divider" />
-            <button
-              className="icon-btn notification-button"
-              onClick={() => setNotifications(true)}
-              aria-label="الإشعارات"
-            >
-              <Bell size={22} />
-              {data.announcements.length > 0 && <span />}
-            </button>
+            {user.role === "student" ? (
+              <LearningNotificationBell onWorkspace={onWorkspace} />
+            ) : (
+              <button
+                className="icon-btn notification-button"
+                onClick={() => setNotifications(true)}
+                aria-label="الإشعارات"
+              >
+                <Bell size={22} />
+                {data.announcements.length > 0 && <span />}
+              </button>
+            )}
             <button
               className="icon-btn"
               onClick={logout}

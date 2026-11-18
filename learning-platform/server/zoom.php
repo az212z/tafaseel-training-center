@@ -217,7 +217,7 @@ function zoomWebhook(string $raw, array $data): array
         return ["ok" => true];
     }
     $object = $data["payload"]["object"] ?? [];
-    $z = one("SELECT class_id FROM zoom_meetings WHERE meeting_id=?", [
+    $z = one("SELECT class_id,host_id FROM zoom_meetings WHERE meeting_id=?", [
         (string) ($object["id"] ?? ""),
     ]);
     if (!$z) {
@@ -233,6 +233,7 @@ function zoomWebhook(string $raw, array $data): array
             "INSERT INTO provider_events(id,provider,event_type,entity_id,created_at) VALUES(?,?,?,?,?)",
             [$key, "zoom", $event, $z["class_id"], now()],
         );
+        $student = null;
         if (
             in_array(
                 $event,
@@ -281,6 +282,8 @@ function zoomWebhook(string $raw, array $data): array
                 }
             }
         }
+        $class = one("SELECT * FROM classes WHERE id=?", [$z["class_id"]]);
+        automationZoomEvent($class, $z, $event, $object, $student);
         return ["ok" => true];
     });
 }

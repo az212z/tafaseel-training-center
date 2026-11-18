@@ -22,6 +22,7 @@ import {
   Table,
 } from "../components/ui";
 import { useRemote, RemoteState, Pagination } from "../components/remote";
+import { SmsConnection } from "../components/SmsConnection";
 const notificationStatus: Record<string, string> = {
   blocked: "بانتظار تفعيل المزود",
   pending: "قيد الانتظار",
@@ -94,7 +95,7 @@ export function GuardianPreference({ studentId }: { studentId: string }) {
           )}
           <p className="muted">
             {user.role === "admin"
-              ? "يُمهل الرصد خمس دقائق للمراجعة. تصحيح الغياب أو إلغاء الاشتراك يلغي الرسالة المنتظرة. لا يمكن إلغاء رسالة قبلها المزود."
+              ? "تُجهّز رسالة الغياب الآلي بعد مهلة الحضور (٢٠ دقيقة). ويُمهل الرصد اليدوي خمس دقائق للمراجعة مع عدم الإرسال قبل مرور ٢٠ دقيقة من البداية. تصحيح الغياب أو إلغاء الاشتراك يلغي الرسالة المنتظرة."
               : "تصل تنبيهات الغياب إلى رقم ولي الأمر المسجل. يمكنك إيقاف الرسائل اللاحقة بتغيير هذا التفضيل."}
           </p>
         </Form>
@@ -124,6 +125,7 @@ export function Notifications() {
           تحديث السجل
         </Button>
       </PageHead>
+      {admin && <SmsConnection />}
       {isStaticPreview && (
         <div className="alert">
           محاكاة محلية فقط. لا تُرسل أي رسالة من نسخة GitHub.

@@ -537,7 +537,7 @@ export function ClassForm({
   onClose: () => void;
   courseId?: string;
 }) {
-  const { refresh, notify } = useApp();
+  const { data, refresh, notify } = useApp();
   return (
     <Modal title="جدولة حصة تدريبية" onClose={onClose}>
       <Form
@@ -547,6 +547,7 @@ export function ClassForm({
             ...d,
             starts_at: new Date(d.starts_at as string).toISOString(),
             ends_at: new Date(d.ends_at as string).toISOString(),
+            automatic_absence: d.automatic_absence === "on",
           });
           await refresh();
           notify("تمت جدولة الحصة.");
@@ -576,6 +577,22 @@ export function ClassForm({
         >
           <input name="join_url" type="url" dir="ltr" />
         </Field>
+        <label className="check-label">
+          <input name="automatic_absence" type="checkbox" defaultChecked />
+          التغييب وإشعار ولي الأمر بعد مهلة حضور ٢٠ دقيقة
+        </label>
+        <Field label="مصدر رصد الحضور">
+          <select name="attendance_mode" defaultValue="manual">
+            <option value="manual">رصد المعلم داخل تفاصيل</option>
+            <option value="zoom" disabled={!data.capabilities?.zoom}>
+              الحضور الفعلي من زوم
+            </option>
+          </select>
+        </Field>
+        <p className="muted">
+          للرصد اليدوي ابدأ المهلة من صفحة الحضور عند بدء الحصة، وسجّل الحاضرين
+          قبل انتهائها. عند استخدام زوم تبدأ المهلة من بدء اللقاء المرتبط.
+        </p>
       </Form>
     </Modal>
   );

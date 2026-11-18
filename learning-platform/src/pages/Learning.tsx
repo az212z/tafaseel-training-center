@@ -1,7 +1,12 @@
 import { CourseCommunity, CourseSurvey, LessonNotebook } from "./LearningTools";
 import { asset, isStaticPreview } from "../environment";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import {
   BookOpen,
   UsersThree,
@@ -275,6 +280,15 @@ export function CourseDetail() {
   const [tab, setTab] = useState("lessons");
   const [modal, setModal] = useState("");
   const [lesson, setLesson] = useState<Lesson | null>(null);
+  const [params] = useSearchParams();
+  const targetLesson = params.get("lesson");
+  useEffect(() => {
+    if (targetLesson)
+      setLesson(
+        data.lessons.find((l) => l.id === targetLesson && l.course_id === id) ??
+          null,
+      );
+  }, [targetLesson, id, data.lessons]);
   const c = data.courses.find((c) => c.id === id);
   if (!c)
     return (

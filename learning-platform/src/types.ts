@@ -85,6 +85,14 @@ export interface Attempt {
   questions?: Question[];
 }
 export interface ClassSession {
+  attendance_automation?: {
+    enabled: boolean;
+    mode: "manual" | "zoom";
+    started_at: string | null;
+    deadline: string | null;
+    grace_minutes: number;
+    needs_review?: boolean;
+  } | null;
   zoom_status?: string | null;
   id: string;
   course_id: string;

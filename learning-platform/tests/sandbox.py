@@ -1,5 +1,5 @@
 """Local-only, disposable PHP/PDO system test environment."""
-import os, pathlib, tempfile, subprocess, socket, time, json, urllib.request, urllib.error, http.cookiejar, signal
+import os, pathlib, tempfile, subprocess, socket, time, json, urllib.request, urllib.error, http.cookiejar, signal, base64
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ORIGIN = 'http://127.0.0.1:3117'
@@ -34,8 +34,9 @@ class Client:
         assert status==expected,(status,raw[:350]); return json.loads(raw)
 
 class Sandbox:
-    def __init__(self, smtp_port=None):
+    def __init__(self, smtp_port=None, config_overrides=None):
         self.smtp_port=smtp_port
+        self.config_overrides=config_overrides
     def __enter__(self):
         self.tmp=tempfile.TemporaryDirectory(prefix='tafaseel-simulation-'); self.folder=pathlib.Path(self.tmp.name)
         self.mysql=os.environ.get('TAFASEEL_TEST_MYSQL_SOCKET'); self.name='tafaseel_sim_'+os.urandom(5).hex()
@@ -46,6 +47,9 @@ class Sandbox:
         if self.smtp_port is not None:
             assert 0<int(self.smtp_port)<65536
             self.config.write_text(self.config.read_text().replace("'storage'=>", "'test_smtp_port'=>"+str(int(self.smtp_port))+",'storage'=>"))
+        if self.config_overrides:
+            encoded=base64.b64encode(json.dumps(self.config_overrides).encode()).decode()
+            self.config.write_text(self.config.read_text().replace('<?php return ', '<?php $c = ')+"\nreturn array_replace_recursive($c,json_decode(base64_decode('"+encoded+"'),true,16,JSON_THROW_ON_ERROR));")
         self.config.chmod(0o600); self.password='Simulation-'+os.urandom(16).hex()+'!'
         self.env={**os.environ,'TAFASEEL_CONFIG':str(self.config),'TAFASEEL_SIM_PASSWORD':self.password}
         self.php([str(ROOT/'server/console.php'),'migrate'])

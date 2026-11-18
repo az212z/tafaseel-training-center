@@ -395,6 +395,13 @@ function extensionAction(
                 );
             }
             audit($u, "bag.saved", $id);
+            courseUpdate(
+                $cid,
+                "bag",
+                $id,
+                "حقيبة تعليمية: " . $title,
+                "/bags?course=" . $cid,
+            );
             return ["id" => $id];
         case "bag.item.save":
         case "bag.item.remove":
@@ -616,6 +623,13 @@ function extensionAction(
                     [$id, now(), $v["id"]],
                 );
                 audit($u, "video.lesson_created", $id);
+                courseUpdate(
+                    $v["course_id"],
+                    "lesson",
+                    $id,
+                    "درس فيديو جديد: " . $title,
+                    "/courses/" . $v["course_id"] . "?lesson=" . $id,
+                );
                 return ["id" => $id];
             });
         case "lesson":

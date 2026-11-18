@@ -6,6 +6,9 @@ require_once __DIR__ . "/website.php";
 require_once __DIR__ . "/learning-tools.php";
 require_once __DIR__ . "/email.php";
 require_once __DIR__ . "/account-invitations.php";
+require_once __DIR__ . "/learning-notifications.php";
+require_once __DIR__ . "/attendance-automation.php";
+require_once __DIR__ . "/sms-connection.php";
 function quizFieldText(
     mixed $value,
     int $max,
@@ -348,6 +351,7 @@ function dataFor(array $u, array $scope = []): array
         $class["zoom_status"] = $z[0]["status"] ?? null;
     }
     unset($class);
+    automationClassDetails($out["classes"], $staff);
     $videoMap = rows(
         "SELECT id,lesson_id,status FROM video_assets WHERE lesson_id IS NOT NULL AND course_id IN ($holders)",
         $ids,
@@ -427,6 +431,8 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         "quiz.attempt",
         "file",
         "health",
+        "learning.updates",
+        "sms.connection",
     ];
     if ($method !== (in_array($action, $gets, true) ? "GET" : "POST")) {
         fail(405, "طريقة الطلب غير مسموحة.");
@@ -537,7 +543,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         }
         return loginUser($u);
     }
-    $u = auth();
+    $u = auth([], $action !== "learning.updates");
     staffMfaGuard($u, $action);
     if ($action === "logout") {
         audit($u, "session.logout");
@@ -548,6 +554,21 @@ function api(string $action, string $method, array $d, string $raw = ""): array
     }
     if ($action === "data") {
         return dataFor($u, $d);
+    }
+    if ($action === "learning.updates") {
+        return learningUpdates($u, number($d["page"] ?? 1, 1, 1000000));
+    }
+    if ($action === "learning.updates.read") {
+        return readLearningUpdates($u, $d);
+    }
+    if ($action === "class.attendance.control") {
+        return attendanceAutomationControl($u, $d);
+    }
+    if ($action === "sms.connection") {
+        return smsConnectionStatus();
+    }
+    if ($action === "sms.connection.save") {
+        return saveSmsConnection($u, $d);
     }
     if ($action === "account.profile") {
         auth(["admin"]);
@@ -915,8 +936,13 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             number($d["capacity"] ?? 20, 1, 500),
         ];
         $new = !$id;
+        $wasPublished =
+            $id &&
+            (one("SELECT status FROM courses WHERE id=?", [$id])["status"] ??
+                "") ===
+                "published";
         $id = $id ?: uid();
-        tx(function () use ($new, $id, $values, $u) {
+        tx(function () use ($new, $id, $values, $u, $wasPublished) {
             if ($new) {
                 run(
                     "INSERT INTO courses(title,description,category,image,status,instructor_id,duration,capacity,id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
@@ -937,6 +963,15 @@ function api(string $action, string $method, array $d, string $raw = ""): array
                 );
             }
             audit($u, $new ? "course.created" : "course.updated", $id);
+            if (!$wasPublished && $values[4] === "published") {
+                courseUpdate(
+                    $id,
+                    "course",
+                    $id,
+                    "أصبح محتوى الدورة متاحًا",
+                    "/courses/" . $id,
+                );
+            }
         });
         return ["id" => $id];
     }
@@ -1028,20 +1063,32 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             number($d["duration"] ?? 0, 0, 10000),
             number($d["sort_order"] ?? 0, 0, 10000),
         ];
-        if ($id) {
-            run(
-                "UPDATE lessons SET title=?,kind=?,video_url=?,file_id=?,body=?,duration=?,sort_order=? WHERE id=?",
-                [...$values, $id],
-            );
-        } else {
-            $id = uid();
-            run(
-                "INSERT INTO lessons(title,kind,video_url,file_id,body,duration,sort_order,id,course_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                [...$values, $id, $course, now()],
-            );
-        }
-        audit($u, "lesson.saved", $id);
-        return ["id" => $id];
+        $new = !$id;
+        $id = $id ?: uid();
+        return tx(function () use ($new, $id, $values, $course, $u) {
+            if (!$new) {
+                run(
+                    "UPDATE lessons SET title=?,kind=?,video_url=?,file_id=?,body=?,duration=?,sort_order=? WHERE id=?",
+                    [...$values, $id],
+                );
+            } else {
+                run(
+                    "INSERT INTO lessons(title,kind,video_url,file_id,body,duration,sort_order,id,course_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                    [...$values, $id, $course, now()],
+                );
+            }
+            audit($u, "lesson.saved", $id);
+            if ($new) {
+                courseUpdate(
+                    $course,
+                    "lesson",
+                    $id,
+                    "درس جديد: " . $values[0],
+                    "/courses/" . $course . "?lesson=" . $id,
+                );
+            }
+            return ["id" => $id];
+        });
     }
     if ($action === "progress") {
         auth(["student"]);
@@ -1065,20 +1112,29 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         $course = str($d["course_id"] ?? "", 40);
         courseAccess($u, $course, true);
         $id = uid();
-        run(
-            "INSERT INTO assignments(id,course_id,title,description,due_at,points,created_at) VALUES(?,?,?,?,?,?,?)",
-            [
-                $id,
+        return tx(function () use ($id, $course, $d, $u) {
+            run(
+                "INSERT INTO assignments(id,course_id,title,description,due_at,points,created_at) VALUES(?,?,?,?,?,?,?)",
+                [
+                    $id,
+                    $course,
+                    str($d["title"] ?? "", 200),
+                    str($d["description"] ?? "", 10000),
+                    dateInput($d["due_at"] ?? ""),
+                    number($d["points"] ?? 100, 1, 1000),
+                    now(),
+                ],
+            );
+            audit($u, "assignment.created", $id);
+            courseUpdate(
                 $course,
-                str($d["title"] ?? "", 200),
-                str($d["description"] ?? "", 10000),
-                dateInput($d["due_at"] ?? ""),
-                number($d["points"] ?? 100, 1, 1000),
-                now(),
-            ],
-        );
-        audit($u, "assignment.created", $id);
-        return ["id" => $id];
+                "assignment",
+                $id,
+                "واجب جديد: " . str($d["title"] ?? "", 200),
+                "/assignments?course=" . $course . "&assignment=" . $id,
+            );
+            return ["id" => $id];
+        });
     }
     if ($action === "submission.save") {
         auth(["student"]);
@@ -1193,21 +1249,30 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             ];
         }
         $id = uid();
-        run(
-            "INSERT INTO quizzes(id,course_id,title,minutes,passing,max_attempts,questions,created_at) VALUES(?,?,?,?,?,?,?,?)",
-            [
-                $id,
+        return tx(function () use ($id, $course, $title, $d, $clean, $u) {
+            run(
+                "INSERT INTO quizzes(id,course_id,title,minutes,passing,max_attempts,questions,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                [
+                    $id,
+                    $course,
+                    $title,
+                    number($d["minutes"] ?? 30, 1, 180),
+                    number($d["passing"] ?? 60, 1, 100),
+                    number($d["max_attempts"] ?? 2, 1, 10),
+                    json_encode($clean, JSON_UNESCAPED_UNICODE),
+                    now(),
+                ],
+            );
+            audit($u, "quiz.created", $id);
+            courseUpdate(
                 $course,
-                $title,
-                number($d["minutes"] ?? 30, 1, 180),
-                number($d["passing"] ?? 60, 1, 100),
-                number($d["max_attempts"] ?? 2, 1, 10),
-                json_encode($clean, JSON_UNESCAPED_UNICODE),
-                now(),
-            ],
-        );
-        audit($u, "quiz.created", $id);
-        return ["id" => $id];
+                "quiz",
+                $id,
+                "اختبار جديد: " . $title,
+                "/quizzes?course=" . $course . "&quiz=" . $id,
+            );
+            return ["id" => $id];
+        });
     }
     if ($action === "quiz") {
         $q = one("SELECT * FROM quizzes WHERE id=?", [$d["id"] ?? ""]);
@@ -1337,41 +1402,72 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         if ($end <= $start) {
             fail(422, "نهاية الحصة يجب أن تكون بعد بدايتها.");
         }
+        $automation = ($d["automatic_absence"] ?? false) === true;
+        $mode = $automation
+            ? attendanceAutomationMode($d["attendance_mode"] ?? "manual")
+            : "manual";
+        if ($automation && strtotime($end) - strtotime($start) < 1200) {
+            fail(
+                422,
+                "التغييب بعد ٢٠ دقيقة يتطلب حصة مدتها ٢٠ دقيقة على الأقل.",
+            );
+        }
         $id = uid();
-        run(
-            "INSERT INTO classes(id,course_id,title,starts_at,ends_at,location,join_url,created_at) VALUES(?,?,?,?,?,?,?,?)",
-            [
-                $id,
-                $course,
-                str($d["title"] ?? "", 200),
-                $start,
-                $end,
-                str($d["location"] ?? "", 160),
-                urlInput($d["join_url"] ?? ""),
-                now(),
-            ],
-        );
-        audit($u, "class.created", $id);
-        $courseTitle = one("SELECT title FROM courses WHERE id=?", [$course])[
-            "title"
-        ];
-        $time = (new DateTimeImmutable($start))
-            ->setTimezone(new DateTimeZone("Asia/Riyadh"))
-            ->format("Y-m-d H:i");
-        emailQueueCourse(
+        return tx(function () use (
+            $id,
             $course,
-            "class-created:" . $id,
-            "training",
-            "موعد تدريبي جديد في تفاصيل",
-            $courseTitle .
-                "\n" .
-                str($d["title"] ?? "", 200) .
-                "\nالموعد بتوقيت السعودية: " .
-                $time .
-                "\nتفاصيل الحضور ورابط البث المباشر متاحة في جدولك.",
-            "/schedule",
-        );
-        return ["id" => $id];
+            $start,
+            $end,
+            $d,
+            $u,
+            $automation,
+            $mode,
+        ) {
+            run(
+                "INSERT INTO classes(id,course_id,title,starts_at,ends_at,location,join_url,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                [
+                    $id,
+                    $course,
+                    str($d["title"] ?? "", 200),
+                    $start,
+                    $end,
+                    str($d["location"] ?? "", 160),
+                    urlInput($d["join_url"] ?? ""),
+                    now(),
+                ],
+            );
+            audit($u, "class.created", $id);
+            if ($automation) {
+                attendanceAutomationCreate($id, $mode);
+            }
+            courseUpdate(
+                $course,
+                "class",
+                $id,
+                "حصة جديدة: " . str($d["title"] ?? "", 200),
+                "/schedule?course=" . $course,
+            );
+            $courseTitle = one("SELECT title FROM courses WHERE id=?", [
+                $course,
+            ])["title"];
+            $time = (new DateTimeImmutable($start))
+                ->setTimezone(new DateTimeZone("Asia/Riyadh"))
+                ->format("Y-m-d H:i");
+            emailQueueCourse(
+                $course,
+                "class-created:" . $id,
+                "training",
+                "موعد تدريبي جديد في تفاصيل",
+                $courseTitle .
+                    "\n" .
+                    str($d["title"] ?? "", 200) .
+                    "\nالموعد بتوقيت السعودية: " .
+                    $time .
+                    "\nتفاصيل الحضور ورابط البث المباشر متاحة في جدولك.",
+                "/schedule",
+            );
+            return ["id" => $id];
+        });
     }
     if ($action === "attendance.save") {
         $c = one("SELECT * FROM classes WHERE id=?", [$d["class_id"] ?? ""]);
@@ -1387,6 +1483,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             fail(422, "سجل الحضور غير صحيح.");
         }
         tx(function () use ($records, $c, $u) {
+            lockRow("classes", $c["id"]);
             foreach ($records as $r) {
                 $student = $r["student_id"] ?? "";
                 if (
@@ -1434,6 +1531,10 @@ function api(string $action, string $method, array $d, string $raw = ""): array
                         ],
                     );
                 }
+                run(
+                    "DELETE FROM class_automatic_absences WHERE class_id=? AND student_id=?",
+                    [$c["id"], $student],
+                );
             }
             foreach ($records as $record) {
                 syncAbsenceNotice(
@@ -1461,19 +1562,30 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             fail(403, "الإعلانات العامة للإدارة فقط.");
         }
         $id = uid();
-        run(
-            "INSERT INTO announcements(id,course_id,title,body,author_id,created_at) VALUES(?,?,?,?,?,?)",
-            [
-                $id,
-                $course ?: null,
-                str($d["title"] ?? "", 200),
-                str($d["body"] ?? "", 5000),
-                $u["id"],
-                now(),
-            ],
-        );
-        audit($u, "announcement.created", $id);
-        return ["id" => $id];
+        return tx(function () use ($id, $course, $d, $u) {
+            run(
+                "INSERT INTO announcements(id,course_id,title,body,author_id,created_at) VALUES(?,?,?,?,?,?)",
+                [
+                    $id,
+                    $course ?: null,
+                    str($d["title"] ?? "", 200),
+                    str($d["body"] ?? "", 5000),
+                    $u["id"],
+                    now(),
+                ],
+            );
+            audit($u, "announcement.created", $id);
+            if ($course) {
+                courseUpdate(
+                    $course,
+                    "announcement",
+                    $id,
+                    "إعلان جديد: " . str($d["title"] ?? "", 200),
+                    "/announcements",
+                );
+            }
+            return ["id" => $id];
+        });
     }
     if ($action === "certificate.issue") {
         auth(["admin", "instructor"]);
@@ -1762,6 +1874,15 @@ function uploadFile(array $u): array
                 ],
             );
             run("DELETE FROM upload_reservations WHERE id=?", [$id]);
+            if ($purpose === "resource" && $course) {
+                courseUpdate(
+                    $course,
+                    "file",
+                    $id,
+                    "ملف جديد: " . $name,
+                    "/files?course=" . $course,
+                );
+            }
         });
     } catch (Throwable $e) {
         if ($storage !== null) {

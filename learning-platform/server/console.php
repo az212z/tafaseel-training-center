@@ -333,7 +333,9 @@ if (in_array($command, ["demo", "migrate"], true)) {
     exit();
 }
 if ($command === "worker") {
+    $attendance = automaticAbsences();
     $result = dispatchNotifications(25);
+    $result["attendance"] = $attendance;
     $result["email"] = dispatchEmails(5);
     echo json_encode($result, JSON_UNESCAPED_UNICODE), PHP_EOL;
     exit();

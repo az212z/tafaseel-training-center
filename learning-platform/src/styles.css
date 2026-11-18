@@ -591,6 +591,63 @@ a:focus-visible {
   border: 1px solid white;
   border-radius: 50%;
 }
+.notification-button > .notification-count {
+  height: auto;
+  width: auto;
+  min-width: 19px;
+  padding: 1px 4px;
+  top: -2px;
+  right: -5px;
+  border-radius: 12px;
+  color: #fff;
+  background: #28534c;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+}
+.learning-notification {
+  display: flex;
+  width: 100%;
+  gap: 13px;
+  align-items: center;
+  padding: 17px 12px;
+  margin: 7px 0;
+  border: 1px solid #e8eeeb;
+  border-radius: 12px;
+  background: #fff;
+  text-align: start;
+  color: inherit;
+  cursor: pointer;
+}
+.learning-notification.unread {
+  background: #f3f7f1;
+  border-color: #d7e2d3;
+}
+.learning-notification > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.learning-notification strong,
+.learning-notification span span,
+.learning-notification small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.learning-notification strong {
+  font-size: 14px;
+}
+.learning-notification span span {
+  margin-top: 5px;
+  font-size: 13px;
+}
+.learning-notification small {
+  margin-top: 7px;
+  font-size: 11px;
+  color: #64766c;
+}
+.learning-notification:hover {
+  border-color: #7b9a83;
+}
 .topbar-avatar {
   padding: 0;
 }

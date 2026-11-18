@@ -167,6 +167,60 @@ function dataFor(u: User): Data {
     ...(u.role === "admin" ? { users: s.users, audit: s.audit ?? [] } : {}),
   });
 }
+function previewLearningUpdates(u: User) {
+  if (u.role !== "student")
+    throw new Error("تحديثات التعلم متاحة للطالب من حسابه.");
+  const s = dbState();
+  const seen = new Set<string>();
+  const read = s.learningReads?.[u.id] ?? {};
+  return (s.audit ?? []).flatMap((event) => {
+    const id = event.entity_id;
+    if (!id) return [];
+    const kind = event.action.split(".")[0];
+    const source:
+      { course_id?: string | null; title?: string; name?: string } | undefined =
+      kind === "lesson"
+        ? s.lessons.find((v) => v.id === id)
+        : kind === "assignment"
+          ? s.assignments.find((v) => v.id === id)
+          : kind === "quiz"
+            ? s.quizzes.find((v) => v.id === id)
+            : kind === "class"
+              ? s.classes.find((v) => v.id === id)
+              : kind === "announcement"
+                ? s.announcements.find((v) => v.id === id)
+                : kind === "file"
+                  ? s.files.find((v) => v.id === id && v.purpose === "resource")
+                  : undefined;
+    const cid = source?.course_id;
+    const key = `${kind}:${id}`;
+    if (!cid || seen.has(key) || !canCourse(u, cid)) return [];
+    seen.add(key);
+    const path =
+      kind === "assignment"
+        ? `/assignments?course=${cid}&assignment=${id}`
+        : kind === "quiz"
+          ? `/quizzes?course=${cid}&quiz=${id}`
+          : kind === "class"
+            ? `/schedule?course=${cid}`
+            : kind === "file"
+              ? `/files?course=${cid}`
+              : kind === "announcement"
+                ? "/announcements"
+                : `/courses/${cid}?lesson=${id}`;
+    return [
+      {
+        id: key,
+        course_id: cid,
+        title: source.title ?? source.name ?? "تحديث جديد",
+        body: s.courses.find((c) => c.id === cid)?.title ?? "",
+        created_at: event.created_at,
+        read_at: read[key] ?? null,
+        link_path: path,
+      },
+    ];
+  });
+}
 function checkCertificate(courseId: string, studentId: string) {
   const s = dbState();
   if (
@@ -273,6 +327,29 @@ export async function previewApi<T>(
       return { ok: true, csrf: "preview" } as T;
     case "data":
       return dataFor(u) as T;
+    case "learning.updates": {
+      const items = previewLearningUpdates(u);
+      const page = int(d.page ?? 1, 1, 1000000);
+      return {
+        items: items.slice((page - 1) * 25, page * 25),
+        total: items.length,
+        unread: items.filter((x) => !x.read_at).length,
+        page,
+        page_size: 25,
+      } as T;
+    }
+    case "learning.updates.read": {
+      const items = previewLearningUpdates(u);
+      const chosen =
+        d.all === true ? items : items.filter((x) => x.id === d.id);
+      if (d.all !== true && !chosen.length)
+        throw new Error("الإشعار غير متاح.");
+      s.learningReads ??= {};
+      s.learningReads[u.id] ??= {};
+      for (const item of chosen) s.learningReads[u.id][item.id] = now();
+      await save();
+      return { ok: true } as T;
+    }
     case "student": {
       const id = text(d.id);
       const student = s.users.find((t) => t.id === id && t.role === "student");

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Plus,
@@ -35,6 +35,13 @@ export function Assignments() {
   const [term, setTerm] = useState("");
   const [add, setAdd] = useState(false);
   const [selected, setSelected] = useState<Assignment | null>(null);
+  const targetAssignment = params.get("assignment");
+  useEffect(() => {
+    if (targetAssignment)
+      setSelected(
+        data.assignments.find((a) => a.id === targetAssignment) ?? null,
+      );
+  }, [targetAssignment, data.assignments]);
   const [grade, setGrade] = useState<Submission | null>(null);
   const [file, setFile] = useState("");
   const staff = ["admin", "instructor"].includes(user.role);
@@ -355,6 +362,11 @@ export function Quizzes() {
   const [course, setCourse] = useState(params.get("course") ?? "");
   const [add, setAdd] = useState(false);
   const [selected, setSelected] = useState<Quiz | null>(null);
+  const targetQuiz = params.get("quiz");
+  useEffect(() => {
+    if (targetQuiz)
+      setSelected(data.quizzes.find((q) => q.id === targetQuiz) ?? null);
+  }, [targetQuiz, data.quizzes]);
   const [questions, setQuestions] = useState<Question[] | null>(null);
   const [busy, setBusy] = useState(false);
   const staff = ["admin", "instructor"].includes(user.role);

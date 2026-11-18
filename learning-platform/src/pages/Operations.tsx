@@ -49,11 +49,13 @@ import {
   Progress,
 } from "../components/ui";
 import { ClassForm, CourseSelect } from "../components/forms";
+import { AttendanceAutomation } from "../components/AttendanceAutomation";
 export function Schedule() {
   const { data, user } = useApp();
+  const [params] = useSearchParams();
   const [add, setAdd] = useState(false);
   const [filter, setFilter] = useState("upcoming");
-  const [course, setCourse] = useState("");
+  const [course, setCourse] = useState(params.get("course") ?? "");
   const staff = ["admin", "instructor"].includes(user.role);
   const classes = data.classes.filter(
     (c) =>
@@ -257,10 +259,13 @@ export function AttendancePage() {
       </PageHead>
       {staff && (
         <div className="alert">
-          عند رصد الغياب تُجدول رسالة بعد خمس دقائق للطلاب الذين وُثقت موافقة ولي
-          أمرهم على SMS. تابع حالة الرسائل من «رسائل الغياب»؛ يمكن تصحيح الرصد
-          قبل الإرسال.
+          بعد مهلة حضور ٢٠ دقيقة يُسجل الغياب تلقائيًا عند تفعيل المتابعة. تُرسل
+          الرسائل إلى أرقام أولياء الأمور المفعّلة؛ تصحيح الغياب قبل الإرسال يلغي
+          الرسالة المنتظرة.
         </div>
+      )}
+      {staff && selected && (
+        <AttendanceAutomation key={selected.id} session={selected} />
       )}
       <Panel>
         <div className="attendance-toolbar">

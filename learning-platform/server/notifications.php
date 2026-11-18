@@ -4,6 +4,7 @@ function syncAbsenceNotice(
     string $classId,
     string $studentId,
     string $status,
+    bool $automatic = false,
 ): void {
     $key = "absence:" . $classId . ":" . $studentId;
     $existing = one("SELECT * FROM notification_outbox WHERE dedupe_key=?", [
@@ -53,19 +54,28 @@ function syncAbsenceNotice(
         " بتاريخ " .
         $date .
         ". للاستفسار يرجى التواصل مع إدارة المركز.";
+    $rule = one(
+        "SELECT started_at FROM class_attendance_automation WHERE class_id=? AND enabled=1",
+        [$classId],
+    );
+    $start = max(
+        strtotime($c["starts_at"]),
+        strtotime($rule["started_at"] ?? "") ?: 0,
+    );
     $ready = gmdate(
         "Y-m-d\TH:i:s\Z",
-        max(time() + 300, strtotime($c["starts_at"]) + 900),
+        max(time() + ($automatic ? 0 : 300), $start + 1200),
     );
     $status = integrationEnabled("sms") ? "pending" : "blocked";
     if ($existing) {
         run(
-            "UPDATE notification_outbox SET recipient=?,body=?,status=?,next_attempt_at=?,error_code=NULL,updated_at=? WHERE id=?",
+            "UPDATE notification_outbox SET recipient=?,body=?,status=?,next_attempt_at=?,kind=?,error_code=NULL,updated_at=? WHERE id=?",
             [
                 enc(dec($p["guardian_phone"])),
                 enc($body),
                 $status,
                 $ready,
+                $automatic ? "absence_auto" : "absence",
                 now(),
                 $existing["id"],
             ],
@@ -78,7 +88,7 @@ function syncAbsenceNotice(
                 $key,
                 $studentId,
                 $classId,
-                "absence",
+                $automatic ? "absence_auto" : "absence",
                 enc(dec($p["guardian_phone"])),
                 enc($body),
                 $status,
@@ -184,6 +194,29 @@ function dispatchNotifications(int $limit = 25): array
                     [now(), $n["id"]],
                 );
                 return ["cancelled" => true];
+            }
+            $class = one("SELECT ends_at FROM classes WHERE id=?", [
+                $n["class_id"],
+            ]);
+            if (!$class || strtotime($class["ends_at"]) < time() - 3600) {
+                run(
+                    "UPDATE notification_outbox SET status='cancelled',error_code='absence_expired',updated_at=? WHERE id=?",
+                    [now(), $n["id"]],
+                );
+                return ["cancelled" => true];
+            }
+            if ($n["kind"] === "absence_auto") {
+                $rule = one(
+                    "SELECT enabled,needs_review FROM class_attendance_automation WHERE class_id=?",
+                    [$n["class_id"]],
+                );
+                if (!$rule || !$rule["enabled"] || $rule["needs_review"]) {
+                    run(
+                        "UPDATE notification_outbox SET status='cancelled',updated_at=? WHERE id=?",
+                        [now(), $n["id"]],
+                    );
+                    return ["cancelled" => true];
+                }
             }
             if (!integrationEnabled("sms")) {
                 run(

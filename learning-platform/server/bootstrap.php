@@ -342,7 +342,7 @@ function publicUser(array $u): array
     }
     return $public;
 }
-function currentUser(): ?array
+function currentUser(bool $touch = true): ?array
 {
     sessionStart();
     if (!isset($_SESSION["uid"])) {
@@ -360,12 +360,14 @@ function currentUser(): ?array
         unset($_SESSION["uid"]);
         return null;
     }
-    $_SESSION["last"] = time();
+    if ($touch) {
+        $_SESSION["last"] = time();
+    }
     return publicUser($u);
 }
-function auth(array $roles = []): array
+function auth(array $roles = [], bool $touch = true): array
 {
-    $u = currentUser();
+    $u = currentUser($touch);
     if (!$u) {
         fail(401, "سجّل الدخول للمتابعة.");
     }
