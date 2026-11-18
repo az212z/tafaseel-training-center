@@ -5,7 +5,7 @@ import {
   AnnotationMode,
 } from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
-import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
+import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker&url";
 import { ar } from "../context";
 import { Button } from "./ui";
 
@@ -36,7 +36,8 @@ export default function PdfReader({
       .then((pdf) => {
         if (active) setDoc(pdf);
       })
-      .catch(() => {
+      .catch((reason: Error) => {
+        console.warn("تعذّر فتح ملف التدريب", reason.message);
         if (active) setError(true);
       });
     return () => {
