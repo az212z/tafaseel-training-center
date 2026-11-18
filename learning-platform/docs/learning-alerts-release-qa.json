@@ -1,0 +1,100 @@
+{
+  "checked_at": "2026-11-18T07:20:11.170508+00:00",
+  "source_commit": "619d7282816d229ed5b8ecb74cce14c2aa37b8cc",
+  "local_checks": {
+    "notifications_sqlite": 36,
+    "notifications_mariadb": 36,
+    "core_sqlite": 68,
+    "core_mariadb": 68,
+    "extensions_sqlite": 65,
+    "extensions_mariadb": 65,
+    "email_sqlite": 27,
+    "email_mariadb": 27,
+    "quizzes_sqlite": 21,
+    "quizzes_mariadb": 21,
+    "accounts_sqlite": 25,
+    "accounts_mariadb": 25,
+    "preview": 42,
+    "scale": 19
+  },
+  "total_local_assertions": 545,
+  "typecheck": true,
+  "php_syntax": true,
+  "build": true,
+  "ui": {
+    "student_unread_badge": true,
+    "new_lesson_api_notification": true,
+    "read_receipt_persisted": true,
+    "opens_exact_lesson": true,
+    "instructor_timer_start": true,
+    "instructor_timer_pause": true,
+    "local_synthetic_data_only": true,
+    "global_announcements_preserved": true
+  },
+  "sms_test_receiver": "loopback only",
+  "external_test_sms_sent": false,
+  "production_published": true,
+  "ci_run": 44259785349,
+  "runtime_files": 4078,
+  "changed_runtime_files": 18,
+  "sms_provider_account_not_connected": true,
+  "excluded_unreferenced_sync_copies": 53,
+  "verified_at": "2026-11-18T07:56:34.663000+00:00",
+  "ci_all_three_jobs_passed": true,
+  "production_notification_probe": {
+    "student_notification_visible": true,
+    "read_receipt_persisted": true,
+    "sms_settings_student_denied": true,
+    "transaction_rolled_back": true,
+    "php": "8.3.36",
+    "database": "11.8.9-MariaDB-log",
+    "external_messages_sent": false,
+    "verified_at": "2026-11-18T07:49:32.737750+00:00"
+  },
+  "publication": {
+    "verified_at": "2026-11-18T07:50:25.900227+00:00",
+    "source_commit": "619d7282816d229ed5b8ecb74cce14c2aa37b8cc",
+    "route_status": 200,
+    "live_asset": "/assets/index-IQ5HpPaB.js",
+    "new_public_asset_hashes_match": 6,
+    "anonymous_updates_denied": true,
+    "administrator_updates_denied": true,
+    "sms_settings_admin_accessible": true,
+    "sms_configured": false,
+    "sms_has_token": false,
+    "zoom_configured": false,
+    "email_configured": true,
+    "worker_last_run": "2026-11-18T07:50:02Z",
+    "external_messages_sent_by_probe": false,
+    "published": true
+  },
+  "access_cleanup": {
+    "verified_at": "2026-11-18T07:54:52.640483+00:00",
+    "temporary_key_removed": true,
+    "fresh_ssh_connection_rejected": true,
+    "local_private_key_deleted": true,
+    "mail_connection_untouched": true
+  },
+  "local_runtime_cleanup": {
+    "verified_at": "2026-11-18T07:36:19.171147+00:00",
+    "own_php_3126_stopped": true,
+    "own_mariadb_socket_removed": true,
+    "synthetic_ui_data_and_credentials_removed": true,
+    "original_preview_3117_untouched": true
+  },
+  "production_schema_tables": 48,
+  "ci_scale": {
+    "assertions_passed": 19,
+    "failed": 0,
+    "students": 5000,
+    "enrollments": 50000,
+    "restore_tables": 48,
+    "restore_hashes_match": true,
+    "encrypted_file_restore_verified": true
+  },
+  "remaining_external_setup": [
+    "Connect a funded Taqnyat account and approved sender in administrator SMS settings.",
+    "Enable guardian SMS preferences for a valid guardian phone.",
+    "Connect Zoom only if automatic meeting presence is desired; teacher attendance tracking is available."
+  ]
+}
