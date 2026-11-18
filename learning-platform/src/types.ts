@@ -4,6 +4,7 @@ export interface User {
   name: string;
   email: string;
   username?: string;
+  invitation_status?: "pending" | "expired" | "revoked";
   role: Role;
   active: number;
   created_at: string;

@@ -150,6 +150,11 @@ const auditNames: Record<string, string> = {
   "mfa.recovered": "استعادة المصادقة من أداة الاستضافة",
   "legacy.imported": "استيراد نسخة مراجعة للنظام السابق",
   "user.created": "إنشاء حساب",
+  "account.invited": "إرسال دعوة إكمال حساب",
+  "account.invitation_resent": "تجديد دعوة الحساب",
+  "account.invitation_revoked": "إلغاء دعوة الحساب",
+  "teacher.approved": "الموافقة على طلب معلم",
+  "account.email_verified": "توثيق البريد وإكمال التسجيل",
   "user.updated": "تعديل حساب",
   "account.profile_updated": "تعديل بيانات حساب الإدارة",
   "account.credentials_changed":

@@ -187,6 +187,7 @@ function migrateSchema(): void
             "schema-v3.sql",
             "schema-v4.sql",
             "schema-v5.sql",
+            "schema-v6.sql",
         ]
         as $name
     ) {

@@ -107,7 +107,7 @@ function queueEmail(
             enc($u["email"]),
             enc($subject),
             enc($body),
-            $path,
+            $kind === "invitation" ? enc($path) : $path,
             emailReady() ? "pending" : "blocked",
             $due ?? now(),
             now(),
@@ -221,13 +221,20 @@ function emailTemplate(
     string $body,
     string $path,
     string $user,
+    bool $invitation = false,
 ): array {
     $escape = fn($s) => htmlspecialchars(
         $s,
         ENT_QUOTES | ENT_SUBSTITUTE,
         "UTF-8",
     );
-    if (!preg_match('#^/[a-zA-Z0-9/_-]*$#', $path)) {
+    if (
+        !preg_match('#^/[a-zA-Z0-9/_-]*$#', $path) &&
+        !(
+            $invitation &&
+            preg_match('/^\/activate#[a-f0-9]{32}\.[a-f0-9]{64}$/', $path)
+        )
+    ) {
         $path = "/dashboard";
     }
     $url = rtrim(cfg()["origin"], "/") . $path;
@@ -235,8 +242,9 @@ function emailTemplate(
         rtrim(cfg()["origin"], "/") .
         "/mail/?token=" .
         rawurlencode(emailUnsubscribeToken($user));
-    $footer =
-        "يمكنك إدارة تفضيلات الرسائل من حسابك، أو إيقاف التنبيهات الاختيارية من الرابط التالي.";
+    $footer = $invitation
+        ? "هذه رسالة خاصة بإكمال التسجيل. لا تشارك رابط الدعوة أو كلمة مرورك مع أي شخص."
+        : "يمكنك إدارة تفضيلات الرسائل من حسابك، أو إيقاف التنبيهات الاختيارية من الرابط التالي.";
     $html =
         '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' .
         $escape($subject) .
@@ -255,6 +263,20 @@ function emailTemplate(
         '<br><a href="' .
         $escape($unsubscribe) .
         '">إدارة اشتراك البريد</a></td></tr></table></td></tr></table></body></html>';
+    if ($invitation) {
+        $html = str_replace(
+            "فتح منصة تفاصيل</a>",
+            "توثيق الحساب وإكمال التسجيل</a>",
+            $html,
+        );
+        $html = str_replace(
+            '<br><a href="' .
+                $escape($unsubscribe) .
+                '">إدارة اشتراك البريد</a>',
+            "",
+            $html,
+        );
+    }
     return [
         "html" => $html,
         "text" =>
@@ -266,7 +288,7 @@ function emailTemplate(
             "\n\n" .
             $footer .
             "\n" .
-            $unsubscribe,
+            ($invitation ? "" : $unsubscribe),
         "unsubscribe" => $unsubscribe,
     ];
 }
@@ -309,6 +331,13 @@ function sendEmailSmtp(array $n): void
     $mail->Timeout = 12;
     $mail->CharSet = "UTF-8";
     $mail->SMTPDebug = 0;
+    // Tests must never fall back to the real relay when their receiver is missing.
+    if (
+        (cfg()["testing"] ?? false) &&
+        (cfg()["environment"] !== "local" || empty(cfg()["test_smtp_port"]))
+    ) {
+        throw new ProviderError("smtp_test_not_configured", false);
+    }
     // Local protocol tests are limited to an explicit disposable environment.
     if (
         cfg()["environment"] === "local" &&
@@ -329,6 +358,7 @@ function sendEmailSmtp(array $n): void
         $n["body"],
         $n["link_path"],
         $n["user_id"],
+        $n["kind"] === "invitation",
     );
     $mail->isHTML(true);
     $mail->Body = $content["html"];
@@ -365,6 +395,13 @@ function sendEmailSmtp(array $n): void
 }
 function emailStillAllowed(array $n, array $u): bool
 {
+    if ($n["kind"] === "invitation") {
+        $invite = one(
+            "SELECT * FROM account_invitations WHERE id=? AND user_id=?",
+            [$n["resource_id"], $u["id"]],
+        );
+        return $invite && invitationUsable($invite, $u);
+    }
     if (!$u["active"] && $n["kind"] !== "registration") {
         return false;
     }
@@ -502,6 +539,9 @@ function dispatchEmails(int $limit = 5): array
             $n["recipient"] = $recipient;
             $n["subject"] = dec($n["subject"]);
             $n["body"] = dec($n["body"]);
+            if ($n["kind"] === "invitation") {
+                $n["link_path"] = dec($n["link_path"]);
+            }
             $n["lock_token"] = $token;
             return $n;
         });

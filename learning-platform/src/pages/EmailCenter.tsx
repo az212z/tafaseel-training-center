@@ -55,6 +55,7 @@ const kinds: Record<string, string> = {
   account: "خدمة الحساب",
   admin_alert: "تنبيه الإدارة",
   test: "اختبار الربط",
+  invitation: "دعوة إكمال التسجيل",
 };
 function EmailPreferences() {
   const { notify } = useApp();

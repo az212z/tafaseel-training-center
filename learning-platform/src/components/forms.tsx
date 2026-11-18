@@ -181,6 +181,7 @@ export function UserForm({
 }) {
   const { data, refresh, notify } = useApp();
   const [role, setRole] = useState(target?.role ?? defaultRole);
+  const [invite, setInvite] = useState(!target && !isStaticPreview);
   return (
     <Modal
       title={target ? "تعديل بيانات الحساب" : "إضافة حساب جديد"}
@@ -191,14 +192,22 @@ export function UserForm({
         onCancel={onClose}
         submitLabel={target ? "حفظ بيانات الحساب" : "إنشاء الحساب"}
         onSubmit={async (d) => {
-          await api("user.save", {
-            ...d,
-            id: target?.id,
-            role,
-            consent: d.consent === "on",
-          });
+          const result = await api<{ invitation_queued?: boolean }>(
+            "user.save",
+            {
+              ...d,
+              id: target?.id,
+              role,
+              consent: d.consent === "on",
+              send_invite: !target && invite,
+            },
+          );
           await refresh();
-          notify("تم حفظ الحساب.");
+          notify(
+            result.invitation_queued
+              ? "أُنشئ الحساب وأُضيفت دعوة إكمال التسجيل إلى البريد."
+              : "تم حفظ الحساب.",
+          );
           onClose();
         }}
       >
@@ -217,7 +226,7 @@ export function UserForm({
               onChange={(e) => setRole(e.target.value)}
             >
               <option value="student">طالب</option>
-              <option value="instructor">مدرب</option>
+              <option value="instructor">معلم / مدرب</option>
               <option value="guardian">ولي أمر</option>
             </select>
           </Field>
@@ -239,7 +248,24 @@ export function UserForm({
               autoComplete="off"
             />
           </Field>
-          {!isStaticPreview && (
+          {!isStaticPreview && !target && (
+            <Field label="إكمال تسجيل الحساب">
+              <select
+                value={invite ? "invite" : "password"}
+                onChange={(e) => setInvite(e.target.value === "invite")}
+              >
+                <option value="invite">
+                  إرسال دعوة لتوثيق البريد وتعيين كلمة المرور
+                </option>
+                <option value="password">تعيين كلمة مرور من الإدارة</option>
+              </select>
+              <small>
+                دعوة شخصية صالحة لمدة ٧٢ ساعة. يختار صاحب الحساب كلمة مروره، ثم
+                يستطيع تسجيل الدخول.
+              </small>
+            </Field>
+          )}
+          {!isStaticPreview && (!invite || !!target) && (
             <>
               <Field
                 label={target ? "كلمة مرور جديدة (اختياري)" : "كلمة المرور"}

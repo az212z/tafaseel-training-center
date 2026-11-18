@@ -34,6 +34,8 @@ class Client:
         assert status==expected,(status,raw[:350]); return json.loads(raw)
 
 class Sandbox:
+    def __init__(self, smtp_port=None):
+        self.smtp_port=smtp_port
     def __enter__(self):
         self.tmp=tempfile.TemporaryDirectory(prefix='tafaseel-simulation-'); self.folder=pathlib.Path(self.tmp.name)
         self.mysql=os.environ.get('TAFASEEL_TEST_MYSQL_SOCKET'); self.name='tafaseel_sim_'+os.urandom(5).hex()
@@ -41,6 +43,9 @@ class Sandbox:
         dsn=f'mysql:unix_socket={self.mysql};dbname={self.name};charset=utf8mb4' if self.mysql else 'sqlite:'+str(self.folder/'database.sqlite')
         self.config=self.folder/'config.php'
         self.config.write_text("<?php return ['environment'=>'local','demo'=>false,'testing'=>true,'simulation'=>true,'enforce_staff_mfa'=>false,'staff_mfa_enabled'=>false,'origin'=>'"+ORIGIN+"','dsn'=>'"+dsn+"','db_user'=>'root','db_password'=>'','key'=>'"+os.urandom(32).hex()+"','storage'=>'"+str(self.folder/'storage')+"'];")
+        if self.smtp_port is not None:
+            assert 0<int(self.smtp_port)<65536
+            self.config.write_text(self.config.read_text().replace("'storage'=>", "'test_smtp_port'=>"+str(int(self.smtp_port))+",'storage'=>"))
         self.config.chmod(0o600); self.password='Simulation-'+os.urandom(16).hex()+'!'
         self.env={**os.environ,'TAFASEEL_CONFIG':str(self.config),'TAFASEEL_SIM_PASSWORD':self.password}
         self.php([str(ROOT/'server/console.php'),'migrate'])

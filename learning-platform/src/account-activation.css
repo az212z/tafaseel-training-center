@@ -1,0 +1,74 @@
+.activation-page {
+  min-height: 100vh;
+  background: #f3f6f3;
+  padding: 42px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+}
+.activation-brand img {
+  width: 155px;
+  height: auto;
+}
+.activation-card {
+  width: min(100%, 590px);
+  background: #fff;
+  border: 1px solid #dce6e1;
+  border-radius: 24px;
+  padding: 38px;
+  box-shadow: 0 14px 50px #173d4309;
+}
+.activation-card h1 {
+  margin: 8px 0 16px;
+  font-size: clamp(26px, 4vw, 34px);
+  line-height: 1.5;
+}
+.activation-card p {
+  line-height: 1.9;
+}
+.activation-symbol {
+  width: 64px;
+  height: 64px;
+  background: #eaf1e0;
+  color: #315a49;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 22px;
+}
+.activation-card .check-label {
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.activation-card .check-label input {
+  flex: 0 0 auto;
+}
+.activation-card .form {
+  margin-top: 22px;
+}
+.activation-note {
+  color: #65766e;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.activation-note svg {
+  flex-shrink: 0;
+}
+.activation-footer {
+  color: #65766e;
+  text-align: center;
+  font-size: 13px;
+}
+@media (max-width: 520px) {
+  .activation-page {
+    padding: 25px 16px;
+    gap: 22px;
+  }
+  .activation-card {
+    padding: 25px 20px;
+    border-radius: 18px;
+  }
+}

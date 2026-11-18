@@ -72,6 +72,7 @@ const stateLabels: Record<string, string> = {
   new: "جديد",
   contacted: "تم التواصل",
   closed: "مغلق",
+  approved: "تمت الموافقة",
 };
 export default function WebsiteAdmin() {
   const { data, notify } = useApp();
@@ -91,6 +92,7 @@ export default function WebsiteAdmin() {
   const [creating, setCreating] = useState<"program" | "article" | null>(null);
   const [pageKey, setPageKey] = useState("privacy");
   const [inquiryLoading, setInquiryLoading] = useState(true);
+  const [approval, setApproval] = useState<InquiryItem | null>(null);
   async function load() {
     try {
       if (isStaticPreview) {
@@ -178,6 +180,12 @@ export default function WebsiteAdmin() {
         title="الموقع ومركز الإدارة"
         subtitle="أعمال المركز ومحتوى الموقع وطلبات الزوار، من مكان واحد."
       >
+        <Link className="btn btn-primary" to="/users?create=instructor">
+          <ChalkboardTeacher size={18} /> إنشاء حساب معلم
+        </Link>
+        <Link className="btn btn-secondary" to="/users?create=student">
+          <Plus size={18} /> إنشاء حساب طالب
+        </Link>
         <a
           className="btn btn-secondary"
           href="/"
@@ -685,6 +693,7 @@ export default function WebsiteAdmin() {
                     <select
                       aria-label={"حالة الطلب " + i.reference}
                       value={i.status}
+                      disabled={i.status === "approved"}
                       onChange={async (e) => {
                         try {
                           await api("website.inquiry.status", {
@@ -703,11 +712,15 @@ export default function WebsiteAdmin() {
                         }
                       }}
                     >
-                      {Object.entries(stateLabels).map(([k, v]) => (
-                        <option key={k} value={k}>
-                          {v}
-                        </option>
-                      ))}
+                      {Object.entries(stateLabels)
+                        .filter(
+                          ([k]) => k !== "approved" || i.status === "approved",
+                        )
+                        .map(([k, v]) => (
+                          <option key={k} value={k}>
+                            {v}
+                          </option>
+                        ))}
                     </select>
                   </div>
                   <dl className="website-inquiry-details">
@@ -747,6 +760,17 @@ export default function WebsiteAdmin() {
                     )}
                   </dl>
                   <p className="website-message">{i.details.message}</p>
+                  {i.kind === "trainer" &&
+                    ["new", "contacted"].includes(i.status) && (
+                      <Button onClick={() => setApproval(i)}>
+                        <CheckCircle size={18} /> موافقة وإرسال دعوة
+                      </Button>
+                    )}
+                  {i.kind === "trainer" && i.status === "approved" && (
+                    <Link className="btn btn-secondary" to="/users">
+                      متابعة حساب المعلم ودعوته
+                    </Link>
+                  )}
                 </Panel>
               ))}
             </div>
@@ -771,6 +795,62 @@ export default function WebsiteAdmin() {
             </Button>
           </div>
         </>
+      )}
+      {approval && (
+        <Modal
+          title="الموافقة على انضمام معلم"
+          onClose={() => setApproval(null)}
+        >
+          <p>
+            ستُعتمد موافقة انضمام {approval.details.name}، ويُنشأ له حساب معلم
+            بانتظار توثيق بريده.
+          </p>
+          <Form
+            submitLabel="اعتماد الموافقة وإرسال الدعوة"
+            onCancel={() => setApproval(null)}
+            onSubmit={async (data) => {
+              const result = await api<{ existing?: boolean }>(
+                "website.trainer.approve",
+                { id: approval.id, email: data.email },
+              );
+              setApproval(null);
+              await loadInquiries();
+              const pending = await get<{ total: number }>(
+                "website.inquiries",
+                { status: "new" },
+              );
+              setNewCount(pending.total);
+              notify(
+                result.existing
+                  ? "سبق اعتماد الطلب. يمكنك متابعة الدعوة من الحسابات والصلاحيات."
+                  : "تمت الموافقة وأُضيفت رسالة الدعوة الرسمية إلى البريد.",
+              );
+            }}
+          >
+            <Field label="البريد الذي ستصله الموافقة">
+              <input
+                name="email"
+                type="email"
+                required
+                maxLength={190}
+                dir="ltr"
+                defaultValue={approval.details.email}
+              />
+            </Field>
+            <div className="alert">
+              <Envelope size={22} />
+              <p>
+                عنوان الرسالة: «الموافقة على انضمامكم إلى منصة تفاصيل
+                التعليمية». تتضمن ترحيبًا رسميًا ورابطًا شخصيًا صالحًا لمدة ٧٢ ساعة
+                لتوثيق البريد وتعيين كلمة المرور.
+              </p>
+            </div>
+            <p className="muted">
+              لا يتفعّل الدخول حتى يكمل المعلم توثيق حسابه. إعادة إرسال الدعوة
+              متاحة من صفحة الحسابات والصلاحيات.
+            </p>
+          </Form>
+        </Modal>
       )}
     </>
   );

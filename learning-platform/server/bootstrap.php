@@ -484,6 +484,8 @@ function lockRow(string $table, string $id): void
                 "email_outbox",
                 "video_assets",
                 "storage_locks",
+                "users",
+                "website_inquiries",
             ],
             true,
         )

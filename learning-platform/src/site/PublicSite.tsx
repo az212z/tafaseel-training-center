@@ -1046,10 +1046,11 @@ function Inquiry({
         </label>
       </div>
       <label>
-        البريد الإلكتروني <small>(اختياري)</small>
+        البريد الإلكتروني {kind !== "trainer" && <small>(اختياري)</small>}
         <input
           name="email"
           type="email"
+          required={kind === "trainer"}
           maxLength={190}
           autoComplete="email"
           dir="ltr"

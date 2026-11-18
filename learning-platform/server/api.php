@@ -5,6 +5,7 @@ require_once __DIR__ . "/extensions.php";
 require_once __DIR__ . "/website.php";
 require_once __DIR__ . "/learning-tools.php";
 require_once __DIR__ . "/email.php";
+require_once __DIR__ . "/account-invitations.php";
 function visibleCourses(array $u): array
 {
     $sql =
@@ -373,6 +374,10 @@ function checkFileRef(
 }
 function api(string $action, string $method, array $d, string $raw = ""): array
 {
+    $invitation = accountInvitationAction($action, $method, $d);
+    if ($invitation !== null) {
+        return $invitation;
+    }
     $email = emailAction($action, $method, $d);
     if ($email !== null) {
         return $email;
@@ -658,10 +663,12 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         if ($conflict && $conflict["id"] !== $id) {
             fail(409, "البريد مسجل مسبقًا.");
         }
-        $pw =
-            !$existing || !empty($d["password"])
+        $invite = !$existing && ($d["send_invite"] ?? false) === true;
+        $pw = $invite
+            ? bin2hex(random_bytes(32))
+            : (!$existing || !empty($d["password"])
                 ? pass($d["password"] ?? "")
-                : null;
+                : null);
         $profile = [];
         if ($role === "student") {
             $birth = str($d["birth_date"] ?? "", 12);
@@ -717,6 +724,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             $pw,
             $profile,
             $u,
+            $invite,
         ) {
             if ($existing) {
                 run("UPDATE users SET name=?,email=? WHERE id=?", [
@@ -732,13 +740,14 @@ function api(string $action, string $method, array $d, string $raw = ""): array
                 }
             } else {
                 run(
-                    "INSERT INTO users(id,name,email,password,role,created_at) VALUES(?,?,?,?,?,?)",
+                    "INSERT INTO users(id,name,email,password,role,active,created_at) VALUES(?,?,?,?,?,?,?)",
                     [
                         $id,
                         $name,
                         $em,
                         password_hash($pw, PASSWORD_DEFAULT),
                         $role,
+                        $invite ? 0 : 1,
                         now(),
                     ],
                 );
@@ -778,8 +787,11 @@ function api(string $action, string $method, array $d, string $raw = ""): array
                 }
             }
             audit($u, $existing ? "user.updated" : "user.created", $id);
+            if ($invite) {
+                issueAccountInvitation($id, $u);
+            }
         });
-        return ["id" => $id];
+        return ["id" => $id, "invitation_queued" => $invite];
     }
     if ($action === "user.toggle") {
         auth(["admin"]);
@@ -787,6 +799,18 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         $target = one("SELECT * FROM users WHERE id=?", [$id]);
         if (!$target || $target["role"] === "admin") {
             fail(422, "لا يمكن تغيير حالة هذا الحساب.");
+        }
+        if (
+            !$target["active"] &&
+            one(
+                "SELECT id FROM account_invitations WHERE user_id=? AND used_at IS NULL",
+                [$id],
+            )
+        ) {
+            fail(
+                409,
+                "الحساب ينتظر توثيق البريد من صاحبه. أعد إرسال دعوة التسجيل عند الحاجة.",
+            );
         }
         if (!$target["active"] && $target["role"] === "student") {
             $p = one(

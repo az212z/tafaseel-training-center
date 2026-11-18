@@ -657,6 +657,30 @@ function extensionAction(
                 $args,
                 $page,
             );
+            if ($result["items"]) {
+                $ids = array_column($result["items"], "id");
+                $holders = implode(",", array_fill(0, count($ids), "?"));
+                $invites = array_column(
+                    rows(
+                        "SELECT user_id,expires_at,revoked_at FROM account_invitations WHERE used_at IS NULL AND user_id IN ($holders)",
+                        $ids,
+                    ),
+                    null,
+                    "user_id",
+                );
+                foreach ($result["items"] as &$item) {
+                    if (isset($invites[$item["id"]])) {
+                        $item["invitation_status"] = $invites[$item["id"]][
+                            "revoked_at"
+                        ]
+                            ? "revoked"
+                            : ($invites[$item["id"]]["expires_at"] > now()
+                                ? "pending"
+                                : "expired");
+                    }
+                }
+                unset($item);
+            }
             $result["role_counts"] = [];
             foreach (
                 rows("SELECT role,COUNT(*) n FROM users GROUP BY role")

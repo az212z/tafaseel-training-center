@@ -65,6 +65,7 @@ function websiteAction(string $action, string $method, array $d): ?array
         "website.save",
         "website.inquiry",
         "website.inquiry.status",
+        "website.trainer.approve",
         "certificate.verify",
     ];
     if (!in_array($action, [...$gets, ...$posts], true)) {
@@ -114,7 +115,10 @@ function websiteAction(string $action, string $method, array $d): ?array
         $payload = [
             "name" => str($d["name"] ?? "", 120),
             "phone" => phone($d["phone"] ?? ""),
-            "email" => !empty($d["email"]) ? email($d["email"]) : "",
+            "email" =>
+                $kind === "trainer" || !empty($d["email"])
+                    ? email($d["email"] ?? "")
+                    : "",
             "organization" => str($d["organization"] ?? "", 160, false),
             "message" => str($d["message"] ?? "", 3000),
             "consent_at" => now(),
@@ -168,7 +172,13 @@ function websiteAction(string $action, string $method, array $d): ?array
     }
     if ($action === "website.inquiries") {
         $status = $d["status"] ?? "";
-        if (!in_array($status, ["", "new", "contacted", "closed"], true)) {
+        if (
+            !in_array(
+                $status,
+                ["", "new", "contacted", "closed", "approved"],
+                true,
+            )
+        ) {
             fail(422, "حالة الطلب غير صالحة.");
         }
         $where = $status ? " WHERE status=?" : "";
@@ -189,22 +199,37 @@ function websiteAction(string $action, string $method, array $d): ?array
         audit($u, "website.inquiries_viewed");
         return $result;
     }
+    if ($action === "website.trainer.approve") {
+        return approveTrainerInquiry(str($d["id"] ?? "", 40), $d, $u);
+    }
     if ($action === "website.inquiry.status") {
         $id = str($d["id"] ?? "", 40);
         $status = $d["status"] ?? "";
         if (!in_array($status, ["new", "contacted", "closed"], true)) {
             fail(422, "حالة الطلب غير صالحة.");
         }
-        if (!one("SELECT id FROM website_inquiries WHERE id=?", [$id])) {
-            fail(404, "الطلب غير موجود.");
-        }
-        run("UPDATE website_inquiries SET status=?,updated_at=? WHERE id=?", [
-            $status,
-            now(),
-            $id,
-        ]);
-        audit($u, "website.inquiry_updated", $id);
-        return ["ok" => true];
+        return tx(function () use ($id, $status, $u) {
+            lockRow("website_inquiries", $id);
+            $inquiry = one(
+                "SELECT id,status FROM website_inquiries WHERE id=?",
+                [$id],
+            );
+            if (!$inquiry) {
+                fail(404, "الطلب غير موجود.");
+            }
+            if ($inquiry["status"] === "approved") {
+                fail(
+                    409,
+                    "طلب المعلم معتمد. تُدار حالة حسابه من الحسابات والصلاحيات.",
+                );
+            }
+            run(
+                "UPDATE website_inquiries SET status=?,updated_at=? WHERE id=?",
+                [$status, now(), $id],
+            );
+            audit($u, "website.inquiry_updated", $id);
+            return ["ok" => true];
+        });
     }
     return tx(function () use ($d, $u) {
         // Row lock serializes revisions on both supported databases.

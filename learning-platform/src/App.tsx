@@ -87,6 +87,7 @@ import {
 } from "./pages/Pages";
 const PublicSite = lazy(() => import("./site/PublicSite"));
 const WebsiteAdmin = lazy(() => import("./site/WebsiteAdmin"));
+const AccountActivation = lazy(() => import("./pages/AccountActivation"));
 const menu: {
   title: string;
   items: { to: string; label: string; icon: Icon; roles?: Role[] }[];
@@ -1157,6 +1158,12 @@ function SessionApp() {
 
 function ApplicationRoutes() {
   const { pathname } = useLocation();
+  if (pathname === "/activate")
+    return (
+      <Suspense fallback={<div className="loading-screen">جارٍ فتح دعوتك…</div>}>
+        <AccountActivation />
+      </Suspense>
+    );
   const platform =
     /^\/(login|dashboard|website|paths|notebook|readiness|communications|courses|catalog|bags|videos|payments|notifications|integrations|students|assignments|quizzes|schedule|attendance|files|certificates|reports|announcements|users|settings|support)(\/|$)/.test(
       pathname,

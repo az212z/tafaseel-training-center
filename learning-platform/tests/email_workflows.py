@@ -38,8 +38,7 @@ class SMTP(socketserver.StreamRequestHandler):
 server=socketserver.ThreadingTCPServer(('127.0.0.1',0),SMTP)
 threading.Thread(target=server.serve_forever,daemon=True).start()
 try:
-  with Sandbox() as s:
-    s.config.write_text(s.config.read_text().replace("'storage'=>", "'test_smtp_port'=>"+str(server.server_address[1])+",'storage'=>"))
+  with Sandbox(smtp_port=server.server_address[1]) as s:
     seed="""require 'server/api.php';foreach(['admin'=>'admin','trainer'=>'instructor','other'=>'instructor','s1'=>'student','s2'=>'student'] as $id=>$role){run('INSERT INTO users(id,name,email,password,role,created_at) VALUES(?,?,?,?,?,?)',[$id,$id,$id.'@example.test',password_hash(getenv('TAFASEEL_SIM_PASSWORD'),PASSWORD_DEFAULT),$role,now()]);}run('INSERT INTO courses(id,title,description,category,image,status,instructor_id,capacity,created_at) VALUES(?,?,?,?,?,?,?,?,?)',['c1','دورة اختبار البريد','دورة محلية فقط','اختبار','','published','trainer',20,now()]);foreach(['s1','s2'] as $id)run('INSERT INTO enrollments(id,course_id,student_id,created_at) VALUES(?,?,?,?)',[uid(),'c1',$id,now()]);"""
     s.php(['-r',seed]);admin=s.login('admin');student=s.login('s1');second=s.login('s2');trainer=s.login('trainer');other=s.login('other');anon=Client(s.base)
     anon.get('email.status',401);student.get('email.status',403);student.post('email.configure',{},403)

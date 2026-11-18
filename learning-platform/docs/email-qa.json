@@ -1,17 +1,20 @@
 {
-  "checks": 24,
+  "checks": 27,
   "passed": [
-    "Anonymous and learner accounts cannot read or change SMTP settings",
+    "SMTP configuration, diagnostics, worker controls and operational APIs are administrator-only",
+    "Unavailable mail gives instructors a useful action without setup or server-test details",
     "SMTP changes require owner password, center domain, permitted TLS port and mailbox secret",
     "SMTP credentials encrypted at rest and never returned in status",
     "Real SMTP handshake sends multipart test to center mailbox with branded Reply-To",
     "Arabic HTML email and plain text alternative rendered without external assets",
     "SMTP acceptance recorded separately from inbox delivery",
+    "Trainer preview exposes scheduling availability while connection diagnostics remain administrator-only",
     "Assigned trainer previews exact enrolled audience and escaped message content",
     "Other instructors, students and instructor marketing escalation rejected",
     "Preview changes require renewed approval and send retries remain idempotent",
     "Campaign sends separate messages without exposing other recipients and includes unsubscribe headers",
-    "Broadcast report counts actual SMTP acceptances",
+    "Trainer can track own campaigns without provider acceptance or delivery diagnostics",
+    "Administrator broadcast report counts actual SMTP acceptances",
     "Marketing audience starts empty without affirmative subscription",
     "Only the account holder can opt into center newsletters",
     "Unsubscribe GET is a confirmation page and mail scanners cannot silently opt users out",
@@ -26,7 +29,7 @@
     "Scheduled worker queues one reminder per enrolled learner before a live session",
     "Delivery log never returns mail credentials or full message bodies"
   ],
-  "database": "sqlite",
+  "database": "mariadb",
   "external_messages_sent": 0,
   "smtp_protocol": "real local TCP; no TLS override allowed in production"
 }

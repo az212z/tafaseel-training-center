@@ -4,7 +4,12 @@ import type { PageResult } from "../types";
 import { GuardianPreference } from "./Communication";
 import { asset, isStaticPreview } from "../environment";
 import { useEffect, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useParams,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import {
   Plus,
   DownloadSimple,
@@ -405,9 +410,18 @@ export function StudentDetail() {
 }
 export function Users() {
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const createRole = params.get("create");
   const { notify, refresh } = useApp();
   const [term, setTerm] = useState("");
-  const [add, setAdd] = useState(false);
+  const [add, setAdd] = useState<string | null>(null);
+  const [inviting, setInviting] = useState("");
+  useEffect(() => {
+    if (createRole === "student" || createRole === "instructor") {
+      setAdd(createRole);
+      setParams({}, { replace: true });
+    }
+  }, [createRole, setParams]);
   const [edit, setEdit] = useState<User | null>(null);
   const [page, setPage] = useState(1);
   const remote = useRemote<
@@ -420,9 +434,12 @@ export function Users() {
         title="الحسابات والصلاحيات"
         subtitle="وصول واضح، ومسؤولية محددة لكل عضو في المنصة."
       >
-        <Button onClick={() => setAdd(true)}>
+        <Button onClick={() => setAdd("instructor")}>
           <Plus size={18} />
-          إضافة حساب
+          إنشاء حساب معلم
+        </Button>
+        <Button variant="secondary" onClick={() => setAdd("student")}>
+          <UserPlus size={18} /> إنشاء حساب طالب
         </Button>
       </PageHead>
       <div className="permission-cards">
@@ -475,8 +492,20 @@ export function Users() {
               <td dir="ltr">{u.email}</td>
               <td>{roles[u.role]}</td>
               <td>
-                <Badge tone={u.active ? "green" : "gray"}>
-                  {u.active ? "نشط" : "موقوف"}
+                <Badge
+                  tone={
+                    u.invitation_status ? "amber" : u.active ? "green" : "gray"
+                  }
+                >
+                  {u.invitation_status
+                    ? u.invitation_status === "revoked"
+                      ? "أُلغيت الدعوة"
+                      : u.invitation_status === "expired"
+                        ? "انتهت صلاحية الدعوة"
+                        : "بانتظار توثيق البريد"
+                    : u.active
+                      ? "نشط"
+                      : "موقوف"}
                 </Badge>
               </td>
               <td>
@@ -497,25 +526,73 @@ export function Users() {
                     >
                       تعديل
                     </button>
-                    <button
-                      className="text-link"
-                      onClick={async () => {
-                        try {
-                          await api("user.toggle", { id: u.id });
-                          await refresh();
-                          remote.reload();
-                          notify(
-                            u.active
-                              ? "تم إيقاف الحساب وإبطال جلساته."
-                              : "تم تفعيل الحساب.",
-                          );
-                        } catch (e) {
-                          notify((e as Error).message, "error");
-                        }
-                      }}
-                    >
-                      {u.active ? "إيقاف" : "تفعيل"}
-                    </button>
+                    {u.invitation_status ? (
+                      <button
+                        className="text-link"
+                        disabled={inviting === u.id}
+                        onClick={async () => {
+                          setInviting(u.id);
+                          try {
+                            await api("account.invite.resend", { id: u.id });
+                            remote.reload();
+                            notify(
+                              "أُضيفت دعوة جديدة إلى البريد، وأُلغي رابط الدعوة السابق.",
+                            );
+                          } catch (e) {
+                            notify((e as Error).message, "error");
+                          } finally {
+                            setInviting("");
+                          }
+                        }}
+                      >
+                        {inviting === u.id
+                          ? "جارٍ تجهيز الدعوة…"
+                          : "إعادة إرسال الدعوة"}
+                      </button>
+                    ) : (
+                      <button
+                        className="text-link"
+                        onClick={async () => {
+                          try {
+                            await api("user.toggle", { id: u.id });
+                            await refresh();
+                            remote.reload();
+                            notify(
+                              u.active
+                                ? "تم إيقاف الحساب وإبطال جلساته."
+                                : "تم تفعيل الحساب.",
+                            );
+                          } catch (e) {
+                            notify((e as Error).message, "error");
+                          }
+                        }}
+                      >
+                        {u.active ? "إيقاف" : "تفعيل"}
+                      </button>
+                    )}
+                    {u.invitation_status &&
+                      u.invitation_status !== "revoked" && (
+                        <button
+                          className="text-link"
+                          disabled={inviting === u.id}
+                          onClick={async () => {
+                            setInviting(u.id);
+                            try {
+                              await api("account.invite.revoke", { id: u.id });
+                              remote.reload();
+                              notify(
+                                "أُلغيت الدعوة ولم يعد رابطها صالحًا للتوثيق.",
+                              );
+                            } catch (e) {
+                              notify((e as Error).message, "error");
+                            } finally {
+                              setInviting("");
+                            }
+                          }}
+                        >
+                          إلغاء الدعوة
+                        </button>
+                      )}
                   </div>
                 )}
               </td>
@@ -535,9 +612,9 @@ export function Users() {
       />
       {add && (
         <UserForm
-          defaultRole="instructor"
+          defaultRole={add}
           onClose={() => {
-            setAdd(false);
+            setAdd(null);
             remote.reload();
           }}
         />
