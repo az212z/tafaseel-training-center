@@ -4,6 +4,7 @@ import datetime, hashlib, json, urllib.request, urllib.error, os, time
 from sandbox import Sandbox, Client, ROOT
 
 checks=[]
+(ROOT/'output/experience-20261118').mkdir(parents=True,exist_ok=True)
 def check(value, label):
     assert value,label
     checks.append(label)
