@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Plus,
   ArrowSquareOut,
@@ -30,8 +30,133 @@ import {
   money,
 } from "../components/remote";
 import { CourseSelect } from "../components/forms";
+interface RegistrationRequest {
+  course_id: string;
+  title: string;
+  created_at: string;
+  price_minor: number | null;
+  status:
+    | "enrolled"
+    | "pending_account"
+    | "unavailable"
+    | "payment_required"
+    | "awaiting_seat";
+  student_id?: string;
+  student_name?: string;
+}
+const requestStatus = {
+  enrolled: "تم التسجيل",
+  pending_account: "بانتظار تفعيل الحساب",
+  unavailable: "التسجيل مغلق",
+  payment_required: "بانتظار السداد",
+  awaiting_seat: "بانتظار توفر مقعد",
+};
+export function Registrations() {
+  const { user } = useApp();
+  const [page, setPage] = useState(1);
+  const remote = useRemote<
+    PageResult<RegistrationRequest> & { payment_available: boolean }
+  >("course.requests", { page: String(page) });
+  const admin = user.role === "admin";
+  return (
+    <>
+      <PageHead title="طلبات التسجيل">
+        {admin ? (
+          <Link to="/catalog" className="btn btn-secondary">
+            إعداد التسجيل والرسوم
+          </Link>
+        ) : (
+          <Link to="/programs" className="btn btn-secondary">
+            استعراض الدورات
+          </Link>
+        )}
+      </PageHead>
+      <RemoteState {...remote} />
+      {!!remote.result?.items.length && (
+        <Panel>
+          <div className="course-request-list">
+            {remote.result.items.map((item) => (
+              <article key={item.course_id + (item.student_id || "")}>
+                <div>
+                  <strong>{item.title}</strong>
+                  {admin && item.student_name && (
+                    <Link
+                      to={"/students/" + item.student_id}
+                      className="text-link"
+                    >
+                      {item.student_name}
+                    </Link>
+                  )}
+                  <small>
+                    {date(item.created_at)}
+                    {item.price_minor
+                      ? " · " + money(Number(item.price_minor))
+                      : ""}
+                  </small>
+                </div>
+                <Badge tone={item.status === "enrolled" ? "green" : "amber"}>
+                  {requestStatus[item.status]}
+                </Badge>
+                {admin ? (
+                  <Link
+                    className="text-link"
+                    to={
+                      item.status === "pending_account"
+                        ? "/users?account=" + item.student_id
+                        : "/courses/" + item.course_id
+                    }
+                  >
+                    {item.status === "pending_account"
+                      ? "مراجعة الحساب"
+                      : "عرض الدورة"}
+                  </Link>
+                ) : item.status === "enrolled" ? (
+                  <Link
+                    to={"/courses/" + item.course_id}
+                    className="btn btn-primary"
+                  >
+                    فتح الدورة
+                  </Link>
+                ) : item.status === "payment_required" ? (
+                  <Link
+                    className="text-link"
+                    to={
+                      remote.result?.payment_available
+                        ? "/catalog?course=" + item.course_id
+                        : "/contact"
+                    }
+                  >
+                    {remote.result?.payment_available
+                      ? "إكمال التسجيل"
+                      : "التواصل بشأن السداد"}
+                  </Link>
+                ) : item.status === "awaiting_seat" ? (
+                  <Link
+                    className="text-link"
+                    to={"/catalog?course=" + item.course_id}
+                  >
+                    التحقق من المقاعد
+                  </Link>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </Panel>
+      )}
+      {!remote.loading && !remote.error && !remote.result?.items.length && (
+        <Empty title="لا توجد طلبات تسجيل" />
+      )}
+      <Pagination
+        page={page}
+        total={remote.result?.total ?? 0}
+        onPage={setPage}
+      />
+    </>
+  );
+}
 export function Catalog() {
   const { user, data, notify, refresh } = useApp();
+  const navigate = useNavigate();
   const [catalogParams, setCatalogParams] = useSearchParams();
   const requestedCourse = catalogParams.get("course") || "";
   const [search, setSearch] = useState("");
@@ -142,11 +267,7 @@ export function Catalog() {
               <dd>{selected.duration} ساعة</dd>
             </div>
           </dl>
-          <p className="muted">
-            {user.role === "admin"
-              ? "تُعرض الرسوم النهائية المحددة من المركز. يتأكد الخادم من المبلغ والمقعد والتسجيل. بيانات البطاقة تُدخل لدى بوابة ميسر فقط."
-              : "راجع رسوم الدورة قبل تأكيد التسجيل. أدخل بيانات البطاقة في صفحة الدفع الآمنة، ثم تابع حالة تسجيلك من المدفوعات."}
-          </p>
+
           {user.role === "student" ? (
             <Button
               disabled={
@@ -160,22 +281,19 @@ export function Catalog() {
                 setBusy(selected.id);
                 try {
                   const r = await api<{ enrolled: boolean; order?: Order }>(
-                    "checkout",
+                    "course.apply",
                     { course_id: selected.id },
                   );
                   if (r.enrolled) {
                     await refresh();
                     notify("تم التسجيل في الدورة.");
-                    setSelected(null);
+                    navigate("/courses/" + selected.id);
                   } else if (r.order?.checkout_url) {
                     location.assign(r.order.checkout_url);
+                  } else if (r.order) {
+                    navigate("/payments?order=" + r.order.id);
                   } else {
-                    notify(
-                      isStaticPreview
-                        ? "أُنشئ طلب محاكاة. أكمل تجربته من صفحة المدفوعات."
-                        : "سُجل الطلب. راجع حالته من المدفوعات قبل إعادة المحاولة.",
-                    );
-                    setSelected(null);
+                    navigate("/registrations");
                   }
                 } catch (e) {
                   notify((e as Error).message, "error");

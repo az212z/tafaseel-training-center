@@ -1,3 +1,4 @@
+import { TrashButton } from "../components/TrashButton";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Upload } from "tus-js-client";
@@ -87,9 +88,17 @@ export function Bags() {
             description={`الإصدار ${b.version} • تحديث ${date(b.updated_at)}`}
             action={
               staff && (
-                <Button variant="secondary" onClick={() => setEdit(b)}>
-                  تعديل الحقيبة
-                </Button>
+                <div className="table-actions">
+                  <Button variant="secondary" onClick={() => setEdit(b)}>
+                    تعديل الحقيبة
+                  </Button>
+                  <TrashButton
+                    kind="bag"
+                    id={b.id}
+                    title={b.title}
+                    onRemoved={remote.reload}
+                  />
+                </div>
               )
             }
           >
@@ -520,6 +529,14 @@ export function Videos() {
               </Badge>
             </div>
             <h2>{v.title}</h2>
+            {!v.lesson_id && (
+              <TrashButton
+                kind="video"
+                id={v.id}
+                title={v.title}
+                onRemoved={remote.reload}
+              />
+            )}
             <p className="muted">
               {(v.bytes / 1048576).toFixed(1)} MB •{" "}
               {v.lesson_id

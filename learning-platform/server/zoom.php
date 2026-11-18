@@ -51,26 +51,34 @@ function validZoomUrl(string $url): string
 }
 function createZoom(array $u, string $classId, string $host = ""): array
 {
-    $c = one("SELECT * FROM classes WHERE id=?", [$classId]);
+    $c = one(
+        "SELECT * FROM classes k WHERE id=? AND " .
+            recordAvailable("class", "k.id"),
+        [$classId],
+    );
     if (!$c) {
         fail(404, "الحصة غير موجودة.");
     }
     courseAccess($u, $c["course_id"], true);
     $config = requireIntegration("zoom");
-    // Only administrators can select another host in the center account.
-    if ($u["role"] !== "admin") {
-        $host = $u["email"];
-    } elseif (!$host) {
+    if ($u["role"] !== "admin" || !$host) {
         $host = (string) ($config["default_host"] ?? "");
     }
     if (!$host) {
-        fail(422, "حدد بريد مضيف زوم المعتمد في حساب المركز.");
+        fail(422, "يلزم تعيين مضيف زوم من إدارة المركز.");
     }
     $host = email($host);
     $existing = tx(function () use ($classId, $host) {
         lockRow("classes", $classId);
         $old = one("SELECT * FROM zoom_meetings WHERE class_id=?", [$classId]);
         if ($old) {
+            if ($old["status"] === "failed" && !$old["meeting_id"]) {
+                run(
+                    "UPDATE zoom_meetings SET host_id=?,status='creating',last_error=NULL,updated_at=? WHERE class_id=?",
+                    [$host, now(), $classId],
+                );
+                return null;
+            }
             return $old;
         }
         run(
@@ -134,13 +142,22 @@ function createZoom(array $u, string $classId, string $host = ""): array
                 $classId,
             ],
         );
-        throw $e;
+        fail(
+            502,
+            $e->uncertain
+                ? "لم يؤكد زوم حالة اللقاء. راجع إدارة المركز قبل إعادة المحاولة."
+                : "رفض زوم إنشاء اللقاء. أعد المحاولة، وإذا تكرر الخطأ تواصل مع الإدارة للتحقق من الحساب المضيف.",
+        );
     }
     return ["ok" => true];
 }
 function zoomLink(array $u, string $id, bool $host = false): array
 {
-    $c = one("SELECT * FROM classes WHERE id=?", [$id]);
+    $c = one(
+        "SELECT * FROM classes k WHERE id=? AND " .
+            recordAvailable("class", "k.id"),
+        [$id],
+    );
     if (!$c) {
         fail(404, "الحصة غير موجودة.");
     }
@@ -282,7 +299,11 @@ function zoomWebhook(string $raw, array $data): array
                 }
             }
         }
-        $class = one("SELECT * FROM classes WHERE id=?", [$z["class_id"]]);
+        $class = one(
+            "SELECT * FROM classes k WHERE id=? AND " .
+                recordAvailable("class", "k.id"),
+            [$z["class_id"]],
+        );
         automationZoomEvent($class, $z, $event, $object, $student);
         return ["ok" => true];
     });

@@ -36,9 +36,11 @@ function saveQuizAnswers(array $user, array $data): array
         if (!$attempt) {
             fail(404, "المحاولة غير موجودة.");
         }
-        $quiz = one("SELECT course_id FROM quizzes WHERE id=?", [
-            $attempt["quiz_id"],
-        ]);
+        $quiz = one(
+            "SELECT course_id FROM quizzes q WHERE id=? AND " .
+                recordAvailable("quiz", "q.id"),
+            [$attempt["quiz_id"]],
+        );
         courseAccess($user, $quiz["course_id"]);
         if ($attempt["submitted_at"]) {
             fail(409, "تم تسليم المحاولة؛ لا يمكن تغيير الإجابات.");

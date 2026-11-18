@@ -130,7 +130,7 @@ export function Avatar({
 }
 export function Empty({
   title = "لا توجد بيانات بعد",
-  text = "ابدأ بإضافة أول عنصر وسيظهر هنا.",
+  text,
   action,
 }: {
   title?: string;
@@ -143,7 +143,7 @@ export function Empty({
         <BookOpen size={30} weight="duotone" />
       </span>
       <h3>{title}</h3>
-      <p>{text}</p>
+      {text && <p>{text}</p>}
       {action}
     </div>
   );

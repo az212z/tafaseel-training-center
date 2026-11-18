@@ -7,7 +7,6 @@ function invitationUsable(array $invite, array $user): bool
         !$invite["revoked_at"] &&
         $invite["expires_at"] > now() &&
         !$user["active"] &&
-        $user["role"] !== "admin" &&
         (int) $invite["auth_version"] === (int) $user["auth_version"] &&
         hash_equals(
             $invite["email_hash"],
@@ -20,16 +19,12 @@ function issueAccountInvitation(
     string $userId,
     array $admin,
     ?string $inquiry = null,
+    bool $registration = false,
 ): void {
     lockRow("users", $userId);
     $user = one("SELECT * FROM users WHERE id=?", [$userId]);
     $old = one("SELECT * FROM account_invitations WHERE user_id=?", [$userId]);
-    if (
-        !$user ||
-        $user["active"] ||
-        $user["role"] === "admin" ||
-        ($old && $old["used_at"])
-    ) {
+    if (!$user || $user["active"] || ($old && $old["used_at"])) {
         fail(409, "الدعوة متاحة للحسابات التي تنتظر التوثيق فقط.");
     }
     $inquiry = $inquiry ?? ($old["source_inquiry_id"] ?? null);
@@ -61,6 +56,7 @@ function issueAccountInvitation(
         [now(), $userId],
     );
     $teacher = $user["role"] === "instructor";
+    $management = $user["role"] === "admin";
     $subject =
         $teacher && $inquiry
             ? "الموافقة على انضمامكم إلى منصة تفاصيل التعليمية"
@@ -71,23 +67,36 @@ function issueAccountInvitation(
             : ($teacher
                 ? "يسرّ مركز تفاصيل للتدريب دعوتكم للانضمام إلى الكادر التعليمي في منصة تفاصيل."
                 : "يسرّ مركز تفاصيل للتدريب دعوتكم لإكمال تسجيل حسابكم في منصة تفاصيل التعليمية.");
-    $body =
-        "الأستاذ/ة " .
-        $user["name"] .
-        " المحترم/ة،\nالسلام عليكم ورحمة الله وبركاته،\n\n" .
-        $intro .
-        "\n\nلاستكمال التسجيل وتوثيق بريدكم الإلكتروني، يرجى الضغط على «توثيق الحساب وإكمال التسجيل» أدناه، ثم تعيين كلمة مرور خاصة بكم." .
-        "\nبعد إتمام التوثيق، يمكنكم تسجيل الدخول إلى مساحتكم " .
-        ($teacher
-            ? "التعليمية والاطلاع على الدورات التي تسندها إليكم الإدارة."
-            : "التدريبية ومتابعة دوراتكم ومواعيدكم وإنجازاتكم.") .
-        "\n\nحرصًا على خصوصيتكم، رابط الدعوة شخصي، وصالح لمدة ٧٢ ساعة، ويُستخدم مرة واحدة. إذا انتهت صلاحيته، يرجى التواصل مع إدارة المركز لطلب رابط جديد." .
-        "\n\nنرحب بانضمامكم، ونتطلع إلى رحلة تعليمية مثمرة.\nوتفضلوا بقبول خالص التقدير،\nإدارة مركز تفاصيل للتدريب";
+    $body = $management
+        ? "مرحباً " .
+            $user["name"] .
+            "،
+أرسل مركز تفاصيل دعوة لتفعيل حسابكم الإداري. افتحوا الرابط الشخصي خلال ٧٢ ساعة للتحقق من البريد وتعيين كلمة المرور."
+        : "الأستاذ/ة " .
+            $user["name"] .
+            " المحترم/ة،\nالسلام عليكم ورحمة الله وبركاته،\n\n" .
+            $intro .
+            "\n\nلاستكمال التسجيل وتوثيق بريدكم الإلكتروني، يرجى الضغط على «توثيق الحساب وإكمال التسجيل» أدناه، ثم تعيين كلمة مرور خاصة بكم." .
+            "\nبعد إتمام التوثيق، يمكنكم تسجيل الدخول إلى مساحتكم " .
+            ($teacher
+                ? "التعليمية والاطلاع على الدورات التي تسندها إليكم الإدارة."
+                : "التدريبية ومتابعة دوراتكم ومواعيدكم وإنجازاتكم.") .
+            "\n\nحرصًا على خصوصيتكم، رابط الدعوة شخصي، وصالح لمدة ٧٢ ساعة، ويُستخدم مرة واحدة. إذا انتهت صلاحيته، يرجى التواصل مع إدارة المركز لطلب رابط جديد." .
+            "\n\nنرحب بانضمامكم، ونتطلع إلى رحلة تعليمية مثمرة.\nوتفضلوا بقبول خالص التقدير،\nإدارة مركز تفاصيل للتدريب";
+    if ($registration) {
+        $subject = "تأكيد بريدك في تفاصيل";
+        $body =
+            "مرحبًا " .
+            $user["name"] .
+            "،
+لتفعيل حسابك ومتابعة التسجيل في الدورة، افتح الرابط ثم اضغط «تأكيد البريد والمتابعة».";
+        audit($user, "registration.email_requested", $userId);
+    }
     queueEmail(
         "invitation:" . $id,
         $userId,
         "invitation",
-        $subject,
+        $management ? "دعوة تفعيل حساب إدارة تفاصيل" : $subject,
         $body,
         "/activate#" . $token,
         null,
@@ -195,6 +204,7 @@ function accountInvitationAction(
             [
                 "account.invite.status",
                 "account.invite.accept",
+                "account.registration.verify",
                 "account.invite.resend",
                 "account.invite.revoke",
             ],
@@ -260,21 +270,41 @@ function accountInvitationAction(
         return [
             "name" => $found["user"]["name"],
             "role" => $found["user"]["role"],
+            "registration" =>
+                $found["user"]["role"] === "student" &&
+                (bool) one(
+                    "SELECT id FROM audit WHERE actor_id=? AND action='registration.email_requested' LIMIT 1",
+                    [$found["user"]["id"]],
+                ),
             "expires_at" => $found["invite"]["expires_at"],
         ];
     }
     if (currentUser()) {
         fail(409, "سجّل الخروج من الحساب الحالي قبل توثيق حساب آخر.");
     }
-    $password = pass($data["password"] ?? "");
-    if (!hash_equals($password, (string) ($data["confirm"] ?? ""))) {
-        fail(422, "كلمتا المرور غير متطابقتين.");
+    $registration = $action === "account.registration.verify";
+    if (
+        $registration &&
+        ($found["user"]["role"] !== "student" ||
+            !one(
+                "SELECT id FROM audit WHERE actor_id=? AND action='registration.email_requested' LIMIT 1",
+                [$found["user"]["id"]],
+            ))
+    ) {
+        fail(403, "هذه الدعوة تتطلب تعيين كلمة مرور صاحب الحساب.");
     }
-    if (($data["consent"] ?? false) !== true) {
-        fail(422, "الموافقة على الشروط وسياسة الخصوصية مطلوبة.");
+    $hash = null;
+    if (!$registration) {
+        $password = pass($data["password"] ?? "");
+        if (!hash_equals($password, (string) ($data["confirm"] ?? ""))) {
+            fail(422, "كلمتا المرور غير متطابقتين.");
+        }
+        if (($data["consent"] ?? false) !== true) {
+            fail(422, "الموافقة على الشروط وسياسة الخصوصية مطلوبة.");
+        }
+        $hash = password_hash($password, PASSWORD_DEFAULT);
     }
-    $hash = password_hash($password, PASSWORD_DEFAULT);
-    return tx(function () use ($found, $token, $hash) {
+    $result = tx(function () use ($found, $token, $hash) {
         lockRow("users", $found["user"]["id"]);
         $fresh = accountInvitationLookup($token);
         if (!$fresh) {
@@ -282,7 +312,7 @@ function accountInvitationAction(
         }
         run(
             "UPDATE users SET password=?,active=1,auth_version=auth_version+1 WHERE id=?",
-            [$hash, $fresh["user"]["id"]],
+            [$hash ?? $fresh["user"]["password"], $fresh["user"]["id"]],
         );
         run("UPDATE account_invitations SET used_at=? WHERE id=?", [
             now(),
@@ -303,6 +333,26 @@ function accountInvitationAction(
                 " المحترم/ة،\nتم توثيق بريدكم الإلكتروني وإكمال تسجيل حسابكم بنجاح. يمكنكم الآن تسجيل الدخول بكلمة المرور التي اخترتموها.\nإذا لم تقوموا بهذا الإجراء، يرجى التواصل مع إدارة مركز تفاصيل للتدريب فورًا.\nمع خالص التقدير،\nإدارة مركز تفاصيل للتدريب",
             "/login",
         );
-        return ["ok" => true];
+        $courses =
+            $fresh["user"]["role"] === "student"
+                ? completeRequestedFreeCourses($fresh["user"]["id"])
+                : [];
+        return [
+            "ok" => true,
+            "next" => $courses
+                ? "/courses/" . $courses[0]
+                : (one(
+                    "SELECT course_id FROM course_registration_requests WHERE student_id=?",
+                    [$fresh["user"]["id"]],
+                )
+                    ? "/registrations"
+                    : "/dashboard"),
+        ];
     });
+    if ($registration) {
+        return loginUser(
+            one("SELECT * FROM users WHERE id=?", [$found["user"]["id"]]),
+        ) + $result;
+    }
+    return $result;
 }

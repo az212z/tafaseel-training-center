@@ -60,6 +60,8 @@ function extensionAction(
 ): ?array {
     $gets = [
         "catalog",
+        "course.registration",
+        "course.requests",
         "orders",
         "bags",
         "integrations",
@@ -76,6 +78,7 @@ function extensionAction(
         "register",
         "commerce.save",
         "checkout",
+        "course.apply",
         "payment.refresh",
         "payment.recover",
         "payment.callback",
@@ -119,9 +122,15 @@ function extensionAction(
             fail(422, "تعذّر تقديم الطلب.");
         }
         [$name, $em, $pw, $profile] = registrationInput($d);
-        tx(function () use ($name, $em, $pw, $profile) {
+        $course = str($d["course_id"] ?? "", 40, false);
+        $verifyEmail = ($d["verify_email"] ?? false) === true;
+        tx(function () use ($name, $em, $pw, $profile, $course, $verifyEmail) {
             if (one("SELECT id FROM users WHERE email=?", [$em])) {
                 return;
+            }
+            if ($course) {
+                lockRow("courses", $course);
+                registrationCourse($course);
             }
             $id = uid();
             run(
@@ -132,26 +141,36 @@ function extensionAction(
                 "INSERT INTO profiles(phone,birth_date,city,identity_number,guardian_name,guardian_phone,guardian_id,consent_at,user_id) VALUES(?,?,?,?,?,?,?,?,?)",
                 [...$profile, now(), $id],
             );
+            if ($course) {
+                recordCourseRequest($id, $course);
+            }
             audit($id, "registration.requested", $id);
-            queueEmail(
-                "registration:" . $id,
-                $id,
-                "registration",
-                "استلمنا طلب انضمامك إلى تفاصيل",
-                "وصل طلب إنشاء حسابك، وهو الآن بانتظار مراجعة الإدارة. سنرسل لك إشعارًا عند تفعيله. لا تعني هذه الرسالة اعتماد التسجيل في دورة.",
-                "/login",
-            );
-            emailAdmins(
-                "registration-admin:" . $id,
-                "طلب انضمام جديد إلى تفاصيل",
-                "ورد طلب إنشاء حساب متدرب جديد. راجع البيانات من قسم الحسابات قبل التفعيل.",
-                "/users",
-            );
+            if ($verifyEmail) {
+                issueAccountInvitation($id, ["id" => $id], null, true);
+            } else {
+                queueEmail(
+                    "registration:" . $id,
+                    $id,
+                    "registration",
+                    "استلمنا طلب انضمامك إلى تفاصيل",
+                    "وصل طلب إنشاء حسابك، وهو الآن بانتظار مراجعة الإدارة. سنرسل لك إشعارًا عند تفعيله. لا تعني هذه الرسالة اعتماد التسجيل في دورة.",
+                    "/login",
+                );
+                emailAdmins(
+                    "registration-admin:" . $id,
+                    "طلب انضمام جديد إلى تفاصيل",
+                    "ورد طلب إنشاء حساب متدرب جديد. راجع البيانات من قسم الحسابات قبل التفعيل.",
+                    "/users",
+                );
+            }
         });
         return [
             "ok" => true,
-            "message" =>
-                "تم استلام الطلب. تراجع الإدارة البيانات وتفعّل الحساب، أو تتواصل معك إذا كان البريد مسجلًا مسبقًا.",
+            "message" => $verifyEmail
+                ? "تحقّق من بريدك لتفعيل الحساب ومتابعة الدورة. إذا كان لديك حساب، سجّل دخولك لإكمال التسجيل."
+                : ($course
+                    ? "إن كان هذا بريدك الجديد، ستراجع الإدارة طلب تفعيل الحساب والدورة المختارة. إذا كان لديك حساب، سجّل دخولك لإكمال التسجيل."
+                    : "تم استلام الطلب. تراجع الإدارة البيانات وتفعّل الحساب، أو تتواصل معك إذا كان البريد مسجلًا مسبقًا."),
         ];
     }
     $page = number($d["page"] ?? 1, 1, 1000000);
@@ -181,6 +200,14 @@ function extensionAction(
     $u = auth();
     staffMfaGuard($u, $action);
     switch ($action) {
+        case "course.registration":
+            auth(["student"]);
+            return courseRequestState($u, str($d["id"] ?? "", 40));
+        case "course.requests":
+            auth(["admin", "student"]);
+            return listCourseRequests($u, $page);
+        case "course.apply":
+            return checkout($u, str($d["course_id"] ?? "", 40), true);
         case "integrations":
             auth(["admin"]);
             return [
@@ -357,7 +384,9 @@ function extensionAction(
             $cid = str($d["course_id"] ?? "", 40);
             courseAccess($u, $cid);
             $bags = rows(
-                "SELECT * FROM learning_bags WHERE course_id=? ORDER BY updated_at DESC",
+                "SELECT * FROM learning_bags b WHERE course_id=? AND " .
+                    recordAvailable("bag", "b.id") .
+                    " ORDER BY updated_at DESC",
                 [$cid],
             );
             foreach ($bags as &$b) {
@@ -406,7 +435,11 @@ function extensionAction(
         case "bag.item.save":
         case "bag.item.remove":
             $id = str($d["bag_id"] ?? "", 40);
-            $bag = one("SELECT * FROM learning_bags WHERE id=?", [$id]);
+            $bag = one(
+                "SELECT * FROM learning_bags b WHERE id=? AND " .
+                    recordAvailable("bag", "b.id"),
+                [$id],
+            );
             if (!$bag) {
                 fail(404, "الحقيبة غير موجودة.");
             }
@@ -531,7 +564,11 @@ function extensionAction(
             );
         case "zoom.presence":
             $cid = str($d["class_id"] ?? "", 40);
-            $c = one("SELECT * FROM classes WHERE id=?", [$cid]);
+            $c = one(
+                "SELECT * FROM classes k WHERE id=? AND " .
+                    recordAvailable("class", "k.id"),
+                [$cid],
+            );
             if (!$c) {
                 fail(404, "الحصة غير موجودة.");
             }
@@ -547,8 +584,11 @@ function extensionAction(
             $cid = str($d["course_id"] ?? "", 40);
             courseAccess($u, $cid, true);
             return pagedList(
-                "SELECT id,course_id,lesson_id,title,status,bytes,created_at,updated_at FROM video_assets WHERE course_id=? ORDER BY created_at DESC,id",
-                "SELECT COUNT(*) n FROM video_assets WHERE course_id=?",
+                "SELECT id,course_id,lesson_id,title,status,bytes,created_at,updated_at FROM video_assets v WHERE course_id=? AND " .
+                    recordAvailable("video", "v.id") .
+                    " ORDER BY created_at DESC,id",
+                "SELECT COUNT(*) n FROM video_assets v WHERE course_id=? AND " .
+                    recordAvailable("video", "v.id"),
                 [$cid],
                 $page,
             );
@@ -640,7 +680,11 @@ function extensionAction(
                 return ["id" => $id];
             });
         case "lesson":
-            $l = one("SELECT * FROM lessons WHERE id=?", [$d["id"] ?? ""]);
+            $l = one(
+                "SELECT * FROM lessons l WHERE id=? AND " .
+                    recordAvailable("lesson", "l.id"),
+                [$d["id"] ?? ""],
+            );
             if (!$l) {
                 fail(404, "الدرس غير موجود.");
             }
@@ -652,6 +696,11 @@ function extensionAction(
             $role = str($d["role"] ?? "", 20, false);
             $where = "1=1";
             $args = [];
+            $id = str($d["id"] ?? "", 40, false);
+            if ($id) {
+                $where .= " AND id=?";
+                $args[] = $id;
+            }
             if ($role) {
                 if (
                     !in_array(
@@ -671,10 +720,15 @@ function extensionAction(
                 $args[] = "%" . $search . "%";
             }
             $result = pagedList(
-                "SELECT id,name,email,role,active,created_at FROM users WHERE " .
+                "SELECT id,name,email,role,active,created_at FROM users u WHERE " .
+                    recordAvailable("account", "u.id") .
+                    " AND " .
                     $where .
                     " ORDER BY created_at DESC,id",
-                "SELECT COUNT(*) n FROM users WHERE " . $where,
+                "SELECT COUNT(*) n FROM users u WHERE " .
+                    recordAvailable("account", "u.id") .
+                    " AND " .
+                    $where,
                 $args,
                 $page,
             );
@@ -714,7 +768,8 @@ function extensionAction(
             auth(["admin", "instructor", "guardian"]);
             $search = str($d["search"] ?? "", 100, false);
             $sql =
-                " FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.role='student'";
+                " FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.role='student' AND " .
+                recordAvailable("account", "u.id");
             $args = [];
             if ($u["role"] === "instructor") {
                 $sql .=

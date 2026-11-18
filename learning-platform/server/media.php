@@ -94,7 +94,11 @@ function discardObject(string $name): void
 }
 function videoRow(array $u, string $id): array
 {
-    $v = one("SELECT * FROM video_assets WHERE id=?", [$id]);
+    $v = one(
+        "SELECT * FROM video_assets v WHERE id=? AND " .
+            recordAvailable("video", "v.id"),
+        [$id],
+    );
     if (!$v) {
         fail(404, "الفيديو غير موجود.");
     }
@@ -166,13 +170,18 @@ function syncVideo(array $u, string $id): array
 }
 function videoPlayback(array $u, string $lessonId): array
 {
-    $l = one("SELECT course_id FROM lessons WHERE id=?", [$lessonId]);
+    $l = one(
+        "SELECT course_id FROM lessons l WHERE id=? AND " .
+            recordAvailable("lesson", "l.id"),
+        [$lessonId],
+    );
     if (!$l) {
         fail(404, "الدرس غير موجود.");
     }
     courseAccess($u, $l["course_id"]);
     $v = one(
-        "SELECT provider_id FROM video_assets WHERE lesson_id=? AND status='ready'",
+        "SELECT provider_id FROM video_assets v WHERE lesson_id=? AND status='ready' AND " .
+            recordAvailable("video", "v.id"),
         [$lessonId],
     );
     if (!$v) {

@@ -12,6 +12,11 @@ export interface PreviewExtras {
     price_minor: number;
     enrollment_open: number;
   }[];
+  registrations?: {
+    student_id: string;
+    course_id: string;
+    created_at: string;
+  }[];
   bags: LearningBag[];
   orders: Order[];
   preferences: Record<
@@ -77,6 +82,7 @@ export async function extendedApi<T>(
         .filter(
           (c) =>
             c.status === "published" &&
+            (!d.course_id || c.id === d.course_id) &&
             (!search ||
               c.title.includes(search) ||
               c.category.includes(search)),
@@ -101,6 +107,17 @@ export async function extendedApi<T>(
     if (age < 18 && (!value(d.guardian_name) || !value(d.guardian_phone)))
       throw new Error("أكمل بيانات ولي الأمر للقاصر.");
     if (!s.users.some((u) => u.email === email)) {
+      const selected = value(d.course_id);
+      if (
+        selected &&
+        (!s.courses.some(
+          (c) => c.id === selected && c.status === "published",
+        ) ||
+          !e.commerce.some(
+            (c) => c.course_id === selected && c.enrollment_open,
+          ))
+      )
+        throw new Error("التسجيل غير متاح.");
       const id = uid();
       s.users.push({
         id,
@@ -119,6 +136,12 @@ export async function extendedApi<T>(
         identity_number: "",
         guardian_id: null,
       };
+      if (selected)
+        (e.registrations ??= []).push({
+          student_id: id,
+          course_id: selected,
+          created_at: now(),
+        });
     }
     await save();
     return {
@@ -131,6 +154,9 @@ export async function extendedApi<T>(
     "integrations",
     "commerce.save",
     "checkout",
+    "course.apply",
+    "course.registration",
+    "course.requests",
     "orders",
     "preview.payment.confirm",
     "payment.refresh",
@@ -183,6 +209,53 @@ export async function extendedApi<T>(
         else e.commerce.push(row);
       }
       break;
+    case "course.registration":
+      actor(["student"]);
+      return {
+        enrolled: s.enrollments.some(
+          (r) => r.course_id === d.id && r.student_id === u.id,
+        ),
+        requested:
+          e.registrations?.some(
+            (r) => r.course_id === d.id && r.student_id === u.id,
+          ) ?? false,
+        payment_available: true,
+      } as T;
+    case "course.requests":
+      actor(["student", "admin"]);
+      return {
+        ...page(
+          (e.registrations ?? [])
+            .filter((r) => u.role === "admin" || r.student_id === u.id)
+            .map((r) => {
+              const c = s.courses.find((c) => c.id === r.course_id);
+              const learner = s.users.find((v) => v.id === r.student_id);
+              const pricing = e.commerce.find(
+                (v) => v.course_id === r.course_id,
+              );
+              const enrolled = s.enrollments.some(
+                (v) =>
+                  v.student_id === r.student_id && v.course_id === r.course_id,
+              );
+              return {
+                ...r,
+                title: c?.title,
+                student_name: learner?.name,
+                price_minor: pricing?.price_minor,
+                status: enrolled
+                  ? "enrolled"
+                  : !learner?.active
+                    ? "pending_account"
+                    : pricing?.price_minor
+                      ? "payment_required"
+                      : "awaiting_seat",
+              };
+            }),
+          n,
+        ),
+        payment_available: true,
+      } as T;
+    case "course.apply":
     case "checkout":
       actor(["student"]);
       {
@@ -197,8 +270,10 @@ export async function extendedApi<T>(
           s.enrollments.some(
             (v) => v.course_id === c.id && v.student_id === u.id,
           )
-        )
+        ) {
+          if (action === "course.apply") return { enrolled: true } as T;
           throw new Error("أنت مسجل بالفعل.");
+        }
         const pending = e.orders.find(
           (o) =>
             o.course_id === c.id &&
@@ -214,6 +289,18 @@ export async function extendedApi<T>(
           c.capacity
         )
           throw new Error("اكتملت المقاعد.");
+        if (
+          action === "course.apply" &&
+          !e.registrations?.some(
+            (r) => r.course_id === c.id && r.student_id === u.id,
+          )
+        ) {
+          (e.registrations ??= []).push({
+            course_id: c.id,
+            student_id: u.id,
+            created_at: now(),
+          });
+        }
         if (o.price_minor === 0) {
           s.enrollments.push({ id: uid(), course_id: c.id, student_id: u.id });
           await save();
@@ -477,6 +564,7 @@ export async function extendedApi<T>(
           s.users.filter(
             (v) =>
               (!d.role || v.role === d.role) &&
+              (!d.id || v.id === d.id) &&
               (!value(d.search) ||
                 (v.name + " " + v.email).includes(value(d.search))),
           ),

@@ -1,3 +1,4 @@
+import { TrashButton } from "../components/TrashButton";
 import { BatchEnrollment } from "./LearningTools";
 import { useRemote, RemoteState, Pagination } from "../components/remote";
 import type { PageResult } from "../types";
@@ -223,6 +224,7 @@ export function StudentDetail() {
               <UserPlus size={18} />
               تسجيل في دورة
             </Button>
+            <TrashButton kind="account" id={student.id} title={student.name} />
           </div>
         )}
       </div>
@@ -412,6 +414,7 @@ export function Users() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const createRole = params.get("create");
+  const account = params.get("account") ?? "";
   const { notify, refresh } = useApp();
   const [term, setTerm] = useState("");
   const [add, setAdd] = useState<string | null>(null);
@@ -426,14 +429,11 @@ export function Users() {
   const [page, setPage] = useState(1);
   const remote = useRemote<
     PageResult<User> & { role_counts?: Record<string, number> }
-  >("users.list", { search: term, page: String(page) });
+  >("users.list", { search: term, page: String(page), id: account });
   const users = remote.result?.items ?? [];
   return (
     <>
-      <PageHead
-        title="الحسابات والصلاحيات"
-        subtitle="وصول واضح، ومسؤولية محددة لكل عضو في المنصة."
-      >
+      <PageHead title="الحسابات والصلاحيات">
         <Button onClick={() => setAdd("instructor")}>
           <Plus size={18} />
           إنشاء حساب معلم
@@ -441,27 +441,19 @@ export function Users() {
         <Button variant="secondary" onClick={() => setAdd("student")}>
           <UserPlus size={18} /> إنشاء حساب طالب
         </Button>
+        {!isStaticPreview && (
+          <Button variant="secondary" onClick={() => setAdd("admin")}>
+            دعوة مدير جديد
+          </Button>
+        )}
       </PageHead>
-      <div className="permission-cards">
-        {Object.entries(roles).map(([role, label]) => (
-          <div key={role}>
-            <ShieldCheck size={24} weight="duotone" />
-            <strong>{label}</strong>
-            <span>{ar(remote.result?.role_counts?.[role] ?? 0)} حساب</span>
-            <small>
-              {role === "admin"
-                ? "إدارة جميع أقسام المنصة"
-                : role === "instructor"
-                  ? "إدارة الدورات المسندة إليه"
-                  : role === "student"
-                    ? "التعلم في الدورات المسجلة"
-                    : "متابعة الأبناء المرتبطين فقط"}
-            </small>
-          </div>
-        ))}
-      </div>
       <Panel>
         <div className="table-toolbar">
+          {account && (
+            <Link to="/users" className="text-link">
+              عرض كل الحسابات
+            </Link>
+          )}
           <Search
             value={term}
             onChange={(v) => {
@@ -509,23 +501,37 @@ export function Users() {
                 </Badge>
               </td>
               <td>
-                {u.role === "admin" ? (
+                {u.role === "admin" && !u.invitation_status ? (
                   <span className="muted">
-                    <LockKey size={17} /> مدير النظام
+                    <LockKey size={17} /> إدارة{" "}
+                    <TrashButton
+                      kind="account"
+                      id={u.id}
+                      title={u.name}
+                      onRemoved={remote.reload}
+                    />
                   </span>
                 ) : (
                   <div className="table-actions">
-                    <button
-                      className="text-link"
-                      onClick={() => {
-                        if (u.role === "student") {
-                          notify("يمكن تعديل بيانات الطالب من ملفه الكامل.");
-                          navigate(`/students/${u.id}`);
-                        } else setEdit(u);
-                      }}
-                    >
-                      تعديل
-                    </button>
+                    <TrashButton
+                      kind="account"
+                      id={u.id}
+                      title={u.name}
+                      onRemoved={remote.reload}
+                    />
+                    {u.role !== "admin" && (
+                      <button
+                        className="text-link"
+                        onClick={() => {
+                          if (u.role === "student") {
+                            notify("يمكن تعديل بيانات الطالب من ملفه الكامل.");
+                            navigate(`/students/${u.id}`);
+                          } else setEdit(u);
+                        }}
+                      >
+                        تعديل
+                      </button>
+                    )}
                     {u.invitation_status ? (
                       <button
                         className="text-link"
@@ -554,13 +560,17 @@ export function Users() {
                         className="text-link"
                         onClick={async () => {
                           try {
-                            await api("user.toggle", { id: u.id });
+                            const result = await api<{
+                              enrolled_courses?: string[];
+                            }>("user.toggle", { id: u.id, active: !u.active });
                             await refresh();
                             remote.reload();
                             notify(
                               u.active
                                 ? "تم إيقاف الحساب وإبطال جلساته."
-                                : "تم تفعيل الحساب.",
+                                : result.enrolled_courses?.length
+                                  ? "تم تفعيل الحساب وإضافة الدورة تلقائيًا."
+                                  : "تم تفعيل الحساب.",
                             );
                           } catch (e) {
                             notify((e as Error).message, "error");

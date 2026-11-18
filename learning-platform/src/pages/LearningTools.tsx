@@ -1,3 +1,4 @@
+import { TrashButton } from "../components/TrashButton";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, get } from "../api";
@@ -101,6 +102,14 @@ function PathDirectory({
               )}
             </div>
             <h2>{p.title}</h2>
+            {manage && (
+              <TrashButton
+                kind="path"
+                id={p.id}
+                title={p.title}
+                onRemoved={remote.reload}
+              />
+            )}
             <p>{p.description}</p>
             <div className="path-goals">{p.goals}</div>
             <ol className="path-course-list">

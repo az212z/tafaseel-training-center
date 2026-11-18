@@ -35,10 +35,10 @@ import {
   Brain,
   UsersThree,
 } from "@phosphor-icons/react";
-import { api } from "../api";
+import { api, get } from "../api";
 import { asset, isStaticPreview } from "../environment";
-import { Registration } from "../components/Registration";
-import type { User } from "../types";
+import { RegistrationForm } from "../components/Registration";
+import type { Order, User } from "../types";
 import type { SiteContent, SiteProgram } from "./types";
 import defaults from "./defaults.json";
 import "./site.css";
@@ -305,7 +305,11 @@ export default function PublicSite() {
               تفاصيل<small>مركز تفاصيل للتدريب</small>
             </span>
           </Link>
-          <nav aria-label="التنقل الرئيسي" className={open ? "is-open" : ""}>
+          <nav
+            id="site-navigation"
+            aria-label="التنقل الرئيسي"
+            className={open ? "is-open" : ""}
+          >
             {nav.map(([to, label]) => (
               <NavLink key={to} to={to}>
                 {label}
@@ -339,7 +343,7 @@ export default function PublicSite() {
           <Route path="/tracks/:category" element={<Programs c={content} />} />
           <Route
             path="/programs/:slug"
-            element={<ProgramDetail c={content} />}
+            element={<ProgramDetail c={content} user={user} />}
           />
           <Route path="/about" element={<About c={content} />} />
           <Route path="/gallery" element={<Gallery />} />
@@ -360,9 +364,7 @@ export default function PublicSite() {
           <Route path="/verify" element={<Verify />} />
           <Route
             path="/register"
-            element={
-              <Register enabled={content.registration_enabled !== false} />
-            }
+            element={<Register content={content} user={user} />}
           />
           <Route
             path="/privacy"
@@ -466,7 +468,6 @@ export default function PublicSite() {
             © {new Date().getFullYear()} {s.name}. جميع الحقوق محفوظة.
           </span>
           <Link to="/sitemap">خريطة الموقع</Link>
-          <span>تعلّم يبدأ بفهم.</span>
         </div>
       </footer>
     </div>
@@ -479,10 +480,6 @@ function Home({ c }: { c: SiteContent }) {
     <>
       <section className="site-hero site-container">
         <div className="site-hero-copy">
-          <span className="site-eyebrow">
-            <span />
-            مساحة لكل خطوة تتعلّمها
-          </span>
           <h1>
             {c.site.hero_title.split("\n").map((t, i) => (
               <span key={i}>{t}</span>
@@ -532,58 +529,24 @@ function Home({ c }: { c: SiteContent }) {
           <div className="site-hero-note">
             <BookOpen size={31} weight="duotone" />
             <div>
-              <strong>
-                من اكتشاف الدورة
-                <br />
-                إلى متابعة تقدّمك.
-              </strong>
-              <span>تجربة واحدة في تفاصيل</span>
+              <strong>دورات حضورية وعن بُعد</strong>
+              <span>اختر الدورة وابدأ التسجيل</span>
             </div>
             <ArrowUpLeft size={23} />
           </div>
-          <span className="site-orbit" aria-hidden="true">
-            تعلّم · طبّق · تقدّم ·{" "}
-          </span>
         </div>
       </section>
-      <div className="site-proof site-container">
-        <span>
-          <strong>{c.programs.length.toLocaleString("ar-SA")}</strong> دورة في
-          دليل المركز
-        </span>
-        <span>
-          <strong>{c.categories.length.toLocaleString("ar-SA")}</strong> مجالات
-          لتطوير مهاراتك
-        </span>
-        <span>
-          <CheckCircle size={27} />
-          تسجيل ومتابعة في مكان واحد
-        </span>
-        <Link to="/about">
-          تعرّف على تفاصيل <ArrowLeft size={18} />
-        </Link>
-      </div>
       <section className="site-section site-container">
         <div className="site-section-heading">
           <div>
-            <span className="site-eyebrow">لكل اهتمام، بداية</span>
-            <h2>
-              اختر المجال.
-              <br />
-              واصنع خطوتك.
-            </h2>
+            <h2>مجالات التدريب</h2>
           </div>
-          <p>
-            تعلّم له هدف واضح؛ من الاستعداد لاختبارك إلى تطوير مهارة تستعملها في
-            حياتك وعملك.
-          </p>
         </div>
         <div className="site-tracks">
           {c.categories.map((g, i) => {
             const Icon = icons[i] || BookOpen;
             return (
               <Link key={g.id} to={"/tracks/" + g.id}>
-                <span className="site-track-number">0{i + 1}</span>
                 <Icon size={33} weight="duotone" />
                 <div>
                   <h3>{g.title}</h3>
@@ -598,8 +561,7 @@ function Home({ c }: { c: SiteContent }) {
       <section className="site-section site-container">
         <div className="site-section-heading">
           <div>
-            <span className="site-eyebrow">اكتشف خياراتك</span>
-            <h2>بدايات تستحق وقتك.</h2>
+            <h2>الدورات والبرامج</h2>
           </div>
           <Link className="site-text-link" to="/programs">
             تصفّح جميع الدورات <ArrowLeft size={19} />
@@ -607,48 +569,22 @@ function Home({ c }: { c: SiteContent }) {
         </div>
         <div className="site-course-grid">
           {c.programs
-            .filter((p) => p.featured)
+            .filter((p) => p.availability?.open || p.featured)
+            .sort(
+              (a, b) =>
+                Number(Boolean(b.availability?.open)) -
+                Number(Boolean(a.availability?.open)),
+            )
             .slice(0, 4)
             .map((p) => (
               <ProgramCard key={p.slug} p={p} c={c} />
             ))}
         </div>
       </section>
-      <section className="site-journey">
-        <div className="site-container">
-          <span className="site-eyebrow">رحلة واضحة، من البداية</span>
-          <h2>تكتشف. تتعلّم. تتابع أثر التعلّم.</h2>
-          <ol>
-            {[
-              [
-                "اختر ما يناسبك",
-                "اقرأ تفاصيل الدورة واستفسر عن مستواك والمواعيد.",
-              ],
-              ["أنشئ حسابك", "أرسل طلبك لتراجعه الإدارة وتفعّل وصولك."],
-              ["تعلّم وتدرّب", "ادخل لدروسك وملفاتك وتكليفاتك من حسابك."],
-              ["تابع تقدّمك", "راجع الحضور والنتائج والشهادات المستحقة."],
-            ].map(([t, d], i) => (
-              <li key={t}>
-                <span>0{i + 1}</span>
-                <h3>{t}</h3>
-                <p>{d}</p>
-              </li>
-            ))}
-          </ol>
-          <SiteLink to="/help" light>
-            دليلك إلى التعلّم في تفاصيل
-          </SiteLink>
-        </div>
-      </section>
       <section className="site-section site-container site-audiences">
         <div>
           <Buildings size={35} weight="duotone" />
-          <span className="site-eyebrow">للجهات وفرق العمل</span>
-          <h2>
-            احتياج فريقك،
-            <br />
-            بداية خطة تدريب.
-          </h2>
+          <h2>تدريب الجهات وفرق العمل</h2>
           <p>{c.site.business_description}</p>
           <Link className="site-text-link" to="/business">
             ناقش احتياج جهتك <ArrowLeft size={20} />
@@ -656,12 +592,7 @@ function Home({ c }: { c: SiteContent }) {
         </div>
         <div>
           <ChalkboardTeacher size={35} weight="duotone" />
-          <span className="site-eyebrow">لأصحاب المعرفة</span>
-          <h2>
-            لديك خبرة
-            <br />
-            تستحق المشاركة؟
-          </h2>
+          <h2>انضم إلى مدربي تفاصيل</h2>
           <p>
             عرّفنا بمجالك وخبرتك وفكرتك التدريبية. يصل طلب التعاون مباشرة إلى
             إدارة المركز لمراجعته.
@@ -680,12 +611,7 @@ function Home({ c }: { c: SiteContent }) {
           loading="lazy"
         />
         <div>
-          <span className="site-eyebrow">المكان جزء من الرحلة</span>
-          <h2>
-            تفاصيل تتعلّم فيها.
-            <br />
-            وتفاصيل تبقى معك.
-          </h2>
+          <h2>مركز تفاصيل للتدريب</h2>
           <p>{c.site.about}</p>
           <Link className="site-text-link" to="/gallery">
             جولة في المركز <ArrowLeft size={20} />
@@ -695,7 +621,7 @@ function Home({ c }: { c: SiteContent }) {
       <LibraryPreview c={c} />
       <section className="site-section site-container">
         <div className="site-section-heading">
-          <h2>تفاصيل أوضح، قبل البداية.</h2>
+          <h2>الأسئلة الشائعة</h2>
           <Link className="site-text-link" to="/help">
             مركز المساعدة <ArrowLeft size={19} />
           </Link>
@@ -830,7 +756,7 @@ function Programs({ c }: { c: SiteContent }) {
     </div>
   );
 }
-function ProgramDetail({ c }: { c: SiteContent }) {
+function ProgramDetail({ c, user }: { c: SiteContent; user: User | null }) {
   const { slug } = useParams();
   const p = c.programs.find((x) => x.slug === slug);
   if (!p) return <NotFound />;
@@ -892,72 +818,31 @@ function ProgramDetail({ c }: { c: SiteContent }) {
                 </ul>
               </>
             )}
-            <div className="site-note">
-              التعريف أعلاه يساعدك على اختيار البرنامج. يوضح المركز خطة الدفعة
-              ومدتها ومدربها ونمطها ورسومها قبل اعتماد التسجيل. برامج الاختبارات
-              تدريب للاستعداد، ولا تتضمن حجز الاختبار الرسمي أو ضمان نتيجة.
-            </div>
-          </article>
-          <aside className="site-enroll">
-            <BookOpen size={31} />
-            <h2>خطوتك إلى {category?.title}</h2>
-            <dl>
-              <div>
-                <dt>حالة التسجيل</dt>
-                <dd>
-                  {p.availability?.open ? "مفتوح" : "المواعيد تُعلن لكل دفعة"}
-                </dd>
-              </div>
-              <div>
-                <dt>الرسوم</dt>
-                <dd>
-                  {p.availability?.open && p.availability.price_minor !== null
-                    ? money(p.availability.price_minor)
-                    : "تُوضح قبل تأكيد التسجيل"}
-                </dd>
-              </div>
-              <div>
-                <dt>الساعات التدريبية</dt>
-                <dd>
-                  {p.availability?.duration
-                    ? `${p.availability.duration} ساعة`
-                    : "تُحدد ضمن خطة الدفعة"}
-                </dd>
-              </div>
-              <div>
-                <dt>نمط التدريب</dt>
-                <dd>حسب الدفعة المعتمدة</dd>
-              </div>
-            </dl>
-            {p.availability?.open ? (
-              <SiteLink to={"/catalog?course=" + p.availability.id}>
-                انتقل للتسجيل
-              </SiteLink>
-            ) : (
-              <a className="site-button" href="#program-interest">
-                أبلغني بتفاصيل الدفعة <ArrowLeft size={18} />
-              </a>
+            {p.category === "exams" && (
+              <p className="site-note">
+                تدريب للاستعداد للاختبار. الحجز الرسمي لدى الجهة المنظمة.
+              </p>
             )}
-            <Link className="site-text-link" to="/contact">
-              تواصل مع فريق المركز
-            </Link>
-            <small>طلب الاهتمام لا يحجز مقعدًا، ولا يتطلب سدادًا.</small>
-          </aside>
+          </article>
+          <ProgramEnrollment
+            key={p.slug}
+            program={p}
+            user={user}
+            registrationEnabled={c.registration_enabled !== false}
+          />
         </div>
-        <section id="program-interest" className="site-section site-interest">
-          <div>
-            <span className="site-eyebrow">نسهل عليك البداية</span>
-            <h2>دعنا نعرف اهتمامك.</h2>
-            <p>
-              أرسل استفسارك عن هذه الدورة. يصل الطلب إلى الإدارة داخل تفاصيل،
-              لتراجع احتياجك وتتواصل معك بشأن التفاصيل.
-            </p>
-          </div>
-          <Inquiry c={c} kind="program" slug={p.slug} />
-        </section>
+        {!p.availability?.open && (
+          <section id="program-interest" className="site-section site-interest">
+            <div>
+              <h2>استفسر عن الدفعة القادمة</h2>
+              <p>سيتواصل معك المركز عند توفر التفاصيل.</p>
+            </div>
+            <Inquiry c={c} kind="program" slug={p.slug} />
+          </section>
+        )}
         <section className="site-section">
           <div className="site-section-heading">
-            <h2>قد يناسبك أيضًا.</h2>
+            <h2>دورات ذات صلة</h2>
             <Link to={"/tracks/" + p.category}>
               المزيد في المجال <ArrowLeft size={18} />
             </Link>
@@ -973,6 +858,139 @@ function ProgramDetail({ c }: { c: SiteContent }) {
         </section>
       </div>
     </>
+  );
+}
+type RegistrationState = {
+  enrolled: boolean;
+  requested: boolean;
+  payment_available: boolean;
+};
+function ProgramEnrollment({
+  program,
+  user,
+  registrationEnabled,
+}: {
+  program: SiteProgram;
+  user: User | null;
+  registrationEnabled: boolean;
+}) {
+  const navigate = useNavigate();
+  const [state, setState] = useState<RegistrationState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const course = program.availability;
+  const courseId = course?.id;
+  const student = user?.role === "student";
+  const loginPath = "/login?program=" + encodeURIComponent(program.slug);
+  useEffect(() => {
+    if (!student || !courseId) return;
+    let live = true;
+    get<RegistrationState>("course.registration", { id: courseId })
+      .then((result) => {
+        if (live) setState(result);
+      })
+      .catch((e) => {
+        if (live) setError(e.message);
+      });
+    return () => {
+      live = false;
+    };
+  }, [courseId, student]);
+
+  async function register() {
+    if (!courseId || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await api<{
+        enrolled: boolean;
+        requested?: boolean;
+        order?: Order;
+      }>("course.apply", { course_id: courseId });
+      if (r.enrolled) navigate("/courses/" + courseId);
+      else if (r.order?.checkout_url) location.assign(r.order.checkout_url);
+      else if (r.order) navigate("/payments?order=" + r.order.id);
+      else navigate("/registrations");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const price = course?.price_minor ?? 0;
+  return (
+    <aside className="site-enroll" aria-label="التسجيل في الدورة">
+      <h2>{state?.enrolled ? "مسجّل في الدورة" : "التسجيل في الدورة"}</h2>
+      <dl>
+        {course?.duration ? (
+          <div>
+            <dt>المدة</dt>
+            <dd>{course.duration} ساعة</dd>
+          </div>
+        ) : null}
+        {course?.open && (
+          <div>
+            <dt>الرسوم</dt>
+            <dd>{price ? money(price) : "مجانية"}</dd>
+          </div>
+        )}
+      </dl>
+      {state?.enrolled ? (
+        <SiteLink to={"/courses/" + courseId}>ابدأ التعلّم</SiteLink>
+      ) : !course?.open ? (
+        <a className="site-button" href="#program-interest">
+          استفسر عن موعد التسجيل <ArrowLeft size={18} />
+        </a>
+      ) : !user ? (
+        <>
+          {registrationEnabled ? (
+            <>
+              <SiteLink
+                to={"/register?program=" + encodeURIComponent(program.slug)}
+              >
+                سجّل في الدورة
+              </SiteLink>
+              <Link className="site-text-link" to={loginPath}>
+                لدي حساب بالفعل
+              </Link>
+            </>
+          ) : (
+            <SiteLink to={loginPath}>سجّل الدخول للالتحاق</SiteLink>
+          )}
+        </>
+      ) : !student ? (
+        <p className="site-note">التسجيل متاح من حساب الطالب.</p>
+      ) : state?.requested && price > 0 && !state?.payment_available ? (
+        <>
+          <p className="site-form-success" role="status">
+            طلبك مسجّل وبانتظار السداد.
+          </p>
+          <SiteLink to="/registrations">متابعة الطلب</SiteLink>
+        </>
+      ) : (
+        <button
+          className="site-button"
+          type="button"
+          onClick={() => void register()}
+          disabled={busy || !state}
+        >
+          {busy
+            ? "جارٍ التسجيل…"
+            : price && state?.payment_available
+              ? "المتابعة إلى الدفع"
+              : price
+                ? "إرسال طلب التسجيل"
+                : "سجّل مجانًا"}
+          <ArrowLeft size={18} />
+        </button>
+      )}
+      {error && (
+        <p role="alert" className="site-form-error">
+          {error}
+        </p>
+      )}
+    </aside>
   );
 }
 function Inquiry({
@@ -1719,24 +1737,49 @@ function Verify() {
     </div>
   );
 }
-function Register({ enabled }: { enabled: boolean }) {
-  const navigate = useNavigate();
+function Register({
+  content,
+  user,
+}: {
+  content: SiteContent;
+  user: User | null;
+}) {
+  const [params] = useSearchParams();
+  const slug = params.get("program");
+  const program = content.programs.find((p) => p.slug === slug);
+  const enabled = content.registration_enabled !== false;
+  const loginPath = program
+    ? "/login?program=" + encodeURIComponent(program.slug)
+    : "/login";
+  if (slug && !program) return <NotFound />;
   return (
-    <div className="site-container">
-      <Heading
-        label="حسابك في تفاصيل"
-        title="لنبدأ رحلتك التعليمية."
-        text="أرسل بيانات التسجيل لتراجعها إدارة المركز. بعد التفعيل، تستطيع الدخول ومتابعة الدورات التي التحقت بها."
-      />
-      {enabled ? (
-        <Registration onClose={() => navigate("/login")} />
-      ) : (
+    <div className="site-container site-register">
+      <header className="site-heading">
+        <h1>{program ? "التسجيل في الدورة" : "إنشاء حساب طالب"}</h1>
+        {program && <p>{program.title}</p>}
+      </header>
+      {user ? (
+        <SiteLink to={program ? "/programs/" + program.slug : "/dashboard"}>
+          {program ? "المتابعة إلى الدورة" : "مساحتي التعليمية"}
+        </SiteLink>
+      ) : !enabled || (program && !program.availability?.open) ? (
         <div className="site-note">
-          التسجيل المباشر مغلق حاليًا.{" "}
-          <Link to="/contact">تواصل مع الإدارة</Link>.
+          التسجيل مغلق حاليًا. <Link to="/contact">تواصل مع الإدارة</Link>.
+        </div>
+      ) : (
+        <div className="site-register-panel">
+          <p>أكّد بريدك لتفعيل الحساب ومتابعة التسجيل في الدورة.</p>
+          <RegistrationForm
+            key={program?.slug ?? "account"}
+            courseId={program?.availability?.id}
+          />
         </div>
       )}
-      <SiteLink to="/login">لدي حساب بالفعل</SiteLink>
+      {!user && (
+        <Link className="site-text-link" to={loginPath}>
+          لدي حساب بالفعل
+        </Link>
+      )}
     </div>
   );
 }

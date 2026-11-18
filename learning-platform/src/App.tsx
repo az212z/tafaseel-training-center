@@ -64,7 +64,7 @@ import "./learning-tools.css";
 import { Notebook } from "./pages/Notebook";
 import { EmailCenter } from "./pages/EmailCenter";
 import { Paths, LaunchChecklist } from "./pages/LearningTools";
-import { Catalog, Payments } from "./pages/Commerce";
+import { Catalog, Payments, Registrations } from "./pages/Commerce";
 import { Bags, Videos } from "./pages/Resources";
 import { Notifications, Integrations } from "./pages/Communication";
 import { Registration } from "./components/Registration";
@@ -88,97 +88,144 @@ import {
 } from "./pages/Pages";
 const PublicSite = lazy(() => import("./site/PublicSite"));
 const WebsiteAdmin = lazy(() => import("./site/WebsiteAdmin"));
+const TrashPage = lazy(() => import("./pages/Trash"));
 const AccountActivation = lazy(() => import("./pages/AccountActivation"));
-const menu: {
-  title: string;
-  items: { to: string; label: string; icon: Icon; roles?: Role[] }[];
-}[] = [
-  {
-    title: "مساحة التعلم",
-    items: [
-      { to: "/dashboard", label: "نظرة عامة", icon: SquaresFour },
-      { to: "/courses", label: "الدورات التدريبية", icon: BookOpen },
-      { to: "/paths", label: "مسارات التعلم", icon: GraduationCap },
-      {
-        to: "/notebook",
-        label: "دفتر المراجعة",
-        icon: BookOpen,
-        roles: ["admin", "instructor", "student"],
-      },
-      { to: "/catalog", label: "التسجيل في الدورات", icon: ShoppingCart },
-      {
-        to: "/students",
-        label: "الطلاب والمتدربون",
-        icon: UsersThree,
-        roles: ["admin", "instructor", "guardian"],
-      },
-      { to: "/assignments", label: "الواجبات والتكليفات", icon: ClipboardText },
-      { to: "/quizzes", label: "الاختبارات", icon: Exam },
-      { to: "/schedule", label: "الجدول التدريبي", icon: CalendarBlank },
-      { to: "/attendance", label: "الحضور والغياب", icon: UserCheck },
+type NavigationItem = { to: string; label: string; icon: Icon };
+const home = { to: "/dashboard", label: "الرئيسية", icon: SquaresFour };
+const schedule = { to: "/schedule", label: "الجدول", icon: CalendarBlank };
+const courses = { to: "/courses", label: "الدورات", icon: BookOpen };
+const requests = {
+  to: "/registrations",
+  label: "طلبات التسجيل",
+  icon: ShoppingCart,
+};
+const assignments = {
+  to: "/assignments",
+  label: "الواجبات",
+  icon: ClipboardText,
+};
+const quizzes = { to: "/quizzes", label: "الاختبارات", icon: Exam };
+const attendance = { to: "/attendance", label: "الحضور", icon: UserCheck };
+const files = { to: "/files", label: "الملفات", icon: FolderOpen };
+const reports = { to: "/reports", label: "التقارير", icon: ChartBar };
+const students = { to: "/students", label: "الطلاب", icon: UsersThree };
+const certificates = {
+  to: "/certificates",
+  label: "الشهادات",
+  icon: Certificate,
+};
+const support = { to: "/support", label: "المساعدة", icon: Question };
+const settings = { to: "/settings", label: "إعدادات الحساب", icon: GearSix };
+const announcements = {
+  to: "/announcements",
+  label: "الإعلانات",
+  icon: Megaphone,
+};
+const bags = { to: "/bags", label: "الحقائب التعليمية", icon: FolderOpen };
+const paths = { to: "/paths", label: "مسارات التعلم", icon: GraduationCap };
+const payments = { to: "/payments", label: "المدفوعات", icon: Wallet };
+const videos = { to: "/videos", label: "مكتبة الفيديو", icon: VideoCamera };
+const sms = { to: "/notifications", label: "رسائل الغياب", icon: Bell };
+const navigation: Record<
+  Role,
+  { main: NavigationItem[]; more: NavigationItem[] }
+> = {
+  student: {
+    main: [
+      home,
+      { ...courses, label: "دوراتي" },
+      schedule,
+      assignments,
+      quizzes,
+    ],
+    more: [
+      requests,
+      { to: "/programs", label: "استعراض الدورات", icon: BookOpen },
+      certificates,
+      { to: "/notebook", label: "دفتر المراجعة", icon: BookOpen },
+      files,
+      bags,
+      announcements,
+      attendance,
+      payments,
+      settings,
+      support,
     ],
   },
-  {
-    title: "الموارد والمتابعة",
-    items: [
-      { to: "/files", label: "مكتبة الملفات", icon: FolderOpen },
-      { to: "/bags", label: "الحقائب التعليمية", icon: FolderOpen },
-      {
-        to: "/videos",
-        label: "مكتبة الفيديو السحابي",
-        icon: VideoCamera,
-        roles: ["admin", "instructor"],
-      },
-      {
-        to: "/payments",
-        label: "المدفوعات والتسجيل",
-        icon: Wallet,
-        roles: ["admin", "student"],
-      },
-      {
-        to: "/notifications",
-        label: "رسائل الغياب",
-        icon: Bell,
-        roles: ["admin", "guardian"],
-      },
-      { to: "/certificates", label: "الشهادات", icon: Certificate },
-      { to: "/reports", label: "التقارير والإحصاءات", icon: ChartBar },
-      {
-        to: "/readiness",
-        label: "الجاهزية والتشغيل",
-        icon: ShieldCheck,
-        roles: ["admin"],
-      },
-      { to: "/announcements", label: "الإعلانات", icon: Megaphone },
+  instructor: {
+    main: [
+      home,
+      { ...courses, label: "دوراتي" },
+      schedule,
+      attendance,
+      assignments,
+      quizzes,
+    ],
+    more: [
+      students,
+      files,
+      bags,
+      videos,
+      reports,
+      certificates,
+      announcements,
+      settings,
+      support,
+    ],
+  },
+  admin: {
+    main: [
+      home,
+      courses,
+      requests,
+      students,
+      { to: "/users", label: "الحسابات", icon: ShieldCheck },
+      schedule,
+      reports,
+    ],
+    more: [
+      { to: "/website", label: "إدارة الموقع", icon: GearSix },
+      { to: "/catalog", label: "إعداد التسجيل والرسوم", icon: ShoppingCart },
+      payments,
+      attendance,
+      assignments,
+      quizzes,
+      files,
+      bags,
+      videos,
+      certificates,
+      announcements,
+      paths,
       { to: "/communications", label: "البريد والتواصل", icon: Bell },
+      sms,
+      { to: "/integrations", label: "ربط الخدمات", icon: Plug },
+      { to: "/readiness", label: "الجاهزية والتشغيل", icon: ShieldCheck },
+      { to: "/trash", label: "سلة المحذوفات", icon: FolderOpen },
+      settings,
+      support,
     ],
   },
-  {
-    title: "إدارة المنصة",
-    items: [
-      {
-        to: "/website",
-        label: "الموقع ومركز الإدارة",
-        icon: GearSix,
-        roles: ["admin"],
-      },
-      {
-        to: "/users",
-        label: "الحسابات والصلاحيات",
-        icon: ShieldCheck,
-        roles: ["admin"],
-      },
-      { to: "/settings", label: "الإعدادات والأمان", icon: GearSix },
-      {
-        to: "/integrations",
-        label: "الخدمات والتشغيل",
-        icon: Plug,
-        roles: ["admin"],
-      },
-      { to: "/support", label: "المساعدة والدعم", icon: Question },
+  guardian: {
+    main: [
+      home,
+      { ...students, label: "الأبناء" },
+      courses,
+      schedule,
+      attendance,
+    ],
+    more: [
+      sms,
+      files,
+      assignments,
+      quizzes,
+      certificates,
+      reports,
+      announcements,
+      settings,
+      support,
     ],
   },
-];
+};
 function ResetPreview() {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -532,11 +579,31 @@ function Shell({
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, []);
-  const current = menu
-    .flatMap((s) => s.items)
-    .find((i) =>
-      i.to === "/" ? path.pathname === "/" : path.pathname.startsWith(i.to),
+  const menu = navigation[user.role];
+  const current = [...menu.main, ...menu.more].find(
+    (item) =>
+      path.pathname === item.to || path.pathname.startsWith(item.to + "/"),
+  );
+  const [showMore, setShowMore] = useState(false);
+  const permitted =
+    user.role === "admin" ||
+    [...menu.main, ...menu.more].some(
+      (item) =>
+        path.pathname === item.to || path.pathname.startsWith(item.to + "/"),
     );
+  const renderNav = (item: NavigationItem) => (
+    <NavLink
+      key={item.to}
+      to={item.to}
+      className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+    >
+      <item.icon
+        size={21}
+        weight={path.pathname === item.to ? "fill" : "regular"}
+      />
+      <span>{item.label}</span>
+    </NavLink>
+  );
   const results = [
     ...data.courses.map((c) => ({
       title: c.title,
@@ -636,55 +703,27 @@ function Shell({
           <span className="workspace-dot" />
         </div>
         <nav aria-label="القائمة الرئيسية">
-          {menu.map((section) => {
-            const items = section.items.filter(
-              (i) => !i.roles || i.roles.includes(user.role),
-            );
-            if (!items.length) return null;
-            return (
-              <div className="nav-section" key={section.title}>
-                <div className="nav-label">{section.title}</div>
-                {items.map((i) => (
-                  <NavLink
-                    key={i.to}
-                    to={i.to}
-                    end={i.to === "/"}
-                    className={({ isActive }) =>
-                      `nav-item ${isActive ? "active" : ""}`
-                    }
-                  >
-                    <i.icon
-                      size={21}
-                      weight={path.pathname === i.to ? "fill" : "regular"}
-                    />
-                    <span>{i.label}</span>
-                    {i.to === "/assignments" &&
-                      ["admin", "instructor"].includes(user.role) &&
-                      data.submissions.some((s) => s.score === null) && (
-                        <small>
-                          {
-                            data.submissions.filter((s) => s.score === null)
-                              .length
-                          }
-                        </small>
-                      )}
-                  </NavLink>
-                ))}
-              </div>
-            );
-          })}
+          <div className="nav-section">{menu.main.map(renderNav)}</div>
+          <div className="nav-section">
+            <button
+              type="button"
+              className="nav-item nav-more"
+              aria-expanded={showMore}
+              aria-controls="role-menu-more"
+              onClick={() => setShowMore(!showMore)}
+            >
+              <GearSix size={20} />{" "}
+              <span>{user.role === "admin" ? "أدوات الإدارة" : "المزيد"}</span>
+              <small aria-hidden="true">{showMore ? "−" : "+"}</small>
+            </button>
+            <div id="role-menu-more" hidden={!showMore}>
+              {menu.more.map(renderNav)}
+            </div>
+          </div>
         </nav>
-        <div className="sidebar-support">
-          <span>
-            <Question size={23} weight="duotone" />
-          </span>
-          <strong>نحن هنا لمساعدتك</strong>
-          <small>خطوة بخطوة، نهتم بالتفاصيل.</small>
-          <button onClick={() => nav("/support")}>
-            مركز المساعدة
-            <ArrowUpLeftIcon />
-          </button>
-        </div>
+        <Link className="sidebar-help" to="/support">
+          <Question size={18} /> المساعدة
+        </Link>
         <button className="sidebar-user" onClick={() => nav("/settings")}>
           <Avatar name={user.name} />
           <div>
@@ -760,7 +799,7 @@ function Shell({
             <span>
               {isStaticPreview
                 ? "الحفظ في هذا المتصفح فقط • لا تدخل بيانات حقيقية"
-                : "البيانات المعروضة توضيحية • لم تُربط بقاعدة المركز"}
+                : ""}
             </span>
             {isStaticPreview && <ResetPreview />}
             {isStaticPreview && (
@@ -788,7 +827,7 @@ function Shell({
           {data.dataset?.scoped &&
             ["admin", "instructor"].includes(user.role) && (
               <div className="workspace-filter">
-                <label htmlFor="workspace-course">نطاق العمل التفصيلي</label>
+                <label htmlFor="workspace-course">الدورة الحالية</label>
                 <select
                   id="workspace-course"
                   value={data.dataset.course_id}
@@ -805,138 +844,173 @@ function Shell({
                     </option>
                   ))}
                 </select>
-                <small>
-                  {data.dataset.student_id
-                    ? "يعرض ملف الطالب المحدد"
-                    : data.dataset.overview
-                      ? "اختر دورة لعرض سجلاتها التفصيلية. قوائم الطلاب والتقارير تشمل جميع السجلات عبر صفحاتها."
-                      : "السجلات التفصيلية للدورة المحددة؛ التقارير تحسب كامل البيانات."}
-                </small>
               </div>
             )}
 
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route
-              path="/website"
-              element={
-                user.role === "admin" ? (
-                  <Suspense fallback={<p>جارٍ تجهيز مركز الإدارة…</p>}>
-                    <WebsiteAdmin />
-                  </Suspense>
-                ) : (
-                  <Empty title="صلاحية إدارية مطلوبة" />
-                )
-              }
-            />
-            <Route path="/courses" element={<Courses />} />
-            <Route path="/paths" element={<Paths />} />
-            <Route
-              path="/notebook"
-              element={
-                user.role !== "guardian" ? (
-                  <Notebook />
-                ) : (
-                  <Empty title="الملاحظات خاصة بالمتدرب" />
-                )
-              }
-            />
-            <Route
-              path="/readiness"
-              element={
-                user.role === "admin" ? (
-                  <LaunchChecklist />
-                ) : (
-                  <Empty title="صلاحية إدارية مطلوبة" />
-                )
-              }
-            />
-            <Route path="/catalog" element={<Catalog />} />
-            <Route path="/bags" element={<Bags />} />
-            <Route
-              path="/videos"
-              element={
-                ["admin", "instructor"].includes(user.role) ? (
-                  <Videos />
-                ) : (
-                  <Empty title="صلاحية مدرّب مطلوبة" />
-                )
-              }
-            />
-            <Route
-              path="/payments"
-              element={
-                ["admin", "student"].includes(user.role) ? (
-                  <Payments />
-                ) : (
-                  <Empty title="هذا السجل للإدارة وصاحب الطلب" />
-                )
-              }
-            />
-            <Route
-              path="/notifications"
-              element={
-                ["admin", "guardian"].includes(user.role) ? (
-                  <Notifications />
-                ) : (
-                  <Empty title="هذا السجل للإدارة وولي الأمر" />
-                )
-              }
-            />
-            <Route
-              path="/integrations"
-              element={
-                user.role === "admin" ? (
-                  <Integrations />
-                ) : (
-                  <Empty title="صلاحية إدارية مطلوبة" />
-                )
-              }
-            />
-            <Route path="/courses/:id" element={<CourseDetail />} />
-            <Route path="/students" element={<Students />} />
-            <Route path="/students/:id" element={<StudentDetail />} />
-            <Route path="/assignments" element={<Assignments />} />
-            <Route path="/quizzes" element={<Quizzes />} />
-            <Route path="/quizzes/attempt/:id" element={<QuizAttempt />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="/attendance" element={<AttendancePage />} />
-            <Route path="/files" element={<FilesPage />} />
-            <Route path="/certificates" element={<Certificates />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/announcements" element={<Announcements />} />
-            <Route path="/communications" element={<EmailCenter />} />
-            <Route
-              path="/users"
-              element={
-                user.role === "admin" ? (
-                  <Users />
-                ) : (
+          {permitted ? (
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route
+                path="/website"
+                element={
+                  user.role === "admin" ? (
+                    <Suspense fallback={<p>جارٍ تجهيز مركز الإدارة…</p>}>
+                      <WebsiteAdmin />
+                    </Suspense>
+                  ) : (
+                    <Empty title="صلاحية إدارية مطلوبة" />
+                  )
+                }
+              />
+              <Route path="/courses" element={<Courses />} />
+              <Route path="/paths" element={<Paths />} />
+              <Route
+                path="/notebook"
+                element={
+                  user.role !== "guardian" ? (
+                    <Notebook />
+                  ) : (
+                    <Empty title="الملاحظات خاصة بالمتدرب" />
+                  )
+                }
+              />
+              <Route
+                path="/readiness"
+                element={
+                  user.role === "admin" ? (
+                    <LaunchChecklist />
+                  ) : (
+                    <Empty title="صلاحية إدارية مطلوبة" />
+                  )
+                }
+              />
+              <Route
+                path="/catalog"
+                element={
+                  user.role === "admin" || user.role === "student" ? (
+                    <Catalog />
+                  ) : (
+                    <Empty title="التسجيل من حساب الطالب" />
+                  )
+                }
+              />
+              <Route
+                path="/registrations"
+                element={
+                  user.role === "admin" || user.role === "student" ? (
+                    <Registrations />
+                  ) : (
+                    <Empty title="الطلبات تُعرض لصاحب الحساب والإدارة" />
+                  )
+                }
+              />
+              <Route path="/bags" element={<Bags />} />
+              <Route
+                path="/videos"
+                element={
+                  ["admin", "instructor"].includes(user.role) ? (
+                    <Videos />
+                  ) : (
+                    <Empty title="صلاحية مدرّب مطلوبة" />
+                  )
+                }
+              />
+              <Route
+                path="/payments"
+                element={
+                  ["admin", "student"].includes(user.role) ? (
+                    <Payments />
+                  ) : (
+                    <Empty title="هذا السجل للإدارة وصاحب الطلب" />
+                  )
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  ["admin", "guardian"].includes(user.role) ? (
+                    <Notifications />
+                  ) : (
+                    <Empty title="هذا السجل للإدارة وولي الأمر" />
+                  )
+                }
+              />
+              <Route
+                path="/integrations"
+                element={
+                  user.role === "admin" ? (
+                    <Integrations />
+                  ) : (
+                    <Empty title="صلاحية إدارية مطلوبة" />
+                  )
+                }
+              />
+              <Route
+                path="/trash"
+                element={
+                  user.role === "admin" ? (
+                    <Suspense fallback={<p>جارٍ فتح السلة…</p>}>
+                      <TrashPage />
+                    </Suspense>
+                  ) : (
+                    <Empty title="صلاحية إدارية مطلوبة" />
+                  )
+                }
+              />
+              <Route path="/courses/:id" element={<CourseDetail />} />
+              <Route path="/students" element={<Students />} />
+              <Route path="/students/:id" element={<StudentDetail />} />
+              <Route path="/assignments" element={<Assignments />} />
+              <Route path="/quizzes" element={<Quizzes />} />
+              <Route path="/quizzes/attempt/:id" element={<QuizAttempt />} />
+              <Route path="/schedule" element={<Schedule />} />
+              <Route path="/attendance" element={<AttendancePage />} />
+              <Route path="/files" element={<FilesPage />} />
+              <Route path="/certificates" element={<Certificates />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/announcements" element={<Announcements />} />
+              <Route path="/communications" element={<EmailCenter />} />
+              <Route
+                path="/users"
+                element={
+                  user.role === "admin" ? (
+                    <Users />
+                  ) : (
+                    <Empty
+                      title="صلاحية إدارية مطلوبة"
+                      text="هذه الصفحة مخصصة لإدارة المنصة."
+                    />
+                  )
+                }
+              />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/support" element={<SupportPage />} />
+              <Route
+                path="*"
+                element={
                   <Empty
-                    title="صلاحية إدارية مطلوبة"
-                    text="هذه الصفحة مخصصة لإدارة المنصة."
+                    title="الصفحة غير موجودة"
+                    text="يمكنك متابعة رحلتك من الصفحة الرئيسية."
+                    action={
+                      <Link className="btn btn-primary" to="/">
+                        العودة للرئيسية
+                      </Link>
+                    }
                   />
-                )
+                }
+              />
+            </Routes>
+          ) : (
+            <Empty
+              title="هذه الصفحة غير متاحة لحسابك"
+              action={
+                <Link className="btn btn-primary" to="/dashboard">
+                  الرئيسية
+                </Link>
               }
             />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/support" element={<SupportPage />} />
-            <Route
-              path="*"
-              element={
-                <Empty
-                  title="الصفحة غير موجودة"
-                  text="يمكنك متابعة رحلتك من الصفحة الرئيسية."
-                  action={
-                    <Link className="btn btn-primary" to="/">
-                      العودة للرئيسية
-                    </Link>
-                  }
-                />
-              }
-            />
-          </Routes>
+          )}
         </main>
       </div>
       {search && (
@@ -996,9 +1070,6 @@ function Shell({
     </Context.Provider>
   );
 }
-function ArrowUpLeftIcon() {
-  return <ArrowSquareOut size={16} />;
-}
 function SessionApp() {
   const routeLocation = useLocation();
   const navigate = useNavigate();
@@ -1016,6 +1087,13 @@ function SessionApp() {
     [],
   );
   const [workspace, setWorkspace] = useState("");
+  const program =
+    new URLSearchParams(routeLocation.search).get("program") ?? "";
+  const returnProgram =
+    routeLocation.pathname === "/login" &&
+    /^[a-z0-9][a-z0-9-]{0,99}$/.test(program)
+      ? "/programs/" + program
+      : "";
   const dataRequest = useRef(0);
   const courseScope =
     routeLocation.pathname.match(/^\/courses\/([^/]+)$/)?.[1] ?? "";
@@ -1075,10 +1153,8 @@ function SessionApp() {
   }, [user, refresh]);
   useEffect(() => {
     if (user && data && routeLocation.pathname === "/login")
-      navigate(user.role === "admin" ? "/website" : "/dashboard", {
-        replace: true,
-      });
-  }, [user, data, routeLocation.pathname, navigate]);
+      navigate(returnProgram || "/dashboard", { replace: true });
+  }, [user, data, routeLocation.pathname, navigate, returnProgram]);
   useEffect(() => {
     document.title = "تفاصيل | المنصة التعليمية";
     document
@@ -1137,9 +1213,7 @@ function SessionApp() {
             navigate(
               routeLocation.pathname !== "/login"
                 ? routeLocation.pathname + routeLocation.search
-                : u.role === "admin"
-                  ? "/website"
-                  : "/dashboard",
+                : returnProgram || "/dashboard",
               { replace: true },
             );
           }}
@@ -1174,7 +1248,7 @@ function ApplicationRoutes() {
       </Suspense>
     );
   const platform =
-    /^\/(login|dashboard|website|paths|notebook|readiness|communications|courses|catalog|bags|videos|payments|notifications|integrations|students|assignments|quizzes|schedule|attendance|files|certificates|reports|announcements|users|settings|support)(\/|$)/.test(
+    /^\/(login|dashboard|website|paths|notebook|readiness|communications|courses|catalog|registrations|trash|bags|videos|payments|notifications|integrations|students|assignments|quizzes|schedule|attendance|files|certificates|reports|announcements|users|settings|support)(\/|$)/.test(
       pathname,
     );
   return isStaticPreview || platform ? (

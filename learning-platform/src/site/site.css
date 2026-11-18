@@ -2718,3 +2718,19 @@
 .site .site-tracks .site-track-number {
   color: #63748b;
 }
+
+.site-register {
+  max-width: 770px;
+  padding-bottom: 64px;
+}
+.site-register .site-heading { margin-bottom: 20px; }
+.site-register-panel {
+  padding: clamp(20px, 4vw, 36px);
+  border: 1px solid var(--site-line, #dbe7e4);
+  border-radius: 18px;
+  background: white;
+  margin-bottom: 20px;
+}
+.site-register-panel > p { margin: 0 0 20px; }
+.site-enroll .site-button { width: 100%; justify-content: space-between; }
+.site-enroll button:disabled { opacity: 0.65; }

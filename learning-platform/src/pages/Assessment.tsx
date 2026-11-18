@@ -1,3 +1,4 @@
+import { TrashButton } from "../components/TrashButton";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -125,6 +126,9 @@ export function Assignments() {
                 </span>
                 <span>{ar(a.points)} درجة</span>
               </div>
+              {staff && (
+                <TrashButton kind="assignment" id={a.id} title={a.title} />
+              )}
               {staff && (
                 <div className="submission-meter">
                   <span>{ar(subs.length)} تسليم</span>
@@ -373,10 +377,7 @@ export function Quizzes() {
   const items = data.quizzes.filter((q) => !course || q.course_id === course);
   return (
     <>
-      <PageHead
-        title="الاختبارات"
-        subtitle="قياس المعرفة، وفهم التقدم، وتحديد الخطوة القادمة."
-      >
+      <PageHead title="الاختبارات">
         {staff && (
           <Button onClick={() => setAdd(true)}>
             <Plus size={18} />
@@ -423,6 +424,7 @@ export function Quizzes() {
                 {data.courses.find((c) => c.id === q.course_id)?.title}
               </span>
               <h2>{q.title}</h2>
+              {staff && <TrashButton kind="quiz" id={q.id} title={q.title} />}
               <div className="assessment-meta">
                 <span>
                   <Clock size={17} />

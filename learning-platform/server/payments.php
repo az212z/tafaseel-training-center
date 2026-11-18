@@ -167,28 +167,156 @@ function reconcileOrder(string $id): array
         return orderView(one("SELECT * FROM orders WHERE id=?", [$o["id"]]));
     });
 }
-function checkout(array $u, string $courseId): array
+function registrationCourse(string $id): array
+{
+    $course = one(
+        "SELECT c.id,c.title,c.capacity,o.price_minor FROM courses c JOIN course_commerce o ON o.course_id=c.id WHERE c.id=? AND c.status='published' AND o.enrollment_open=1",
+        [$id],
+    );
+    if (!$course) {
+        fail(404, "التسجيل غير متاح في هذه الدورة.");
+    }
+    return $course;
+}
+function recordCourseRequest(string $student, string $course): void
+{
+    if (
+        !one(
+            "SELECT course_id FROM course_registration_requests WHERE student_id=? AND course_id=?",
+            [$student, $course],
+        )
+    ) {
+        run(
+            "INSERT INTO course_registration_requests(student_id,course_id,created_at) VALUES(?,?,?)",
+            [$student, $course, now()],
+        );
+        audit($student, "course.registration_requested", $course);
+    }
+}
+function isEnrolled(string $student, string $course): bool
+{
+    return (bool) one(
+        "SELECT id FROM enrollments WHERE course_id=? AND student_id=?",
+        [$course, $student],
+    );
+}
+function courseHasSeat(string $course, int $capacity): bool
+{
+    return (int) one("SELECT COUNT(*) n FROM enrollments WHERE course_id=?", [
+        $course,
+    ])["n"] +
+        reservedSeats($course) <
+        $capacity;
+}
+function addSelfEnrollment(string $student, string $course): void
+{
+    run(
+        "INSERT INTO enrollments(id,course_id,student_id,created_at) VALUES(?,?,?,?)",
+        [uid(), $course, $student, now()],
+    );
+    emailEnrollment($course, $student);
+    audit($student, "student.self_enrolled", $course);
+}
+function completeRequestedFreeCourses(string $student): array
+{
+    $result = [];
+    foreach (
+        rows(
+            "SELECT course_id FROM course_registration_requests WHERE student_id=? ORDER BY course_id",
+            [$student],
+        )
+        as $request
+    ) {
+        $cid = $request["course_id"];
+        lockRow("courses", $cid);
+        if (isEnrolled($student, $cid)) {
+            continue;
+        }
+        $course = one(
+            "SELECT c.title,c.capacity,o.price_minor FROM courses c JOIN course_commerce o ON o.course_id=c.id WHERE c.id=? AND c.status='published' AND o.enrollment_open=1",
+            [$cid],
+        );
+        if (
+            $course &&
+            (int) $course["price_minor"] === 0 &&
+            courseHasSeat($cid, (int) $course["capacity"])
+        ) {
+            addSelfEnrollment($student, $cid);
+            $result[] = $cid;
+        }
+    }
+    return $result;
+}
+function courseRequestState(array $u, string $cid): array
+{
+    return [
+        "enrolled" => isEnrolled($u["id"], $cid),
+        "requested" => (bool) one(
+            "SELECT course_id FROM course_registration_requests WHERE student_id=? AND course_id=?",
+            [$u["id"], $cid],
+        ),
+        "payment_available" => integrationEnabled("moyasar"),
+    ];
+}
+function listCourseRequests(array $u, int $page): array
+{
+    $scope = $u["role"] === "admin" ? "" : " WHERE r.student_id=?";
+    $args = $u["role"] === "admin" ? [] : [$u["id"]];
+    $query =
+        " FROM course_registration_requests r JOIN courses c ON c.id=r.course_id JOIN users u ON u.id=r.student_id LEFT JOIN course_commerce o ON o.course_id=c.id LEFT JOIN enrollments e ON e.course_id=r.course_id AND e.student_id=r.student_id";
+    $result = pagedList(
+        "SELECT r.student_id,r.course_id,r.created_at,c.title,c.status course_status,o.price_minor,o.enrollment_open,u.name student_name,u.active,e.id enrollment_id" .
+            $query .
+            $scope .
+            " ORDER BY r.created_at DESC,r.student_id,r.course_id",
+        "SELECT COUNT(*) n" . $query . $scope,
+        $args,
+        $page,
+    );
+    $result["payment_available"] = integrationEnabled("moyasar");
+    foreach ($result["items"] as &$item) {
+        $item["status"] = $item["enrollment_id"]
+            ? "enrolled"
+            : (!$item["active"]
+                ? "pending_account"
+                : ($item["course_status"] !== "published" ||
+                !$item["enrollment_open"]
+                    ? "unavailable"
+                    : ((int) $item["price_minor"]
+                        ? "payment_required"
+                        : "awaiting_seat")));
+        unset(
+            $item["active"],
+            $item["enrollment_id"],
+            $item["course_status"],
+            $item["enrollment_open"],
+        );
+        if ($u["role"] !== "admin") {
+            unset($item["student_name"], $item["student_id"]);
+        }
+    }
+    unset($item);
+    return $result;
+}
+function checkout(array $u, string $courseId, bool $application = false): array
 {
     if ($u["role"] !== "student") {
         fail(403, "التسجيل الذاتي متاح من حساب الطالب.");
     }
     rate("checkout:" . $u["id"], 15, 900);
-    $order = tx(function () use ($u, $courseId) {
+    $order = tx(function () use ($u, $courseId, $application) {
         lockRow("courses", $courseId);
-        $course = one(
-            "SELECT * FROM courses WHERE id=? AND status='published'",
-            [$courseId],
-        );
-        $options = commerceFor($courseId);
-        if (!$course || !$options["enrollment_open"]) {
-            fail(404, "التسجيل غير متاح في هذه الدورة.");
-        }
         if (
-            one(
-                "SELECT id FROM enrollments WHERE course_id=? AND student_id=?",
-                [$courseId, $u["id"]],
-            )
+            $application &&
+            isEnrolled($u["id"], $courseId) &&
+            one("SELECT id FROM courses WHERE id=? AND status='published'", [
+                $courseId,
+            ])
         ) {
+            return ["free" => true];
+        }
+        $course = registrationCourse($courseId);
+        if (isEnrolled($u["id"], $courseId)) {
             fail(409, "أنت مسجل في الدورة بالفعل.");
         }
         $old = one(
@@ -196,24 +324,24 @@ function checkout(array $u, string $courseId): array
             [$courseId, $u["id"]],
         );
         if ($old) {
+            if ($application) {
+                recordCourseRequest($u["id"], $courseId);
+            }
             return $old;
         }
-        $count = (int) one(
-            "SELECT COUNT(*) n FROM enrollments WHERE course_id=?",
-            [$courseId],
-        )["n"];
-        if ($count + reservedSeats($courseId) >= (int) $course["capacity"]) {
-            fail(409, "اكتملت المقاعد أو حُجزت مؤقتًا لطلبات دفع جارية.");
+        if (!courseHasSeat($courseId, (int) $course["capacity"])) {
+            fail(409, "اكتمل عدد المقاعد في الدورة.");
         }
-        $price = (int) $options["price_minor"];
+        $price = (int) $course["price_minor"];
+        if ($application) {
+            recordCourseRequest($u["id"], $courseId);
+        }
         if ($price === 0) {
-            run(
-                "INSERT INTO enrollments(id,course_id,student_id,created_at) VALUES(?,?,?,?)",
-                [uid(), $courseId, $u["id"], now()],
-            );
-            emailEnrollment($courseId, $u["id"]);
-            audit($u, "student.self_enrolled", $courseId);
+            addSelfEnrollment($u["id"], $courseId);
             return ["free" => true];
+        }
+        if ($application && !integrationEnabled("moyasar")) {
+            return ["application_only" => true];
         }
         requireIntegration("moyasar");
         $id = uid();
@@ -229,6 +357,9 @@ function checkout(array $u, string $courseId): array
     });
     if (isset($order["free"])) {
         return ["enrolled" => true];
+    }
+    if (isset($order["application_only"])) {
+        return ["enrolled" => false, "requested" => true];
     }
     if (!isset($order["new"])) {
         return ["order" => orderView($order), "enrolled" => false];

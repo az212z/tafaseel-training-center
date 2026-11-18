@@ -337,11 +337,11 @@ export function Integrations() {
 }
 export function ZoomControl({
   classId,
-  ready,
+  status,
   canHost,
 }: {
   classId: string;
-  ready: boolean;
+  status?: string | null;
   canHost: boolean;
 }) {
   const { data, user, refresh, notify } = useApp();
@@ -372,14 +372,16 @@ export function ZoomControl({
   }
   return (
     <>
-      {ready ? (
+      {status === "ready" ? (
         <>
-          <Button
-            disabled={busy || isStaticPreview}
-            onClick={() => open(false)}
-          >
-            دخول زوم
-          </Button>
+          {!canHost && (
+            <Button
+              disabled={busy || isStaticPreview}
+              onClick={() => open(false)}
+            >
+              انضم إلى الحصة
+            </Button>
+          )}
           {canHost && (
             <>
               <Button
@@ -387,7 +389,7 @@ export function ZoomControl({
                 disabled={busy || isStaticPreview}
                 onClick={() => open(true)}
               >
-                بدء اللقاء كمدرّب
+                بدء حصة زوم
               </Button>
               <button
                 className="text-link"
@@ -410,10 +412,15 @@ export function ZoomControl({
         canHost && (
           <Button
             variant="secondary"
-            disabled={!data.capabilities?.zoom || isStaticPreview}
+            disabled={
+              !data.capabilities?.zoom ||
+              isStaticPreview ||
+              status === "creating" ||
+              status === "uncertain"
+            }
             onClick={() => setCreate(true)}
           >
-            إنشاء لقاء زوم
+            {status === "failed" ? "إعادة تجهيز زوم" : "إنشاء لقاء زوم"}
           </Button>
         )
       )}
@@ -432,13 +439,14 @@ export function ZoomControl({
             }}
           >
             {user.role === "admin" ? (
-              <Field label="بريد مضيف زوم في حساب المركز">
-                <input name="host_email" type="email" required dir="ltr" />
+              <Field
+                label="بريد مضيف بديل (اختياري)"
+                hint="يُستخدم مضيف المركز عند ترك الحقل فارغًا."
+              >
+                <input name="host_email" type="email" dir="ltr" />
               </Field>
             ) : (
-              <p>
-                يُستخدم بريد المدرّب {user.email} مضيفًا في حساب زوم الخاص بالمركز.
-              </p>
+              <p>سيُنشأ اللقاء باستعمال مضيف المركز.</p>
             )}
             <p className="muted">
               يُنشأ لقاء بقاعة انتظار ورمز دخول، ويُمنع الدخول قبل المضيف. تسجيل

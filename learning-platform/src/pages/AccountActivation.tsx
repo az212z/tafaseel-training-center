@@ -6,7 +6,12 @@ import { asset, isStaticPreview } from "../environment";
 import { Form, Field, Button } from "../components/ui";
 import "../account-activation.css";
 
-type Invitation = { name: string; role: string; expires_at: string };
+type Invitation = {
+  name: string;
+  role: string;
+  expires_at: string;
+  registration?: boolean;
+};
 
 export default function AccountActivation() {
   const [token] = useState(() => location.hash.slice(1));
@@ -76,9 +81,9 @@ export default function AccountActivation() {
         ) : (
           <>
             <p>
-              مرحبًا {invitation.name}، أكمِل توثيق بريدك واختر كلمة مرور خاصة
-              بحسابك{" "}
-              {invitation.role === "instructor" ? "التعليمي" : "في تفاصيل"}.
+              {invitation.registration
+                ? `مرحبًا ${invitation.name}، أكّد بريدك للمتابعة إلى حسابك.`
+                : `مرحبًا ${invitation.name}، أكمل توثيق بريدك واختر كلمة مرور حسابك.`}
             </p>
             {signedIn ? (
               <div className="alert">
@@ -99,6 +104,19 @@ export default function AccountActivation() {
                   تسجيل الخروج والمتابعة
                 </Button>
               </div>
+            ) : invitation.registration ? (
+              <Form
+                submitLabel="تأكيد البريد والمتابعة"
+                onSubmit={async () => {
+                  const result = await api<{ next: string }>(
+                    "account.registration.verify",
+                    { token },
+                  );
+                  location.assign(result.next);
+                }}
+              >
+                <span />
+              </Form>
             ) : (
               <Form
                 submitLabel="توثيق الحساب وإكمال التسجيل"

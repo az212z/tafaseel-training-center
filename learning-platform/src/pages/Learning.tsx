@@ -1,3 +1,5 @@
+import { TrashButton } from "../components/TrashButton";
+import { ResourcePreview, canPreview } from "../components/ResourcePreview";
 import { CourseCommunity, CourseSurvey, LessonNotebook } from "./LearningTools";
 import { asset, isStaticPreview } from "../environment";
 import { useEffect, useRef, useState } from "react";
@@ -26,7 +28,7 @@ import {
 } from "@phosphor-icons/react";
 import { useApp, ar, progressPercent } from "../context";
 import { api, get, fileUrl } from "../api";
-import type { Lesson, QuizDraft } from "../types";
+import type { FileRecord, Lesson, QuizDraft } from "../types";
 import {
   PageHead,
   Panel,
@@ -68,7 +70,6 @@ export function Courses() {
             ? "دوراتي التدريبية"
             : "الدورات التدريبية"
         }
-        subtitle="كل دورة، فرصة جديدة لتعلّم يصنع الفرق."
       >
         {user.role === "admin" && (
           <Button onClick={() => setAdd(true)}>
@@ -122,7 +123,18 @@ export function Courses() {
       {!courses.length && (
         <Empty
           title="لا توجد دورات مطابقة"
-          text="جرّب تغيير البحث أو المسار. ستظهر دوراتك بعد تسجيلك من المركز."
+          text={
+            term || category || status
+              ? "جرّب تغيير البحث أو التصفية."
+              : undefined
+          }
+          action={
+            user.role === "student" ? (
+              <Link to="/programs" className="btn btn-primary">
+                استعرض الدورات
+              </Link>
+            ) : undefined
+          }
         />
       )}
       {add && <CourseForm onClose={() => setAdd(false)} />}
@@ -140,6 +152,7 @@ export function LessonViewer({
 }) {
   const { data, user, refresh, notify } = useApp();
   const [busy, setBusy] = useState(false);
+  const attachment = data.files.find((file) => file.id === lesson.file_id);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const completed = data.progress.some(
     (p) => p.lesson_id === lesson.id && p.student_id === user.id,
@@ -245,13 +258,26 @@ export function LessonViewer({
           {bodyError}
         </div>
       )}
-      {lessonBody && <div className="lesson-body">{lessonBody}</div>}
-      {lesson.file_id && lesson.kind !== "video" && (
-        <a href={fileUrl(lesson.file_id)} className="btn btn-secondary">
-          <DownloadSimple size={19} />
-          تنزيل ملف الدرس
-        </a>
+      {lesson.kind === "file" && attachment && canPreview(attachment) && (
+        <ResourcePreview file={attachment} />
       )}
+      {lesson.file_id &&
+        lesson.kind !== "video" &&
+        !(lesson.kind === "file" && attachment && canPreview(attachment)) && (
+          <a href={fileUrl(lesson.file_id)} className="btn btn-secondary">
+            <DownloadSimple size={19} />
+            تنزيل ملف الدرس
+          </a>
+        )}
+      {lessonBody &&
+        (lesson.kind === "text" ? (
+          <div className="lesson-body">{lessonBody}</div>
+        ) : (
+          <details className="lesson-details">
+            <summary>شرح الدرس والمراجع</summary>
+            <div className="lesson-body">{lessonBody}</div>
+          </details>
+        ))}
       {onEdit && (
         <div className="lesson-footer">
           <Button
@@ -262,10 +288,19 @@ export function LessonViewer({
             <PencilSimple size={18} />
             تعديل الدرس
           </Button>
+          <TrashButton
+            kind="lesson"
+            id={lesson.id}
+            title={lesson.title}
+            onRemoved={onClose}
+          />
         </div>
       )}
-      {user.role !== "guardian" && (
-        <LessonNotebook lessonId={lesson.id} video={video} />
+      {user.role === "student" && (
+        <details className="lesson-details">
+          <summary>ملاحظاتي</summary>
+          <LessonNotebook lessonId={lesson.id} video={video} />
+        </details>
       )}
       {user.role === "student" && (
         <div className="lesson-footer">
@@ -298,6 +333,7 @@ export function CourseDetail() {
   const { data, user } = useApp();
   const [tab, setTab] = useState("lessons");
   const [modal, setModal] = useState("");
+  const [previewFile, setPreviewFile] = useState<FileRecord | null>(null);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [params, setParams] = useSearchParams();
   const targetLesson = params.get("lesson");
@@ -324,19 +360,27 @@ export function CourseDetail() {
       />
     );
   const staff = ["admin", "instructor"].includes(user.role);
+  const student = user.role === "student";
   const lessons = data.lessons.filter((l) => l.course_id === id);
   const students = data.students.filter((s) =>
     data.enrollments.some((e) => e.student_id === s.id && e.course_id === id),
   );
   const tabs = [
-    ["lessons", "المحتوى التدريبي"],
-    ["students", staff ? "الطلاب المسجلون" : "التقدّم"],
+    ["lessons", "الدروس"],
+    ...(!student ? [["students", staff ? "الطلاب" : "التقدّم"]] : []),
     ["assignments", "الواجبات"],
     ["quizzes", "الاختبارات"],
     ["files", "الملفات"],
     ["community", "النقاشات"],
     ["survey", "تقييم التجربة"],
   ];
+  const completed = new Set(
+    data.progress
+      .filter((p) => p.student_id === user.id)
+      .map((p) => p.lesson_id),
+  );
+  const nextLesson =
+    lessons.find((item) => !completed.has(item.id)) ?? lessons[0];
   return (
     <>
       <Link to="/courses" className="back-link">
@@ -347,7 +391,7 @@ export function CourseDetail() {
         <div>
           <div className="inline-badges">
             <Badge tone="green">{c.category}</Badge>
-            <Status value={c.status} />
+            {staff && <Status value={c.status} />}
           </div>
           <h1>{c.title}</h1>
           <p>{c.description}</p>
@@ -364,17 +408,39 @@ export function CourseDetail() {
               <BookOpen size={18} />
               {ar(lessons.length)} دروس
             </span>
-            <span>
-              <UsersThree size={18} />
-              {ar(c.students_count)} / {ar(c.capacity)} طالب
-            </span>
+            {staff && (
+              <span>
+                <UsersThree size={18} />
+                {ar(c.students_count)} / {ar(c.capacity)} طالب
+              </span>
+            )}
           </div>
+          {student && nextLesson && (
+            <div className="course-resume">
+              <span>
+                {ar(lessons.filter((item) => completed.has(item.id)).length)} من{" "}
+                {ar(lessons.length)} درس مكتمل
+              </span>
+              <Button onClick={() => showLesson(nextLesson.id)}>
+                <PlayCircle size={18} />
+                {lessons.every((item) => completed.has(item.id))
+                  ? "مراجعة الدروس"
+                  : completed.size
+                    ? "تابع التعلّم"
+                    : "ابدأ أول درس"}
+              </Button>
+            </div>
+          )}
           {staff && (
             <div className="head-actions">
-              <Button variant="secondary" onClick={() => setModal("edit")}>
-                <PencilSimple size={18} />
-                تعديل الدورة
-              </Button>
+              {user.role === "admin" && (
+                <>
+                  <Button variant="secondary" onClick={() => setModal("edit")}>
+                    <PencilSimple size={18} /> تعديل الدورة
+                  </Button>
+                  <TrashButton kind="course" id={c.id} title={c.title} />
+                </>
+              )}
               {user.role === "admin" && (
                 <Button onClick={() => setModal("enroll")}>
                   <UserPlus size={18} />
@@ -421,15 +487,10 @@ export function CourseDetail() {
       </div>
       {tab === "community" && <CourseCommunity courseId={c.id} />}
       {tab === "survey" && <CourseSurvey courseId={c.id} />}
-      <div className="course-resource-links">
-        <Link className="text-link" to={`/bags?course=${id}`}>
-          فتح الحقيبة التعليمية للمادة
-        </Link>
-      </div>
+
       {tab === "lessons" && (
         <Panel
           title="محتوى الدورة"
-          description="خطوات متتابعة في رحلة تعلّمك"
           action={
             staff && (
               <Button onClick={() => setModal("lesson")}>
@@ -550,7 +611,10 @@ export function CourseDetail() {
             {data.assignments
               .filter((a) => a.course_id === id)
               .map((a) => (
-                <Link to={`/assignments?course=${id}`} key={a.id}>
+                <Link
+                  to={`/assignments?course=${id}&assignment=${a.id}`}
+                  key={a.id}
+                >
                   <span className="update-icon">
                     <ClipboardText size={23} />
                   </span>
@@ -583,7 +647,7 @@ export function CourseDetail() {
             {data.quizzes
               .filter((q) => q.course_id === id)
               .map((q) => (
-                <Link to={`/quizzes?course=${id}`} key={q.id}>
+                <Link to={`/quizzes?course=${id}&quiz=${q.id}`} key={q.id}>
                   <span className="update-icon">
                     <Exam size={23} />
                   </span>
@@ -611,14 +675,21 @@ export function CourseDetail() {
             {data.files
               .filter((f) => f.course_id === id && f.purpose === "resource")
               .map((f) => (
-                <a href={fileUrl(f.id)} key={f.id}>
-                  <FileText size={25} />
-                  <div>
-                    <h3>{f.name}</h3>
-                    <p>{(f.bytes / 1024 / 1024).toFixed(1)} MB</p>
-                  </div>
-                  <DownloadSimple size={20} />
-                </a>
+                <div className="course-file-row" key={f.id}>
+                  <FileText size={24} />
+                  <strong>{f.name}</strong>
+                  {canPreview(f) && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setPreviewFile(f)}
+                    >
+                      فتح
+                    </Button>
+                  )}
+                  <a href={fileUrl(f.id)} download className="text-link">
+                    <DownloadSimple size={18} /> تنزيل
+                  </a>
+                </div>
               ))}
           </div>
           {!data.files.some(
@@ -631,7 +702,12 @@ export function CourseDetail() {
           )}
         </Panel>
       )}
-      {modal === "edit" && (
+      {previewFile?.course_id === id && previewFile && (
+        <Modal title="عرض الملف" onClose={() => setPreviewFile(null)} wide>
+          <ResourcePreview file={previewFile} />
+        </Modal>
+      )}
+      {modal === "edit" && user.role === "admin" && (
         <CourseForm course={c} onClose={() => setModal("")} />
       )}
       {modal === "lesson" && (

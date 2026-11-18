@@ -36,7 +36,7 @@ function learningUpdateScope(array $u): array
         fail(403, "تحديثات التعلم متاحة للطالب من حسابه.");
     }
     return [
-        " FROM learning_updates n JOIN courses c ON c.id=n.course_id AND c.status='published' JOIN enrollments e ON e.course_id=n.course_id AND e.student_id=? AND e.created_at<=n.created_at LEFT JOIN learning_update_reads r ON r.update_id=n.id AND r.user_id=e.student_id",
+        " FROM learning_updates n JOIN courses c ON c.id=n.course_id AND c.status='published' JOIN enrollments e ON e.course_id=n.course_id AND e.student_id=? AND e.created_at<=n.created_at AND NOT EXISTS (SELECT 1 FROM record_trash t WHERE t.kind=n.kind AND t.resource_id=SUBSTR(n.event_key,LENGTH(n.kind)+2)) LEFT JOIN learning_update_reads r ON r.update_id=n.id AND r.user_id=e.student_id",
         [$u["id"]],
     ];
 }

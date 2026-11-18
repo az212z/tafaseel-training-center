@@ -1,3 +1,4 @@
+import { TrashButton } from "../components/TrashButton";
 import { isStaticPreview } from "../environment";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -43,11 +44,8 @@ export function Announcements() {
   );
   return (
     <>
-      <PageHead
-        title="إعلانات المركز"
-        subtitle="تواصل واضح، يبقي الجميع على اطلاع."
-      >
-        {staff && (
+      <PageHead title="إعلانات المركز">
+        {user.role === "admin" && (
           <Link className="btn btn-secondary" to="/communications">
             بث رسالة بريدية
             <Envelope size={18} />
@@ -89,6 +87,9 @@ export function Announcements() {
               <span>{date(a.created_at)}</span>
             </div>
             <h2>{a.title}</h2>
+            {(user.role === "admin" || (staff && !!a.course_id)) && (
+              <TrashButton kind="announcement" id={a.id} title={a.title} />
+            )}
             <p className="announcement-body">{a.body}</p>
             <div className="announcement-author">
               <UsersThree size={17} />
@@ -720,6 +721,9 @@ export function SupportPage() {
               <div className="support-ticket" key={s.id}>
                 <div className="row-between">
                   <h3>{s.subject}</h3>
+                  {user.role === "admin" && (
+                    <TrashButton kind="support" id={s.id} title={s.subject} />
+                  )}
                   <Status value={s.status} />
                 </div>
                 <p>{s.body}</p>

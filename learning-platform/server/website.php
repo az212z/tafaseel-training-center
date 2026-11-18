@@ -160,7 +160,8 @@ function websiteAction(string $action, string $method, array $d): ?array
             fail(422, "أدخل رقم شهادة تفاصيل كاملًا كما يظهر عليها.");
         }
         $c = one(
-            "SELECT f.serial,f.issued_at,c.title FROM certificates f JOIN courses c ON c.id=f.course_id WHERE f.serial=?",
+            "SELECT f.serial,f.issued_at,c.title FROM certificates f JOIN courses c ON c.id=f.course_id WHERE f.serial=? AND " .
+                recordAvailable("certificate", "f.id"),
             [$serial],
         );
         return ["valid" => (bool) $c, "certificate" => $c ?: null];

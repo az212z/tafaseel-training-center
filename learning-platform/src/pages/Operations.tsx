@@ -1,3 +1,5 @@
+import { TrashButton } from "../components/TrashButton";
+import { ResourcePreview, canPreview } from "../components/ResourcePreview";
 import { TrainingReport } from "./LearningTools";
 import { ZoomControl } from "./Communication";
 import { asset, isStaticPreview } from "../environment";
@@ -32,7 +34,7 @@ import {
   attendancePercent,
 } from "../context";
 import { api, get, fileUrl } from "../api";
-import type { Certificate, Data } from "../types";
+import type { Certificate, Data, FileRecord } from "../types";
 import {
   PageHead,
   Panel,
@@ -142,14 +144,17 @@ export function Schedule() {
                 </div>
               </div>
               <div className="schedule-actions">
+                {staff && (
+                  <TrashButton kind="class" id={c.id} title={c.title} />
+                )}
                 {(staff || user.role === "student") && (
                   <ZoomControl
                     classId={c.id}
-                    ready={c.zoom_status === "ready"}
+                    status={c.zoom_status}
                     canHost={staff}
                   />
                 )}
-                {c.zoom_status && c.zoom_status !== "ready" && (
+                {staff && c.zoom_status && c.zoom_status !== "ready" && (
                   <Badge tone="amber">لقاء زوم يحتاج مراجعة الإعداد</Badge>
                 )}
                 {c.join_url ? (
@@ -162,9 +167,7 @@ export function Schedule() {
                     دخول اللقاء
                     <ArrowSquareOut size={17} />
                   </a>
-                ) : (
-                  <Badge>حصة حضورية</Badge>
-                )}
+                ) : null}
                 {staff && (
                   <Link to={`/attendance?class=${c.id}`} className="text-link">
                     <UserCheck size={18} />
@@ -545,6 +548,7 @@ export function FilesPage() {
   const [term, setTerm] = useState("");
   const [course, setCourse] = useState("");
   const [add, setAdd] = useState(false);
+  const [previewFile, setPreviewFile] = useState<FileRecord | null>(null);
   const [uploadCourse, setUploadCourse] = useState("");
   const staff = ["admin", "instructor"].includes(user.role);
   const files = data.files.filter(
@@ -631,10 +635,23 @@ export function FilesPage() {
                 <td dir="ltr">{(f.bytes / 1024 / 1024).toFixed(2)} MB</td>
                 <td>{date(f.created_at)}</td>
                 <td>
-                  <a className="text-link" href={fileUrl(f.id)}>
-                    <DownloadSimple size={18} />
-                    تنزيل
-                  </a>
+                  <div className="table-actions">
+                    {staff && (
+                      <TrashButton kind="file" id={f.id} title={f.name} />
+                    )}
+                    {canPreview(f) && (
+                      <button
+                        className="text-link"
+                        onClick={() => setPreviewFile(f)}
+                      >
+                        فتح
+                      </button>
+                    )}
+                    <a className="text-link" href={fileUrl(f.id)} download>
+                      <DownloadSimple size={18} />
+                      تنزيل
+                    </a>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -666,6 +683,11 @@ export function FilesPage() {
           ? "الملفات التجريبية تُحفظ في هذا المتصفح فقط. رفع الهويات معطّل، ولا توجد حماية ملفات من خادم في نسخة العرض."
           : "ملفات الهوية مشفرة، والوصول إليها مقصور على الإدارة والطالب وولي أمره المرتبط."}
       </div>
+      {previewFile && (
+        <Modal title="عرض الملف" onClose={() => setPreviewFile(null)} wide>
+          <ResourcePreview file={previewFile} />
+        </Modal>
+      )}
       {add && (
         <Modal title="رفع مادة تدريبية" onClose={() => setAdd(false)}>
           <Field label="الدورة التدريبية">
@@ -729,6 +751,13 @@ export function Certificates() {
               </span>
               <Badge tone="green">شهادة إتمام</Badge>
               <h2>{c.course_title}</h2>
+              {user.role === "admin" && (
+                <TrashButton
+                  kind="certificate"
+                  id={c.id}
+                  title={c.course_title}
+                />
+              )}
               <p>{c.student_name}</p>
               <small dir="ltr">{c.serial}</small>
               <Button variant="secondary" onClick={() => setSelected(c)}>

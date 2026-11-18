@@ -129,9 +129,12 @@ function dataFor(u: User): Data {
     mfa: false,
     courses,
     students,
-    instructors: s.users
-      .filter((t) => t.role === "instructor" && t.active)
-      .map(({ id, name }) => ({ id, name })),
+    instructors:
+      u.role === "admin"
+        ? s.users
+            .filter((t) => t.role === "instructor" && t.active)
+            .map(({ id, name }) => ({ id, name }))
+        : [],
     enrollments: s.enrollments.filter(
       (e) => ids.has(e.course_id) && sid.has(e.student_id),
     ),
@@ -414,12 +417,46 @@ export async function previewApi<T>(
       const target = s.users.find((t) => t.id === d.id);
       if (!target || target.role === "admin")
         throw new Error("لا يمكن تغيير حالة هذا الحساب.");
-      target.active = target.active ? 0 : 1;
+      target.active =
+        typeof d.active === "boolean"
+          ? Number(d.active)
+          : target.active
+            ? 0
+            : 1;
+      const enrolled: string[] = [];
+      if (target.role === "student" && target.active) {
+        for (const request of s.extensions?.registrations ?? []) {
+          if (request.student_id !== target.id) continue;
+          const course = s.courses.find(
+            (c) => c.id === request.course_id && c.status === "published",
+          );
+          const pricing = s.extensions?.commerce.find(
+            (c) => c.course_id === request.course_id && c.enrollment_open,
+          );
+          const learners = s.enrollments.filter(
+            (r) => r.course_id === request.course_id,
+          );
+          if (
+            course &&
+            pricing?.price_minor === 0 &&
+            learners.length < course.capacity &&
+            !learners.some((r) => r.student_id === target.id)
+          ) {
+            s.enrollments.push({
+              id: uid(),
+              course_id: course.id,
+              student_id: target.id,
+            });
+            enrolled.push(course.id);
+          }
+        }
+      }
+      result = { ok: true, enrolled_courses: enrolled };
       log(u, "user.status_changed", target.id);
       break;
     }
     case "course.save": {
-      actor(["admin", "instructor"]);
+      actor(["admin"]);
       const id = text(d.id) || uid();
       const old = s.courses.find((c) => c.id === id);
       if (old) course(u, id, true);

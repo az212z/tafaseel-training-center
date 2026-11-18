@@ -40,6 +40,7 @@ function learningToolsAction(string $action, string $method, array $d): ?array
         $where = $admin
             ? "1=1"
             : "p.status='published' AND NOT EXISTS (SELECT 1 FROM path_courses pc JOIN courses c ON c.id=pc.course_id WHERE pc.path_id=p.id AND c.status<>'published')";
+        $where .= " AND " . recordAvailable("path", "p.id");
         $out = pagedList(
             "SELECT p.* FROM learning_paths p WHERE " .
                 $where .
@@ -318,7 +319,11 @@ function learningToolsAction(string $action, string $method, array $d): ?array
             fail(403, "الملاحظات خاصة بصاحب الحساب التعليمي.");
         }
         $lid = str($d["lesson_id"] ?? "", 40);
-        $lesson = one("SELECT * FROM lessons WHERE id=?", [$lid]);
+        $lesson = one(
+            "SELECT * FROM lessons l WHERE id=? AND " .
+                recordAvailable("lesson", "l.id"),
+            [$lid],
+        );
         if (!$lesson) {
             fail(404, "الدرس غير موجود.");
         }
@@ -330,9 +335,11 @@ function learningToolsAction(string $action, string $method, array $d): ?array
             tx(function () use ($u, $lid, $body, $bookmark, $seconds) {
                 lockRow(
                     "courses",
-                    one("SELECT course_id FROM lessons WHERE id=?", [$lid])[
-                        "course_id"
-                    ],
+                    one(
+                        "SELECT course_id FROM lessons l WHERE id=? AND " .
+                            recordAvailable("lesson", "l.id"),
+                        [$lid],
+                    )["course_id"],
                 );
                 if (
                     one(

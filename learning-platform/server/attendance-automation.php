@@ -22,9 +22,11 @@ function attendanceAutomationCreate(string $class, string $mode): void
 
 function attendanceAutomationControl(array $u, array $d): array
 {
-    $class = one("SELECT * FROM classes WHERE id=?", [
-        str($d["class_id"] ?? "", 40),
-    ]);
+    $class = one(
+        "SELECT * FROM classes k WHERE id=? AND " .
+            recordAvailable("class", "k.id"),
+        [str($d["class_id"] ?? "", 40)],
+    );
     if (!$class) {
         fail(404, "الحصة غير موجودة.");
     }
@@ -145,7 +147,9 @@ function automaticAbsences(int $limit = 100, ?float $deadline = null): array
     $cutoff = gmdate("Y-m-d\TH:i:s\Z", time() - 1200);
     $oldestEnd = gmdate("Y-m-d\TH:i:s\Z", time() - 3600);
     $classes = rows(
-        "SELECT k.id FROM classes k JOIN courses c ON c.id=k.course_id AND c.status='published' JOIN class_attendance_automation a ON a.class_id=k.id WHERE a.enabled=1 AND a.started_at IS NOT NULL AND a.started_at<=? AND k.ends_at>=? ORDER BY a.checked_at,a.started_at LIMIT " .
+        "SELECT k.id FROM classes k JOIN courses c ON c.id=k.course_id AND c.status='published' JOIN class_attendance_automation a ON a.class_id=k.id WHERE " .
+            recordAvailable("class", "k.id") .
+            " AND a.enabled=1 AND a.started_at IS NOT NULL AND a.started_at<=? AND k.ends_at>=? ORDER BY a.checked_at,a.started_at LIMIT " .
             max(1, min(100, $limit)),
         [$cutoff, $oldestEnd],
     );

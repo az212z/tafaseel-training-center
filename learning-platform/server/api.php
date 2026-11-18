@@ -40,7 +40,9 @@ function quizFieldText(
 function visibleCourses(array $u): array
 {
     $sql =
-        "SELECT c.*,u.name AS instructor_name,(SELECT COUNT(*) FROM enrollments e WHERE e.course_id=c.id) AS students_count,(SELECT COUNT(*) FROM lessons l WHERE l.course_id=c.id) AS lessons_count FROM courses c LEFT JOIN users u ON u.id=c.instructor_id";
+        "SELECT c.*,u.name AS instructor_name,(SELECT COUNT(*) FROM enrollments e WHERE e.course_id=c.id) AS students_count,(SELECT COUNT(*) FROM lessons l WHERE l.course_id=c.id AND " .
+        recordAvailable("lesson", "l.id") .
+        ") AS lessons_count FROM courses c LEFT JOIN users u ON u.id=c.instructor_id";
     $args = [];
     if ($u["role"] === "instructor") {
         $sql .= " WHERE c.instructor_id=?";
@@ -56,7 +58,13 @@ function visibleCourses(array $u): array
             " WHERE c.status='published' AND c.id IN (SELECT e.course_id FROM enrollments e JOIN profiles p ON e.student_id=p.user_id WHERE p.guardian_id=?)";
         $args = [$u["id"]];
     }
-    return rows($sql . " ORDER BY c.created_at DESC,c.title", $args);
+    return rows(
+        $sql .
+            ($args ? " AND " : " WHERE ") .
+            recordAvailable("course", "c.id") .
+            " ORDER BY c.created_at DESC,c.title",
+        $args,
+    );
 }
 function visibleStudents(
     array $u,
@@ -64,7 +72,8 @@ function visibleStudents(
     string $studentId = "",
 ): array {
     $sql =
-        "SELECT u.id,u.name,u.email,u.active,u.created_at,p.birth_date,p.city FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.role='student'";
+        "SELECT u.id,u.name,u.email,u.active,u.created_at,p.birth_date,p.city FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.role='student' AND " .
+        recordAvailable("account", "u.id");
     $args = [];
     if ($u["role"] === "instructor") {
         $sql .=
@@ -212,7 +221,9 @@ function dataFor(array $u, array $scope = []): array
         )["n"];
         $overviewClasses = $overview
             ? rows(
-                "SELECT * FROM classes WHERE course_id IN ($holders) AND ends_at>=? ORDER BY starts_at LIMIT 30",
+                "SELECT * FROM classes k WHERE course_id IN ($holders) AND " .
+                    recordAvailable("class", "k.id") .
+                    " AND ends_at>=? ORDER BY starts_at LIMIT 30",
                 [...$ids, now()],
             )
             : [];
@@ -240,11 +251,15 @@ function dataFor(array $u, array $scope = []): array
     $sh = $sids ? implode(",", array_fill(0, count($sids), "?")) : "''";
     $staff = in_array($u["role"], ["admin", "instructor"], true);
     $lessons = rows(
-        "SELECT id,course_id,title,kind,video_url,file_id,'' AS body,duration,sort_order,created_at FROM lessons WHERE course_id IN ($holders) ORDER BY sort_order,created_at",
+        "SELECT id,course_id,title,kind,video_url,file_id,'' AS body,duration,sort_order,created_at FROM lessons l WHERE course_id IN ($holders) AND " .
+            recordAvailable("lesson", "l.id") .
+            " ORDER BY sort_order,created_at",
         $ids,
     );
     $quizzes = rows(
-        "SELECT id,course_id,title,minutes,passing,max_attempts,created_at FROM quizzes WHERE course_id IN ($holders) ORDER BY created_at DESC",
+        "SELECT id,course_id,title,minutes,passing,max_attempts,created_at FROM quizzes q WHERE course_id IN ($holders) AND " .
+            recordAvailable("quiz", "q.id") .
+            " ORDER BY created_at DESC",
         $ids,
     );
     $out = [
@@ -259,25 +274,34 @@ function dataFor(array $u, array $scope = []): array
         "demo" => (bool) cfg()["demo"],
         "courses" => $courses,
         "students" => $students,
-        "instructors" => rows(
-            "SELECT id,name FROM users WHERE role='instructor' AND active=1 ORDER BY name",
-        ),
+        "instructors" =>
+            $u["role"] === "admin"
+                ? rows(
+                    "SELECT id,name FROM users WHERE role='instructor' AND active=1 ORDER BY name",
+                )
+                : [],
         "lessons" => $lessons,
         "enrollments" => rows(
             "SELECT * FROM enrollments WHERE course_id IN ($holders) AND student_id IN ($sh)",
             [...$ids, ...$sids],
         ),
         "assignments" => rows(
-            "SELECT * FROM assignments WHERE course_id IN ($holders) ORDER BY due_at",
+            "SELECT * FROM assignments a WHERE course_id IN ($holders) AND " .
+                recordAvailable("assignment", "a.id") .
+                " ORDER BY due_at",
             $ids,
         ),
         "quizzes" => $quizzes,
         "classes" => rows(
-            "SELECT * FROM classes WHERE course_id IN ($holders) ORDER BY starts_at",
+            "SELECT * FROM classes k WHERE course_id IN ($holders) AND " .
+                recordAvailable("class", "k.id") .
+                " ORDER BY starts_at",
             $ids,
         ),
         "announcements" => rows(
-            "SELECT a.*,u.name AS author_name FROM announcements a JOIN users u ON a.author_id=u.id WHERE a.course_id IS NULL OR a.course_id IN ($holders) ORDER BY a.created_at DESC LIMIT 100",
+            "SELECT a.*,u.name AS author_name FROM announcements a JOIN users u ON a.author_id=u.id WHERE (a.course_id IS NULL OR a.course_id IN ($holders)) AND " .
+                recordAvailable("announcement", "a.id") .
+                " ORDER BY a.created_at DESC LIMIT 100",
             $ids,
         ),
         "settings" => setting("general", [
@@ -288,37 +312,46 @@ function dataFor(array $u, array $scope = []): array
         ]),
         "support" => rows(
             $u["role"] === "admin"
-                ? "SELECT s.*,u.name FROM support s JOIN users u ON u.id=s.user_id ORDER BY s.created_at DESC LIMIT 100"
-                : "SELECT s.*,u.name FROM support s JOIN users u ON u.id=s.user_id WHERE s.user_id=? ORDER BY s.created_at DESC LIMIT 100",
+                ? "SELECT s.*,u.name FROM support s JOIN users u ON u.id=s.user_id WHERE " .
+                    recordAvailable("support", "s.id") .
+                    " ORDER BY s.created_at DESC LIMIT 100"
+                : "SELECT s.*,u.name FROM support s JOIN users u ON u.id=s.user_id WHERE s.user_id=? AND " .
+                    recordAvailable("support", "s.id") .
+                    " ORDER BY s.created_at DESC LIMIT 100",
             $u["role"] === "admin" ? [] : [$u["id"]],
         ),
     ];
     $out["submissions"] = rows(
-        "SELECT s.* FROM submissions s JOIN assignments a ON a.id=s.assignment_id WHERE a.course_id IN ($holders) AND s.student_id IN ($sh)",
+        "SELECT s.* FROM submissions s JOIN assignments a ON a.id=s.assignment_id WHERE a.course_id IN ($holders) AND s.student_id IN ($sh) AND " .
+            recordAvailable("assignment", "a.id"),
         [...$ids, ...$sids],
     );
     $out["attempts"] = rows(
-        "SELECT a.id,a.quiz_id,a.student_id,a.started_at,a.expires_at,a.submitted_at,a.score,a.total FROM attempts a JOIN quizzes q ON q.id=a.quiz_id WHERE q.course_id IN ($holders) AND a.student_id IN ($sh)",
+        "SELECT a.id,a.quiz_id,a.student_id,a.started_at,a.expires_at,a.submitted_at,a.score,a.total FROM attempts a JOIN quizzes q ON q.id=a.quiz_id WHERE q.course_id IN ($holders) AND a.student_id IN ($sh) AND " .
+            recordAvailable("quiz", "q.id"),
         [...$ids, ...$sids],
     );
     $out["progress"] = rows(
-        "SELECT p.* FROM progress p JOIN lessons l ON l.id=p.lesson_id WHERE l.course_id IN ($holders) AND p.student_id IN ($sh)",
+        "SELECT p.* FROM progress p JOIN lessons l ON l.id=p.lesson_id WHERE l.course_id IN ($holders) AND p.student_id IN ($sh) AND " .
+            recordAvailable("lesson", "l.id"),
         [...$ids, ...$sids],
     );
     $out["attendance"] = rows(
-        "SELECT a.* FROM attendance a JOIN classes c ON c.id=a.class_id WHERE c.course_id IN ($holders) AND a.student_id IN ($sh)",
+        "SELECT a.* FROM attendance a JOIN classes c ON c.id=a.class_id WHERE c.course_id IN ($holders) AND a.student_id IN ($sh) AND " .
+            recordAvailable("class", "c.id"),
         [...$ids, ...$sids],
     );
     $out["certificates"] = rows(
-        "SELECT f.*,u.name AS student_name,c.title AS course_title,c.duration FROM certificates f JOIN users u ON u.id=f.student_id JOIN courses c ON c.id=f.course_id WHERE f.course_id IN ($holders) AND f.student_id IN ($sh)",
+        "SELECT f.*,u.name AS student_name,c.title AS course_title,c.duration FROM certificates f JOIN users u ON u.id=f.student_id JOIN courses c ON c.id=f.course_id WHERE f.course_id IN ($holders) AND f.student_id IN ($sh) AND " .
+            recordAvailable("certificate", "f.id"),
         [...$ids, ...$sids],
     );
     $fileWhere = "1=1";
     $fileArgs = [];
     if ($u["role"] === "instructor") {
         $fileWhere =
-            "f.owner_id=? OR (f.purpose<>'identity' AND f.course_id IN (SELECT id FROM courses WHERE instructor_id=?))";
-        $fileArgs = [$u["id"], $u["id"]];
+            "f.purpose<>'identity' AND f.course_id IN (SELECT id FROM courses WHERE instructor_id=?)";
+        $fileArgs = [$u["id"]];
     } elseif ($u["role"] === "student") {
         $fileWhere =
             "f.owner_id=? OR (f.purpose IN ('identity','submission') AND f.student_id=?) OR (f.purpose='resource' AND f.course_id IN (SELECT e.course_id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.student_id=? AND c.status='published'))";
@@ -329,7 +362,9 @@ function dataFor(array $u, array $scope = []): array
         $fileArgs = [$u["id"], $u["id"], $u["id"]];
     }
     $out["files"] = rows(
-        "SELECT f.id,f.owner_id,f.course_id,f.student_id,f.purpose,f.name,f.mime,f.bytes,f.created_at FROM files f WHERE ($fileWhere) ORDER BY f.created_at DESC LIMIT 1000",
+        "SELECT f.id,f.owner_id,f.course_id,f.student_id,f.purpose,f.name,f.mime,f.bytes,f.created_at FROM files f WHERE ($fileWhere) AND " .
+            recordAvailable("file", "f.id") .
+            " ORDER BY f.created_at DESC LIMIT 1000",
         $fileArgs,
     );
     if ($u["role"] === "admin") {
@@ -355,16 +390,19 @@ function dataFor(array $u, array $scope = []): array
     }
     unset($class);
     automationClassDetails($out["classes"], $staff);
-    $videoMap = rows(
-        "SELECT id,lesson_id,status FROM video_assets WHERE lesson_id IS NOT NULL AND course_id IN ($holders)",
-        $ids,
+    $videoMap = array_column(
+        rows(
+            "SELECT id,lesson_id,status FROM video_assets WHERE lesson_id IS NOT NULL AND course_id IN ($holders)",
+            $ids,
+        ),
+        null,
+        "lesson_id",
     );
     foreach ($out["lessons"] as &$lesson) {
-        foreach ($videoMap as $v) {
-            if ($v["lesson_id"] === $lesson["id"]) {
-                $lesson["video_asset_id"] = $v["id"];
-                $lesson["video_status"] = $v["status"];
-            }
+        if (isset($videoMap[$lesson["id"]])) {
+            $video = $videoMap[$lesson["id"]];
+            $lesson["video_asset_id"] = $video["id"];
+            $lesson["video_status"] = $video["status"];
         }
     }
     unset($lesson);
@@ -393,7 +431,11 @@ function checkFileRef(
     if (!$id) {
         return;
     }
-    $f = one("SELECT * FROM files WHERE id=?", [$id]);
+    $f = one(
+        "SELECT * FROM files f WHERE id=? AND " .
+            recordAvailable("file", "f.id"),
+        [$id],
+    );
     if (
         !$f ||
         $f["purpose"] !== $purpose ||
@@ -406,6 +448,10 @@ function checkFileRef(
 }
 function api(string $action, string $method, array $d, string $raw = ""): array
 {
+    $trash = recordTrashAction($action, $method, $d);
+    if ($trash !== null) {
+        return $trash;
+    }
     $delivery = deliveryAction($action, $method, $d);
     if ($delivery !== null) {
         return $delivery;
@@ -706,8 +752,17 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         $name = str($d["name"] ?? "", 120);
         $em = email($d["email"] ?? "");
         $role = $d["role"] ?? "student";
-        if (!in_array($role, ["student", "instructor", "guardian"], true)) {
+        if (
+            !in_array(
+                $role,
+                ["student", "instructor", "guardian", "admin"],
+                true,
+            )
+        ) {
             fail(422, "نوع الحساب غير صحيح.");
+        }
+        if ($id) {
+            guardActiveRecord("account", $id);
         }
         $existing = $id ? one("SELECT * FROM users WHERE id=?", [$id]) : null;
         if ($id && !$existing) {
@@ -719,6 +774,23 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         $conflict = one("SELECT id FROM users WHERE email=?", [$em]);
         if ($conflict && $conflict["id"] !== $id) {
             fail(409, "البريد مسجل مسبقًا.");
+        }
+        if ($role === "admin") {
+            if ($existing) {
+                fail(403, "يعدّل المدير بيانات حسابه من إعدادات الحساب.");
+            }
+            rate("admin-delegation:" . $u["id"], 5, 900);
+            $actor = one("SELECT password FROM users WHERE id=?", [$u["id"]]);
+            $currentPassword = $d["current_password"] ?? "";
+            if (
+                !is_string($currentPassword) ||
+                !password_verify($currentPassword, $actor["password"])
+            ) {
+                fail(422, "أكّد كلمة مرور حسابك الإداري الحالي.");
+            }
+            if (($d["send_invite"] ?? false) !== true) {
+                fail(422, "إنشاء حساب إدارة يتطلب دعوة لتوثيق البريد.");
+            }
         }
         $invite = !$existing && ($d["send_invite"] ?? false) === true;
         $pw = $invite
@@ -854,61 +926,88 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         auth(["admin"]);
         $id = str($d["id"] ?? "", 40);
         $target = one("SELECT * FROM users WHERE id=?", [$id]);
+        guardActiveRecord("account", $id);
         if (!$target || $target["role"] === "admin") {
             fail(422, "لا يمكن تغيير حالة هذا الحساب.");
         }
-        if (
-            !$target["active"] &&
-            one(
-                "SELECT id FROM account_invitations WHERE user_id=? AND used_at IS NULL",
-                [$id],
-            )
-        ) {
-            fail(
-                409,
-                "الحساب ينتظر توثيق البريد من صاحبه. أعد إرسال دعوة التسجيل عند الحاجة.",
+        return tx(function () use ($u, $id, $target, $d) {
+            lockRow("users", $id);
+            $current = one("SELECT active,role FROM users WHERE id=?", [$id]);
+            $desired = is_bool($d["active"] ?? null)
+                ? $d["active"]
+                : !$target["active"];
+            if ((bool) $current["active"] === $desired) {
+                return ["ok" => true, "enrolled_courses" => []];
+            }
+            if ($desired) {
+                if (
+                    one(
+                        "SELECT id FROM account_invitations WHERE user_id=? AND used_at IS NULL",
+                        [$id],
+                    )
+                ) {
+                    fail(
+                        409,
+                        "الحساب ينتظر توثيق البريد من صاحبه. أعد إرسال دعوة التسجيل عند الحاجة.",
+                    );
+                }
+                if ($current["role"] === "student") {
+                    $p = one(
+                        "SELECT birth_date,consent_at,guardian_name,guardian_phone FROM profiles WHERE user_id=?",
+                        [$id],
+                    );
+                    if (!$p || !$p["birth_date"] || !$p["consent_at"]) {
+                        fail(
+                            422,
+                            "راجع تاريخ الميلاد والموافقة وبيانات ولي الأمر في ملف الطالب قبل التفعيل.",
+                        );
+                    }
+                    $age = (new DateTimeImmutable($p["birth_date"]))->diff(
+                        new DateTimeImmutable(),
+                    )->y;
+                    if (
+                        $age < 18 &&
+                        (!dec($p["guardian_name"]) ||
+                            !dec($p["guardian_phone"]))
+                    ) {
+                        fail(
+                            422,
+                            "أكمل بيانات ولي الأمر قبل تفعيل حساب القاصر.",
+                        );
+                    }
+                }
+            }
+            run(
+                "UPDATE users SET active=?,auth_version=auth_version+1 WHERE id=?",
+                [$desired ? 1 : 0, $id],
             );
-        }
-        if (!$target["active"] && $target["role"] === "student") {
-            $p = one(
-                "SELECT birth_date,consent_at,guardian_name,guardian_phone FROM profiles WHERE user_id=?",
-                [$id],
-            );
-            if (!$p || !$p["birth_date"] || !$p["consent_at"]) {
-                fail(
-                    422,
-                    "راجع تاريخ الميلاد والموافقة وبيانات ولي الأمر في ملف الطالب قبل التفعيل.",
+            $enrolled = [];
+            if ($desired) {
+                if ($current["role"] === "student") {
+                    $enrolled = completeRequestedFreeCourses($id);
+                }
+                $requested = one(
+                    "SELECT course_id FROM course_registration_requests WHERE student_id=?",
+                    [$id],
+                );
+                queueEmail(
+                    "activated:" . $id . ":" . now(),
+                    $id,
+                    "account",
+                    "حسابك في تفاصيل جاهز",
+                    "اعتمدت إدارة المركز طلبك. سجّل الدخول بالبريد وكلمة المرور التي اخترتها." .
+                        ($requested
+                            ? " تجد تسجيلاتك وطلباتك في صفحة التسجيل."
+                            : ""),
+                    $requested ? "/registrations" : "/login",
                 );
             }
-            $age = (new DateTimeImmutable($p["birth_date"]))->diff(
-                new DateTimeImmutable(),
-            )->y;
-            if (
-                $age < 18 &&
-                (!dec($p["guardian_name"]) || !dec($p["guardian_phone"]))
-            ) {
-                fail(422, "أكمل بيانات ولي الأمر قبل تفعيل حساب القاصر.");
-            }
-        }
-        run(
-            "UPDATE users SET active=?,auth_version=auth_version+1 WHERE id=?",
-            [$target["active"] ? 0 : 1, $id],
-        );
-        if (!$target["active"]) {
-            queueEmail(
-                "activated:" . $id . ":" . now(),
-                $id,
-                "account",
-                "حسابك في تفاصيل جاهز",
-                "اعتمدت إدارة المركز طلبك. يمكنك الآن تسجيل الدخول باستخدام بريدك وكلمة المرور التي اخترتها.",
-                "/login",
-            );
-        }
-        audit($u, "user.status_changed", $id);
-        return ["ok" => true];
+            audit($u, "user.status_changed", $id);
+            return ["ok" => true, "enrolled_courses" => $enrolled];
+        });
     }
     if ($action === "course.save") {
-        auth(["admin", "instructor"]);
+        auth(["admin"]);
         $id = $d["id"] ?? "";
         if ($id) {
             courseAccess($u, $id, true);
@@ -1028,10 +1127,12 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         $id = $d["id"] ?? "";
         if (
             $id &&
-            !one("SELECT id FROM lessons WHERE id=? AND course_id=?", [
-                $id,
-                $course,
-            ])
+            !one(
+                "SELECT id FROM lessons l WHERE id=? AND " .
+                    recordAvailable("lesson", "l.id") .
+                    " AND course_id=?",
+                [$id, $course],
+            )
         ) {
             fail(404, "الدرس غير موجود.");
         }
@@ -1053,8 +1154,11 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         if (
             $kind === "video" &&
             $file &&
-            one("SELECT mime FROM files WHERE id=?", [$file])["mime"] !==
-                "video/mp4"
+            one(
+                "SELECT mime FROM files f WHERE id=? AND " .
+                    recordAvailable("file", "f.id"),
+                [$file],
+            )["mime"] !== "video/mp4"
         ) {
             fail(422, "ملف الفيديو يجب أن يكون بصيغة MP4.");
         }
@@ -1103,9 +1207,11 @@ function api(string $action, string $method, array $d, string $raw = ""): array
     }
     if ($action === "progress") {
         auth(["student"]);
-        $lesson = one("SELECT * FROM lessons WHERE id=?", [
-            $d["lesson_id"] ?? "",
-        ]);
+        $lesson = one(
+            "SELECT * FROM lessons l WHERE id=? AND " .
+                recordAvailable("lesson", "l.id"),
+            [$d["lesson_id"] ?? ""],
+        );
         if (!$lesson) {
             fail(404, "الدرس غير موجود.");
         }
@@ -1149,9 +1255,11 @@ function api(string $action, string $method, array $d, string $raw = ""): array
     }
     if ($action === "submission.save") {
         auth(["student"]);
-        $a = one("SELECT * FROM assignments WHERE id=?", [
-            $d["assignment_id"] ?? "",
-        ]);
+        $a = one(
+            "SELECT * FROM assignments a WHERE id=? AND " .
+                recordAvailable("assignment", "a.id"),
+            [$d["assignment_id"] ?? ""],
+        );
         if (!$a) {
             fail(404, "الواجب غير موجود.");
         }
@@ -1286,7 +1394,11 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         });
     }
     if ($action === "quiz") {
-        $q = one("SELECT * FROM quizzes WHERE id=?", [$d["id"] ?? ""]);
+        $q = one(
+            "SELECT * FROM quizzes q WHERE id=? AND " .
+                recordAvailable("quiz", "q.id"),
+            [$d["id"] ?? ""],
+        );
         if (!$q) {
             fail(404, "الاختبار غير موجود.");
         }
@@ -1296,7 +1408,11 @@ function api(string $action, string $method, array $d, string $raw = ""): array
     }
     if ($action === "quiz.start") {
         auth(["student"]);
-        $q = one("SELECT * FROM quizzes WHERE id=?", [$d["id"] ?? ""]);
+        $q = one(
+            "SELECT * FROM quizzes q WHERE id=? AND " .
+                recordAvailable("quiz", "q.id"),
+            [$d["id"] ?? ""],
+        );
         if (!$q) {
             fail(404, "الاختبار غير موجود.");
         }
@@ -1345,7 +1461,11 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         if (!$a) {
             fail(404, "المحاولة غير موجودة.");
         }
-        $q = one("SELECT course_id FROM quizzes WHERE id=?", [$a["quiz_id"]]);
+        $q = one(
+            "SELECT course_id FROM quizzes q WHERE id=? AND " .
+                recordAvailable("quiz", "q.id"),
+            [$a["quiz_id"]],
+        );
         courseAccess($u, $q["course_id"]);
         $questions = json_decode($a["questions"], true);
         $a["questions"] = array_map(function ($q) {
@@ -1381,7 +1501,11 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             if (!$a) {
                 fail(404, "المحاولة غير موجودة.");
             }
-            $q = one("SELECT * FROM quizzes WHERE id=?", [$a["quiz_id"]]);
+            $q = one(
+                "SELECT * FROM quizzes q WHERE id=? AND " .
+                    recordAvailable("quiz", "q.id"),
+                [$a["quiz_id"]],
+            );
             courseAccess($u, $q["course_id"]);
             if ($a["submitted_at"]) {
                 return [
@@ -1497,7 +1621,11 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         });
     }
     if ($action === "attendance.save") {
-        $c = one("SELECT * FROM classes WHERE id=?", [$d["class_id"] ?? ""]);
+        $c = one(
+            "SELECT * FROM classes k WHERE id=? AND " .
+                recordAvailable("class", "k.id"),
+            [$d["class_id"] ?? ""],
+        );
         if (!$c) {
             fail(404, "الحصة غير موجودة.");
         }
@@ -1594,7 +1722,11 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         return uploadFile($u);
     }
     if ($action === "file") {
-        downloadFile($u, str($d["id"] ?? "", 40));
+        downloadFile(
+            $u,
+            str($d["id"] ?? "", 40),
+            ($d["preview"] ?? null) === "1",
+        );
     }
     if ($action === "announcement.save") {
         auth(["admin", "instructor"]);
@@ -1744,7 +1876,11 @@ function certificateReason(string $course, string $student): ?string
     ) {
         return "الطالب غير مسجل في الدورة.";
     }
-    $lessons = rows("SELECT id FROM lessons WHERE course_id=?", [$course]);
+    $lessons = rows(
+        "SELECT id FROM lessons l WHERE course_id=? AND " .
+            recordAvailable("lesson", "l.id"),
+        [$course],
+    );
     if (!$lessons) {
         return "أضف دروس الدورة قبل إصدار الشهادة.";
     }
@@ -1759,7 +1895,11 @@ function certificateReason(string $course, string $student): ?string
         }
     }
     foreach (
-        rows("SELECT id,points FROM assignments WHERE course_id=?", [$course])
+        rows(
+            "SELECT id,points FROM assignments a WHERE course_id=? AND " .
+                recordAvailable("assignment", "a.id"),
+            [$course],
+        )
         as $a
     ) {
         $s = one(
@@ -1771,7 +1911,11 @@ function certificateReason(string $course, string $student): ?string
         }
     }
     foreach (
-        rows("SELECT id,passing FROM quizzes WHERE course_id=?", [$course])
+        rows(
+            "SELECT id,passing FROM quizzes q WHERE course_id=? AND " .
+                recordAvailable("quiz", "q.id"),
+            [$course],
+        )
         as $q
     ) {
         $a = one(
@@ -1782,9 +1926,11 @@ function certificateReason(string $course, string $student): ?string
             return "يجب اجتياز اختبارات الدورة.";
         }
     }
-    $classes = rows("SELECT id,ends_at FROM classes WHERE course_id=?", [
-        $course,
-    ]);
+    $classes = rows(
+        "SELECT id,ends_at FROM classes k WHERE course_id=? AND " .
+            recordAvailable("class", "k.id"),
+        [$course],
+    );
     $present = 0;
     $eligible = 0;
     foreach ($classes as $c) {
@@ -1941,9 +2087,13 @@ function uploadFile(array $u): array
     audit($u, "file.uploaded", $id);
     return ["id" => $id, "name" => $name];
 }
-function downloadFile(array $u, string $id): never
+function downloadFile(array $u, string $id, bool $preview = false): never
 {
-    $f = one("SELECT * FROM files WHERE id=?", [$id]);
+    $f = one(
+        "SELECT * FROM files f WHERE id=? AND " .
+            recordAvailable("file", "f.id"),
+        [$id],
+    );
     if (!$f || !fileAccess($u, $f)) {
         fail(404, "الملف غير متاح.");
     }
@@ -1951,10 +2101,19 @@ function downloadFile(array $u, string $id): never
     audit($u, "file.downloaded", $id);
     session_write_close();
     $isVideo = $f["mime"] === "video/mp4";
+    $inline =
+        $isVideo ||
+        ($preview &&
+            $f["purpose"] === "resource" &&
+            in_array(
+                $f["mime"],
+                ["image/jpeg", "image/png", "image/webp"],
+                true,
+            ));
     header("Content-Type: " . $f["mime"]);
     header(
         "Content-Disposition: " .
-            ($isVideo ? "inline" : "attachment") .
+            ($inline ? "inline" : "attachment") .
             "; filename=\"download." .
             pathinfo($f["name"], PATHINFO_EXTENSION) .
             "\"; filename*=UTF-8''" .

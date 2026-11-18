@@ -107,23 +107,24 @@ export function CourseForm({
               ))}
             </datalist>
           </Field>
-          <Field label="المدرب">
-            <select
-              name="instructor_id"
-              defaultValue={
-                course?.instructor_id ??
-                (user.role === "instructor" ? user.id : "")
-              }
-              required
-            >
-              <option value="">اختر المدرب</option>
-              {data.instructors.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {user.role === "admin" ? (
+            <Field label="المدرب">
+              <select
+                name="instructor_id"
+                defaultValue={course?.instructor_id ?? ""}
+                required
+              >
+                <option value="">اختر المدرب</option>
+                {data.instructors.map((teacher) => (
+                  <option key={teacher.id} value={teacher.id}>
+                    {teacher.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : (
+            <input type="hidden" name="instructor_id" value={user.id} />
+          )}
           <Field label="مدة الدورة بالساعات">
             <input
               name="duration"
@@ -184,7 +185,13 @@ export function UserForm({
   const [invite, setInvite] = useState(!target && !isStaticPreview);
   return (
     <Modal
-      title={target ? "تعديل بيانات الحساب" : "إضافة حساب جديد"}
+      title={
+        target
+          ? "تعديل بيانات الحساب"
+          : role === "admin"
+            ? "دعوة مدير جديد"
+            : "إضافة حساب جديد"
+      }
       onClose={onClose}
       wide
     >
@@ -199,7 +206,7 @@ export function UserForm({
               id: target?.id,
               role,
               consent: d.consent === "on",
-              send_invite: !target && invite,
+              send_invite: !target && (invite || role === "admin"),
             },
           );
           await refresh();
@@ -228,6 +235,7 @@ export function UserForm({
               <option value="student">طالب</option>
               <option value="instructor">معلم / مدرب</option>
               <option value="guardian">ولي أمر</option>
+              {!isStaticPreview && <option value="admin">إدارة</option>}
             </select>
           </Field>
           <Field label="الاسم الكامل">
@@ -248,7 +256,20 @@ export function UserForm({
               autoComplete="off"
             />
           </Field>
-          {!isStaticPreview && !target && (
+          {role === "admin" && !target && (
+            <Field
+              label="كلمة مرور حسابك الحالي"
+              hint="تُرسل دعوة إلى بريد المدير الجديد لتوثيق حسابه."
+            >
+              <input
+                name="current_password"
+                type="password"
+                autoComplete="current-password"
+                required
+              />
+            </Field>
+          )}
+          {!isStaticPreview && !target && role !== "admin" && (
             <Field label="إكمال تسجيل الحساب">
               <select
                 value={invite ? "invite" : "password"}
@@ -265,7 +286,7 @@ export function UserForm({
               </small>
             </Field>
           )}
-          {!isStaticPreview && (!invite || !!target) && (
+          {!isStaticPreview && role !== "admin" && (!invite || !!target) && (
             <>
               <Field
                 label={target ? "كلمة مرور جديدة (اختياري)" : "كلمة المرور"}
@@ -431,7 +452,7 @@ export function LessonForm({
             >
               <option value="text">درس نصّي</option>
               <option value="video">فيديو مسجل</option>
-              {!isStaticPreview && !lesson && (
+              {!isStaticPreview && data.capabilities?.video && !lesson && (
                 <option value="cloud">فيديو طويل من المكتبة السحابية</option>
               )}
               <option value="file">ملف تدريبي</option>
@@ -451,7 +472,15 @@ export function LessonForm({
               name="sort_order"
               type="number"
               min={0}
-              defaultValue={lesson?.sort_order ?? 1}
+              defaultValue={
+                lesson?.sort_order ??
+                Math.max(
+                  0,
+                  ...data.lessons
+                    .filter((item) => item.course_id === courseId)
+                    .map((item) => item.sort_order),
+                ) + 1
+              }
             />
           </Field>
         </div>

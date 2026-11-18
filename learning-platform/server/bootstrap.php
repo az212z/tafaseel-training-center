@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . "/database-connection.php";
+require_once __DIR__ . "/record-trash.php";
 final class ApiError extends RuntimeException
 {
     public function __construct(public int $status, string $message)
@@ -418,6 +419,7 @@ function csrf(): void
 }
 function courseAccess(array $u, string $id, bool $write = false): array
 {
+    guardActiveRecord("course", $id);
     $c = one("SELECT * FROM courses WHERE id=?", [$id]);
     if (!$c) {
         fail(404, "الدورة غير موجودة.");
@@ -456,6 +458,7 @@ function courseAccess(array $u, string $id, bool $write = false): array
 }
 function studentAccess(array $u, string $id, bool $sensitive = false): array
 {
+    guardActiveRecord("account", $id);
     $s = one(
         "SELECT id,name,email,role,active,created_at FROM users WHERE id=? AND role='student'",
         [$id],
@@ -519,6 +522,10 @@ function lockRow(string $table, string $id): void
 }
 function fileAccess(array $u, array $f): bool
 {
+    if ($f["purpose"] === "resource" && $f["course_id"]) {
+        courseAccess($u, $f["course_id"]);
+        return true;
+    }
     if ($u["role"] === "admin" || $f["owner_id"] === $u["id"]) {
         return true;
     }
