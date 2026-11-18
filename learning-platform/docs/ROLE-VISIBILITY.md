@@ -13,3 +13,5 @@ Operational diagnostics belong to administrators. Students and instructors retai
 Validation: email workflow and extension regression suites cover server-side role enforcement and diagnostic redaction. Browser checks exercise student and instructor communication/security pages and denied administrative routes, plus administrator diagnostics. Test data and SMTP traffic stay local.
 
 Production rollout uses a separate deployment receipt. A source commit or local test does not confirm publication.
+
+Published on 18 November 2026 with the account invitation release from runtime source `bebc76e`. All 4074 runtime/library hashes matched the prepared release. The current site serves `index-BNlkaVeq.js`; the separate live receipt verifies the release and private route protections. Local role-specific regression results and isolated browser checks remain the evidence for student/instructor diagnostic redaction; no synthetic learner account was created in production for this rollout.

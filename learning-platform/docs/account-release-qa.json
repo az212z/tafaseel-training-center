@@ -1,0 +1,41 @@
+{
+  "completed_at": "2026-11-18T05:26:29.692745+00:00",
+  "runtime_source_commit": "bebc76e81ed4d46c2373ab97c551b6fb20d17158",
+  "runtime_ci": "success - verify, trial-container and mariadb-regression",
+  "runtime_files_verified": 4074,
+  "local_regression_passed": 482,
+  "isolated_ci_scale_assertions_passed": 19,
+  "live_checks_passed": 20,
+  "public_asset_hashes": 70,
+  "new_account_feature_published": true,
+  "operational_visibility_update_published": true,
+  "new_synthetic_production_accounts": 0,
+  "existing_account_preserved": true,
+  "teacher_invitation_queued_at": "2026-11-18T05:19:04Z",
+  "teacher_invitation_smtp_accepted_at": "2026-11-18T05:20:11Z",
+  "automatic_worker_used": true,
+  "manual_dispatch_invoked": false,
+  "recipient_verified_at": "2026-11-18T05:21:50Z",
+  "recipient_login_events": 1,
+  "recipient_active": true,
+  "verification_confirmation_smtp_accepted": true,
+  "recipient_inbox_folder_inspected": false,
+  "temporary_ssh_access_removed": true,
+  "local_private_key_deleted": true,
+  "private_configuration_preserved": true,
+  "before_and_after_backups_verified": true,
+  "mail_application_credential_retained": true,
+  "legacy_site_checks": [
+    {
+      "url": "https://tafaseel-training.com/",
+      "unchanged": true
+    },
+    {
+      "url": "https://tafaseel-training.com/admin/",
+      "unchanged": true
+    }
+  ],
+  "mfa_flags_unchanged": true,
+  "activation_fragment_token_never_exposed_in_reports": true,
+  "activation_referrer_policy": "strict-origin-when-cross-origin"
+}
