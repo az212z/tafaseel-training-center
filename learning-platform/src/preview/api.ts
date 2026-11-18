@@ -690,8 +690,59 @@ export async function previewApi<T>(
             options: q.options,
           })),
         },
+        draft: s.quizDrafts?.[a.id] ?? {
+          answers: Array(a.total).fill(null),
+          revision: 0,
+          saved_at: null,
+        },
         server_time: now(),
       }) as T;
+    }
+    case "quiz.answers.save": {
+      actor(["student"]);
+      const a = s.attempts.find((a) => a.id === d.id && a.student_id === u.id);
+      if (!a) throw new Error("المحاولة غير موجودة.");
+      course(u, s.quizzes.find((q) => q.id === a.quiz_id)!.course_id);
+      if (a.submitted_at || Date.now() > Date.parse(a.expires_at))
+        throw new Error("انتهت المحاولة؛ لا يمكن تغيير الإجابات.");
+      if (
+        !Array.isArray(d.changes) ||
+        !d.changes.length ||
+        d.changes.length > 50
+      )
+        throw new Error("تغييرات الإجابات غير صحيحة.");
+      const old = s.quizDrafts?.[a.id] ?? {
+        answers: Array(a.total).fill(null),
+        revision: 0,
+        saved_at: null,
+      };
+      const answers = [...old.answers];
+      const seen = new Set<number>();
+      for (const change of d.changes as {
+        question: number;
+        answer: number | null;
+      }[]) {
+        const q = s.attemptQuestions[a.id][change.question];
+        if (
+          !Number.isInteger(change.question) ||
+          !q ||
+          seen.has(change.question) ||
+          (change.answer !== null &&
+            (!Number.isInteger(change.answer) ||
+              change.answer < 0 ||
+              change.answer >= q.options.length))
+        )
+          throw new Error("اختر إجابة صحيحة من خيارات السؤال.");
+        seen.add(change.question);
+        answers[change.question] = change.answer;
+      }
+      const draft =
+        JSON.stringify(old.answers) === JSON.stringify(answers)
+          ? old
+          : { answers, revision: old.revision + 1, saved_at: now() };
+      (s.quizDrafts ??= {})[a.id] = draft;
+      result = { draft, server_time: now() };
+      break;
     }
     case "quiz.submit": {
       actor(["student"]);
@@ -700,16 +751,27 @@ export async function previewApi<T>(
       const q = s.quizzes.find((q) => q.id === a.quiz_id)!;
       course(u, q.course_id);
       if (a.submitted_at) return { score: a.score, total: a.total } as T;
-      const answers = d.answers as (number | null)[];
-      if (!Array.isArray(answers)) throw new Error("الإجابات غير صحيحة.");
       const expired = Date.now() > Date.parse(a.expires_at) + 5000;
-      a.score = expired
-        ? 0
-        : s.attemptQuestions[a.id].filter((q, i) => answers[i] === q.correct)
-            .length;
+      const draft = s.quizDrafts?.[a.id];
+      const usedSaved =
+        d.use_saved_answers === true || (expired && !!draft?.saved_at);
+      const answers = (
+        usedSaved ? (draft?.answers ?? Array(a.total).fill(null)) : d.answers
+      ) as (number | null)[];
+      if (!Array.isArray(answers)) throw new Error("الإجابات غير صحيحة.");
+      a.score =
+        expired && !(usedSaved && draft?.saved_at)
+          ? 0
+          : s.attemptQuestions[a.id].filter((q, i) => answers[i] === q.correct)
+              .length;
       a.submitted_at = now();
       log(u, "quiz.submitted", a.id);
-      result = { score: a.score, total: a.total, expired };
+      result = {
+        score: a.score,
+        total: a.total,
+        expired,
+        used_saved_answers: usedSaved,
+      };
       break;
     }
     case "class.save": {
@@ -749,6 +811,7 @@ export async function previewApi<T>(
         student_id: string;
         status: string;
         note: string;
+        expected_status?: string | null;
       }[];
       if (!Array.isArray(records)) throw new Error("سجل الحضور غير صحيح.");
       for (const r of records) {
@@ -763,6 +826,13 @@ export async function previewApi<T>(
         const old = s.attendance.find(
           (a) => a.class_id === c.id && a.student_id === r.student_id,
         );
+        if (d.autosave === true && old?.status === r.status) continue;
+        if (
+          d.autosave === true &&
+          Object.hasOwn(r, "expected_status") &&
+          (old?.status ?? null) !== r.expected_status
+        )
+          throw new Error("تغير سجل الحضور؛ راجع آخر سجل وأضف سبب التعديل.");
         if (old && text(r.note).length < 3)
           throw new Error("اذكر سبب تعديل الحضور السابق.");
       }
@@ -770,6 +840,7 @@ export async function previewApi<T>(
         const old = s.attendance.find(
           (a) => a.class_id === c.id && a.student_id === r.student_id,
         );
+        if (d.autosave === true && old?.status === r.status) continue;
         if (old)
           Object.assign(old, {
             status: r.status,

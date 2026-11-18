@@ -26,7 +26,9 @@
     "test:email": "python3 tests/email_workflows.py",
     "test:accounts": "python3 tests/account_invitations.py",
     "test:quizzes": "python3 tests/quiz_validation.py",
-    "test:notifications": "python3 tests/learning_notifications.py"
+    "test:notifications": "python3 tests/learning_notifications.py",
+    "test:autosave": "python3 tests/autosave.py",
+    "test:delivery": "python3 tests/launch_configuration.py"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "5.3.0",

@@ -712,7 +712,11 @@ function Shell({
             <strong>{current?.label ?? "تفاصيل الدورة"}</strong>
           </div>
           <div className="topbar-actions">
-            <button className="global-search" onClick={() => setSearch(true)}>
+            <button
+              className="global-search"
+              aria-label="ابحث في المنصة"
+              onClick={() => setSearch(true)}
+            >
               <MagnifyingGlass size={19} />
               <span>ابحث في المنصة…</span>
               <kbd>⌘ K</kbd>

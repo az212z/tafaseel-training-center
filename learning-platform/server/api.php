@@ -9,6 +9,9 @@ require_once __DIR__ . "/account-invitations.php";
 require_once __DIR__ . "/learning-notifications.php";
 require_once __DIR__ . "/attendance-automation.php";
 require_once __DIR__ . "/sms-connection.php";
+require_once __DIR__ . "/quiz-drafts.php";
+require_once __DIR__ . "/service-connections.php";
+require_once __DIR__ . "/delivery.php";
 function quizFieldText(
     mixed $value,
     int $max,
@@ -403,6 +406,14 @@ function checkFileRef(
 }
 function api(string $action, string $method, array $d, string $raw = ""): array
 {
+    $delivery = deliveryAction($action, $method, $d);
+    if ($delivery !== null) {
+        return $delivery;
+    }
+    $serviceConnection = serviceConnectionAction($action, $method, $d);
+    if ($serviceConnection !== null) {
+        return $serviceConnection;
+    }
     $invitation = accountInvitationAction($action, $method, $d);
     if ($invitation !== null) {
         return $invitation;
@@ -1342,7 +1353,16 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             return $q;
         }, $questions);
         unset($a["answers"]);
-        return ["attempt" => $a, "server_time" => now()];
+        return [
+            "attempt" => $a,
+            "draft" => quizDraft($a),
+            "server_time" => now(),
+        ];
+    }
+    if ($action === "quiz.answers.save") {
+        auth(["student"]);
+        rate("quiz-draft:" . $u["id"], 1200, 60);
+        return saveQuizAnswers($u, $d);
     }
     if ($action === "quiz.submit") {
         auth(["student"]);
@@ -1351,7 +1371,8 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             fail(422, "الإجابات غير صحيحة.");
         }
         $id = str($d["id"] ?? "", 40);
-        return tx(function () use ($id, $u, $answers) {
+        $useSaved = ($d["use_saved_answers"] ?? false) === true;
+        return tx(function () use ($id, $u, $answers, $useSaved) {
             lockRow("attempts", $id);
             $a = one("SELECT * FROM attempts WHERE id=? AND student_id=?", [
                 $id,
@@ -1369,9 +1390,14 @@ function api(string $action, string $method, array $d, string $raw = ""): array
                 ];
             }
             $expired = time() > strtotime($a["expires_at"]) + 5;
+            $draft = quizDraft($a);
+            $usedSaved = $useSaved || ($expired && $draft["saved_at"] !== null);
+            if ($usedSaved) {
+                $answers = $draft["answers"];
+            }
             $score = 0;
             $questions = json_decode($a["questions"], true);
-            if (!$expired) {
+            if (!$expired || ($usedSaved && $draft["saved_at"] !== null)) {
                 foreach ($questions as $i => $question) {
                     if (
                         isset($answers[$i]) &&
@@ -1391,6 +1417,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
                 "score" => $score,
                 "total" => count($questions),
                 "expired" => $expired,
+                "used_saved_answers" => $usedSaved,
             ];
         });
     }
@@ -1482,8 +1509,10 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         if (!is_array($records) || count($records) > 500) {
             fail(422, "سجل الحضور غير صحيح.");
         }
-        tx(function () use ($records, $c, $u) {
+        $autosave = ($d["autosave"] ?? false) === true;
+        tx(function () use ($records, $c, $u, $autosave) {
             lockRow("classes", $c["id"]);
+            $notices = [];
             foreach ($records as $r) {
                 $student = $r["student_id"] ?? "";
                 if (
@@ -1506,9 +1535,22 @@ function api(string $action, string $method, array $d, string $raw = ""): array
                 }
                 $note = str($r["note"] ?? "", 500, false);
                 $old = one(
-                    "SELECT id FROM attendance WHERE class_id=? AND student_id=?",
+                    "SELECT id,status FROM attendance WHERE class_id=? AND student_id=?",
                     [$c["id"], $student],
                 );
+                if ($autosave && $old && $old["status"] === $status) {
+                    continue;
+                }
+                if (
+                    $autosave &&
+                    array_key_exists("expected_status", $r) &&
+                    ($old["status"] ?? null) !== $r["expected_status"]
+                ) {
+                    fail(
+                        409,
+                        "تغير سجل الحضور أثناء التعديل. راجع آخر سجل، وأضف سبب التعديل قبل إعادة الحفظ.",
+                    );
+                }
                 if ($old && mb_strlen($note) < 3) {
                     fail(422, "اذكر سبب تعديل سجل حضور محفوظ.");
                 }
@@ -1535,8 +1577,9 @@ function api(string $action, string $method, array $d, string $raw = ""): array
                     "DELETE FROM class_automatic_absences WHERE class_id=? AND student_id=?",
                     [$c["id"], $student],
                 );
+                $notices[] = $r;
             }
-            foreach ($records as $record) {
+            foreach ($notices as $record) {
                 syncAbsenceNotice(
                     $c["id"],
                     $record["student_id"],

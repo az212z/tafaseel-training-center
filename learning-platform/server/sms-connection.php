@@ -43,5 +43,11 @@ function saveSmsConnection(array $u, array $d): array
         ),
     );
     audit($u, "sms.connection_saved");
+    if ($enabled) {
+        run(
+            "UPDATE notification_outbox SET next_attempt_at=? WHERE status='blocked'",
+            [now()],
+        );
+    }
     return smsConnectionStatus();
 }

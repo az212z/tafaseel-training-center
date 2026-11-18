@@ -137,9 +137,156 @@ function notificationRows(array $u, int $page = 1): array
         "page_size" => 25,
     ];
 }
-function dispatchNotifications(int $limit = 25): array
+function claimSmsNotice(array $entry): ?array
 {
+    return tx(function () use ($entry) {
+        lockRow("storage_locks", "sms");
+        lockRow("classes", $entry["class_id"]);
+        lockRow("notification_outbox", $entry["id"]);
+        $n = one("SELECT * FROM notification_outbox WHERE id=?", [
+            $entry["id"],
+        ]);
+        if (
+            !in_array($n["status"], ["pending", "retry", "blocked"], true) ||
+            $n["next_attempt_at"] > now()
+        ) {
+            return null;
+        }
+        $attendance = one(
+            "SELECT status FROM attendance WHERE class_id=? AND student_id=?",
+            [$n["class_id"], $n["student_id"]],
+        );
+        $p = one(
+            "SELECT p.guardian_phone,g.sms_enabled FROM profiles p JOIN guardian_preferences g ON g.student_id=p.user_id JOIN users u ON u.id=p.user_id AND u.active=1 WHERE p.user_id=?",
+            [$n["student_id"]],
+        );
+        if (
+            !$attendance ||
+            $attendance["status"] !== "absent" ||
+            !$p ||
+            !$p["sms_enabled"] ||
+            !$p["guardian_phone"]
+        ) {
+            run(
+                "UPDATE notification_outbox SET status='cancelled',updated_at=? WHERE id=?",
+                [now(), $n["id"]],
+            );
+            return ["cancelled" => true];
+        }
+        $class = one("SELECT ends_at FROM classes WHERE id=?", [
+            $n["class_id"],
+        ]);
+        if (!$class || strtotime($class["ends_at"]) < time() - 3600) {
+            run(
+                "UPDATE notification_outbox SET status='cancelled',error_code='absence_expired',updated_at=? WHERE id=?",
+                [now(), $n["id"]],
+            );
+            return ["cancelled" => true];
+        }
+        if ($n["kind"] === "absence_auto") {
+            $rule = one(
+                "SELECT enabled,needs_review FROM class_attendance_automation WHERE class_id=?",
+                [$n["class_id"]],
+            );
+            if (!$rule || !$rule["enabled"] || $rule["needs_review"]) {
+                run(
+                    "UPDATE notification_outbox SET status='cancelled',updated_at=? WHERE id=?",
+                    [now(), $n["id"]],
+                );
+                return ["cancelled" => true];
+            }
+        }
+        if (!integrationEnabled("sms")) {
+            run(
+                "UPDATE notification_outbox SET status='blocked',error_code='provider_not_configured',next_attempt_at=?,updated_at=? WHERE id=?",
+                [gmdate("Y-m-d\TH:i:s\Z", time() + 300), now(), $n["id"]],
+            );
+            return ["blocked" => true];
+        }
+        $minute = gmdate("Y-m-d\TH:i:s\Z", time() - 60);
+        if (
+            (int) one(
+                "SELECT COUNT(*) n FROM sms_attempts WHERE created_at>?",
+                [$minute],
+            )["n"] >= deliveryLimits()["sms_per_minute"]
+        ) {
+            run("UPDATE notification_outbox SET next_attempt_at=? WHERE id=?", [
+                gmdate("Y-m-d\TH:i:s\Z", time() + 60),
+                $n["id"],
+            ]);
+            return ["deferred" => true];
+        }
+        run(
+            "INSERT INTO sms_attempts(id,message_id,created_at) VALUES(?,?,?)",
+            [uid(), $n["id"], now()],
+        );
+        $token = uid();
+        run(
+            "UPDATE notification_outbox SET status='sending',recipient=?,attempts=attempts+1,lock_token=?,locked_until=?,updated_at=? WHERE id=?",
+            [
+                enc(dec($p["guardian_phone"])),
+                $token,
+                gmdate("Y-m-d\TH:i:s\Z", time() + 90),
+                now(),
+                $n["id"],
+            ],
+        );
+        $n["recipient"] = enc(dec($p["guardian_phone"]));
+        $n["lock_token"] = $token;
+        $n["attempts"]++;
+        return $n;
+    });
+}
+function finishSmsNotice(array $claim, array|ProviderError $response): string
+{
+    try {
+        if ($response instanceof ProviderError) {
+            throw $response;
+        }
+        $r = $response;
+        if ((int) ($r["statusCode"] ?? 0) !== 201 || empty($r["messageId"])) {
+            throw new ProviderError("sms_not_accepted", false);
+        }
+        run(
+            "UPDATE notification_outbox SET status='accepted',provider_id=?,locked_until=NULL,lock_token=NULL,error_code=NULL,updated_at=? WHERE id=? AND lock_token=?",
+            [
+                (string) $r["messageId"],
+                now(),
+                $claim["id"],
+                $claim["lock_token"],
+            ],
+        );
+        audit(null, "sms.accepted", $claim["id"]);
+        return "accepted";
+    } catch (ProviderError $e) {
+        $status = $e->uncertain
+            ? "uncertain"
+            : ($e->reason === "http_429" && (int) $claim["attempts"] < 4
+                ? "retry"
+                : "failed");
+        run(
+            "UPDATE notification_outbox SET status=?,error_code=?,locked_until=NULL,lock_token=NULL,updated_at=? WHERE id=? AND lock_token=?",
+            [$status, $e->reason, now(), $claim["id"], $claim["lock_token"]],
+        );
+        if ($status === "retry") {
+            run("UPDATE notification_outbox SET next_attempt_at=? WHERE id=?", [
+                gmdate(
+                    "Y-m-d\TH:i:s\Z",
+                    time() + min(3600, 60 * 2 ** (int) $claim["attempts"]),
+                ),
+                $claim["id"],
+            ]);
+        }
+        return $status;
+    }
+}
+function dispatchNotifications(
+    ?int $limit = null,
+    ?float $deadline = null,
+): array {
     setSetting("worker_last_run", now());
+    $limits = deliveryLimits();
+    $limit ??= $limits["sms_per_minute"];
     $result = [
         "accepted" => 0,
         "failed" => 0,
@@ -147,170 +294,58 @@ function dispatchNotifications(int $limit = 25): array
         "cancelled" => 0,
         "blocked" => 0,
         "retry" => 0,
+        "deferred" => 0,
     ];
-    // A worker crash after network I/O is ambiguous. Never auto-resend those messages.
     run(
         "UPDATE notification_outbox SET status='uncertain',error_code='worker_lease_expired',updated_at=? WHERE status='sending' AND locked_until<?",
         [now(), now()],
     );
-    $ids = rows(
-        "SELECT id FROM notification_outbox WHERE status IN ('pending','retry','blocked') AND next_attempt_at<=? ORDER BY next_attempt_at LIMIT " .
-            max(1, min(100, $limit)),
+    $entries = rows(
+        "SELECT id,class_id FROM notification_outbox WHERE status IN ('pending','retry','blocked') AND next_attempt_at<=? ORDER BY next_attempt_at,id LIMIT " .
+            max(1, min(6000, $limit)),
         [now()],
     );
-    foreach ($ids as $entry) {
-        $claim = tx(function () use ($entry) {
-            lockRow("notification_outbox", $entry["id"]);
-            $n = one("SELECT * FROM notification_outbox WHERE id=?", [
-                $entry["id"],
-            ]);
-            if (
-                !in_array(
-                    $n["status"],
-                    ["pending", "retry", "blocked"],
-                    true,
-                ) ||
-                $n["next_attempt_at"] > now()
-            ) {
-                return null;
+    foreach (array_chunk($entries, (int) $limits["sms_parallel"]) as $batch) {
+        if ($deadline !== null && microtime(true) >= $deadline) {
+            break;
+        }
+        $claims = [];
+        $requests = [];
+        $config = integrationConfig("sms");
+        foreach ($batch as $entry) {
+            $claim = claimSmsNotice($entry);
+            if (!$claim) {
+                continue;
             }
-            $attendance = one(
-                "SELECT status FROM attendance WHERE class_id=? AND student_id=?",
-                [$n["class_id"], $n["student_id"]],
-            );
-            $p = one(
-                "SELECT p.guardian_phone,g.sms_enabled FROM profiles p JOIN guardian_preferences g ON g.student_id=p.user_id JOIN users u ON u.id=p.user_id AND u.active=1 WHERE p.user_id=?",
-                [$n["student_id"]],
-            );
-            if (
-                !$attendance ||
-                $attendance["status"] !== "absent" ||
-                !$p ||
-                !$p["sms_enabled"] ||
-                !$p["guardian_phone"]
-            ) {
-                run(
-                    "UPDATE notification_outbox SET status='cancelled',updated_at=? WHERE id=?",
-                    [now(), $n["id"]],
-                );
-                return ["cancelled" => true];
-            }
-            $class = one("SELECT ends_at FROM classes WHERE id=?", [
-                $n["class_id"],
-            ]);
-            if (!$class || strtotime($class["ends_at"]) < time() - 3600) {
-                run(
-                    "UPDATE notification_outbox SET status='cancelled',error_code='absence_expired',updated_at=? WHERE id=?",
-                    [now(), $n["id"]],
-                );
-                return ["cancelled" => true];
-            }
-            if ($n["kind"] === "absence_auto") {
-                $rule = one(
-                    "SELECT enabled,needs_review FROM class_attendance_automation WHERE class_id=?",
-                    [$n["class_id"]],
-                );
-                if (!$rule || !$rule["enabled"] || $rule["needs_review"]) {
-                    run(
-                        "UPDATE notification_outbox SET status='cancelled',updated_at=? WHERE id=?",
-                        [now(), $n["id"]],
-                    );
-                    return ["cancelled" => true];
+            foreach (["cancelled", "blocked", "deferred"] as $state) {
+                if (isset($claim[$state])) {
+                    $result[$state]++;
+                    continue 2;
                 }
             }
-            if (!integrationEnabled("sms")) {
-                run(
-                    "UPDATE notification_outbox SET status='blocked',error_code='provider_not_configured',updated_at=? WHERE id=?",
-                    [now(), $n["id"]],
-                );
-                return ["blocked" => true];
-            }
-            $token = uid();
-            run(
-                "UPDATE notification_outbox SET status='sending',recipient=?,attempts=attempts+1,lock_token=?,locked_until=?,updated_at=? WHERE id=?",
-                [
-                    enc(dec($p["guardian_phone"])),
-                    $token,
-                    gmdate("Y-m-d\TH:i:s\Z", time() + 90),
-                    now(),
-                    $n["id"],
+            $id = $claim["id"];
+            $claims[$id] = $claim;
+            $requests[$id] = [
+                "method" => "POST",
+                "path" => "/messages",
+                "body" => [
+                    "recipients" => [ltrim(dec($claim["recipient"]), "+")],
+                    "body" => dec($claim["body"]),
+                    "sender" => $config["sender"],
                 ],
-            );
-            $n["recipient"] = enc(dec($p["guardian_phone"]));
-            $n["lock_token"] = $token;
-            return $n;
-        });
-        if (!$claim) {
-            continue;
+                "headers" => ["Authorization: Bearer " . $config["token"]],
+            ];
         }
-        if (isset($claim["cancelled"])) {
-            $result["cancelled"]++;
-            continue;
-        }
-        if (isset($claim["blocked"])) {
-            $result["blocked"]++;
+        if (!$requests) {
             continue;
         }
         try {
-            $c = requireIntegration("sms");
-            $r = providerRequest(
-                "sms",
-                "POST",
-                "/messages",
-                [
-                    "recipients" => [ltrim(dec($claim["recipient"]), "+")],
-                    "body" => dec($claim["body"]),
-                    "sender" => $c["sender"],
-                ],
-                ["Authorization: Bearer " . $c["token"]],
-            );
-            if (
-                (int) ($r["statusCode"] ?? 0) !== 201 ||
-                empty($r["messageId"])
-            ) {
-                throw new ProviderError("sms_not_accepted", false);
-            }
-            run(
-                "UPDATE notification_outbox SET status='accepted',provider_id=?,locked_until=NULL,lock_token=NULL,error_code=NULL,updated_at=? WHERE id=? AND lock_token=?",
-                [
-                    (string) $r["messageId"],
-                    now(),
-                    $claim["id"],
-                    $claim["lock_token"],
-                ],
-            );
-            audit(null, "sms.accepted", $claim["id"]);
-            $result["accepted"]++;
-        } catch (ProviderError $e) {
-            $status = $e->uncertain
-                ? "uncertain"
-                : ($e->reason === "http_429" && (int) $claim["attempts"] < 4
-                    ? "retry"
-                    : "failed");
-            run(
-                "UPDATE notification_outbox SET status=?,error_code=?,locked_until=NULL,lock_token=NULL,updated_at=? WHERE id=? AND lock_token=?",
-                [
-                    $status,
-                    $e->reason,
-                    now(),
-                    $claim["id"],
-                    $claim["lock_token"],
-                ],
-            );
-            if ($status === "retry") {
-                run(
-                    "UPDATE notification_outbox SET next_attempt_at=? WHERE id=?",
-                    [
-                        gmdate(
-                            "Y-m-d\TH:i:s\Z",
-                            time() +
-                                min(3600, 60 * 2 ** (int) $claim["attempts"]),
-                        ),
-                        $claim["id"],
-                    ],
-                );
-            }
-            $result[$status]++;
+            $responses = providerRequestBatch("sms", $requests, $deadline);
+        } catch (ProviderError $error) {
+            $responses = array_fill_keys(array_keys($requests), $error);
+        }
+        foreach ($claims as $id => $claim) {
+            $result[finishSmsNotice($claim, $responses[$id])]++;
         }
     }
     return $result;

@@ -1,6 +1,7 @@
 import { CourseCommunity, CourseSurvey, LessonNotebook } from "./LearningTools";
 import { asset, isStaticPreview } from "../environment";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useDurableChanges } from "../hooks/useDurableChanges";
 import {
   Link,
   useNavigate,
@@ -25,7 +26,7 @@ import {
 } from "@phosphor-icons/react";
 import { useApp, ar, progressPercent } from "../context";
 import { api, get, fileUrl } from "../api";
-import type { Lesson } from "../types";
+import type { Lesson, QuizDraft } from "../types";
 import {
   PageHead,
   Panel,
@@ -633,32 +634,79 @@ export function CourseDetail() {
 }
 export function QuizAttempt() {
   const { id } = useParams();
-  const { notify, refresh } = useApp();
+  return id ? (
+    <QuizAttemptEditor key={id} id={id} />
+  ) : (
+    <Empty title="المحاولة غير موجودة" />
+  );
+}
+function QuizAttemptEditor({ id }: { id: string }) {
+  const { notify, refresh, user } = useApp();
   const nav = useNavigate();
   const [attempt, setAttempt] = useState<import("../types").Attempt | null>(
     null,
   );
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [draft, setDraft] = useState<QuizDraft>({
+    answers: [],
+    revision: 0,
+    saved_at: null,
+  });
   const [remaining, setRemaining] = useState(0);
   const [error, setError] = useState("");
+  const [submitError, setSubmitError] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{
     score: number;
     total: number;
     expired?: boolean;
+    used_saved_answers?: boolean;
   } | null>(null);
   const [offset, setOffset] = useState(0);
+  const autoSubmitted = useRef(false);
+  const queue = useDurableChanges<number | null>(
+    `tafaseel:quiz:${user.id}:${id}`,
+    async (changes) => {
+      const r = await api<{ draft: QuizDraft }>("quiz.answers.save", {
+        id,
+        changes: changes.map(([question, answer]) => ({
+          question: Number(question),
+          answer,
+        })),
+      });
+      setDraft(r.draft);
+    },
+    !!attempt && !result,
+  );
+  const answers =
+    attempt?.questions?.map((_, i) =>
+      Object.hasOwn(queue.values, String(i))
+        ? queue.values[String(i)]
+        : (draft.answers[i] ?? null),
+    ) ?? [];
   useEffect(() => {
     if (!id) return;
-    get<{ attempt: import("../types").Attempt; server_time: string }>(
-      "quiz.attempt",
-      { id },
-    )
+    get<{
+      attempt: import("../types").Attempt;
+      draft: QuizDraft;
+      server_time: string;
+    }>("quiz.attempt", { id })
       .then((r) => {
         setAttempt(r.attempt);
+        setDraft(r.draft);
         setOffset(Date.now() - Date.parse(r.server_time));
-        if (r.attempt.submitted_at)
+        setRemaining(
+          Math.max(
+            0,
+            Math.floor(
+              (Date.parse(r.attempt.expires_at) - Date.parse(r.server_time)) /
+                1000,
+            ),
+          ),
+        );
+        if (r.attempt.submitted_at) {
+          queue.clear();
           setResult({ score: r.attempt.score ?? 0, total: r.attempt.total });
+        }
       })
       .catch((e) => setError(e.message));
   }, [id]);
@@ -677,20 +725,31 @@ export function QuizAttempt() {
     const timer = setInterval(update, 1000);
     return () => clearInterval(timer);
   }, [attempt, result, offset]);
+  useEffect(() => {
+    if (attempt && !result && remaining === 0 && !autoSubmitted.current) {
+      autoSubmitted.current = true;
+      void submit();
+    }
+  }, [attempt, remaining, result]);
   async function submit() {
     if (busy || !attempt) return;
     setBusy(true);
+    setSubmitError("");
     try {
-      const array = attempt.questions!.map((_, i) => answers[i] ?? null);
-      const r = await api<{ score: number; total: number; expired?: boolean }>(
-        "quiz.submit",
-        { id, answers: array },
-      );
+      const saved = await queue.flush();
+      if (!saved && remaining > 0) return;
+      const r = await api<{
+        score: number;
+        total: number;
+        expired?: boolean;
+        used_saved_answers?: boolean;
+      }>("quiz.submit", { id, use_saved_answers: true });
+      queue.clear();
       setResult(r);
       await refresh();
       notify("تم تسليم الاختبار.");
     } catch (e) {
-      setError((e as Error).message);
+      setSubmitError((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -716,7 +775,7 @@ export function QuizAttempt() {
           <h1>تم تسليم الاختبار</h1>
           <p>
             {result.expired
-              ? "انتهت مهلة الاختبار وسُجّلت المحاولة دون درجة."
+              ? "انتهت مهلة الاختبار واعتمدت إجاباتك المحفوظة قبل نهايتها."
               : "نتيجتك محفوظة ويمكنك الرجوع إليها في أي وقت."}
           </p>
           <strong>
@@ -745,12 +804,30 @@ export function QuizAttempt() {
       <div className="alert">
         <LockKey size={20} />
         {isStaticPreview
-          ? "محاكاة للتوقيت والتصحيح في المتصفح. لا تصلح هذه النسخة لإجراء اختبارات فعلية. الإجابات غير المسلّمة تبقى في هذه الصفحة فقط."
-          : "يستمر وقت الاختبار عند إغلاق الصفحة. سلّم إجاباتك قبل انتهاء الوقت، ولا تغادر قبل التسليم حتى لا تفقد الإجابات غير المحفوظة."}
+          ? "محاكاة محلية للتوقيت والحفظ والتصحيح في المتصفح؛ لا تصلح هذه النسخة لإجراء اختبارات فعلية."
+          : "تُحفظ إجاباتك تلقائيًا وتُستعاد عند العودة إلى المحاولة. يستمر الوقت عند إغلاق الصفحة، وتُعتمد الإجابات المحفوظة عند انتهائه."}
+      </div>
+      <div
+        className={`alert ${queue.error || submitError ? "alert-error" : ""}`}
+        role="status"
+        aria-live="polite"
+      >
+        {queue.error ||
+          submitError ||
+          (queue.saving || queue.dirty
+            ? "جارٍ حفظ إجاباتك… أبقِ الصفحة مفتوحة حتى تأكيد الحفظ."
+            : draft.saved_at || queue.savedAt
+              ? "تم حفظ جميع إجاباتك."
+              : "الحفظ التلقائي جاهز.")}
+        {queue.error && remaining > 0 && (
+          <Button variant="secondary" onClick={() => void queue.flush()}>
+            إعادة محاولة الحفظ
+          </Button>
+        )}
       </div>
       {remaining === 0 && (
         <div className="alert alert-error">
-          انتهى وقت الاختبار. سلّم المحاولة لتسجيل انتهائها.
+          انتهى وقت الاختبار. يجري اعتماد إجاباتك المحفوظة.
         </div>
       )}
       <div className="quiz-questions">
@@ -768,8 +845,8 @@ export function QuizAttempt() {
                     type="radio"
                     name={`question-${i}`}
                     checked={answers[i] === j}
-                    onChange={() => setAnswers({ ...answers, [i]: j })}
-                    disabled={remaining === 0}
+                    onChange={() => queue.enqueue({ [i]: j })}
+                    disabled={remaining === 0 || busy}
                   />
                   <span>{o}</span>
                 </label>
@@ -780,8 +857,8 @@ export function QuizAttempt() {
       </div>
       <div className="exam-submit">
         <p>
-          {ar(Object.keys(answers).length)} من {ar(attempt.total)} أسئلة تمت
-          إجابتها
+          {ar(answers.filter((answer) => answer !== null).length)} من{" "}
+          {ar(attempt.total)} أسئلة تمت إجابتها
         </p>
         <Button disabled={busy} onClick={submit}>
           {busy ? "جارٍ تسليم الاختبار…" : "تسليم الاختبار"}

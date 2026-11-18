@@ -2,6 +2,7 @@ import { TrainingReport } from "./LearningTools";
 import { ZoomControl } from "./Communication";
 import { asset, isStaticPreview } from "../environment";
 import { useState } from "react";
+import { useDurableChanges } from "../hooks/useDurableChanges";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Plus,
@@ -30,8 +31,8 @@ import {
   progressPercent,
   attendancePercent,
 } from "../context";
-import { api, fileUrl } from "../api";
-import type { Certificate } from "../types";
+import { api, get, fileUrl } from "../api";
+import type { Certificate, Data } from "../types";
 import {
   PageHead,
   Panel,
@@ -190,17 +191,46 @@ export function Schedule() {
   );
 }
 export function AttendancePage() {
-  const [searchParams] = useSearchParams();
-  const { data, user, notify, refresh } = useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { data } = useApp();
   const initial =
     searchParams.get("class") ??
     data.classes.filter((c) => new Date(c.starts_at) < new Date()).at(-1)?.id ??
     data.classes[0]?.id ??
     "";
   const [classId, setClassId] = useState(initial);
-  const [changes, setChanges] = useState<Record<string, string>>({});
+  return (
+    <AttendanceClass
+      key={classId}
+      classId={classId}
+      onClassChange={(next) => {
+        setClassId(next);
+        const params = new URLSearchParams(searchParams);
+        params.set("class", next);
+        setSearchParams(params, { replace: true });
+      }}
+    />
+  );
+}
+type AttendanceChange = {
+  status: string;
+  note: string;
+  expected_status: string | null;
+};
+function AttendanceClass({
+  classId,
+  onClassChange,
+}: {
+  classId: string;
+  onClassChange: (id: string) => void;
+}) {
+  const { data, user, notify, refresh } = useApp();
   const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [correction, setCorrection] = useState<{
+    students: string[];
+    status: string;
+  } | null>(null);
+  const [reason, setReason] = useState("");
   const staff = ["admin", "instructor"].includes(user.role);
   const selected = data.classes.find((c) => c.id === classId);
   const students = data.students.filter((s) =>
@@ -209,27 +239,80 @@ export function AttendancePage() {
     ),
   );
   const records = data.attendance.filter((a) => a.class_id === classId);
-  const statusFor = (id: string) =>
-    changes[id] ?? records.find((a) => a.student_id === id)?.status ?? "";
-  async function save() {
-    setBusy(true);
-    try {
+  const queue = useDurableChanges<AttendanceChange>(
+    `tafaseel:attendance:${user.id}:${classId}`,
+    async (entries) => {
       await api("attendance.save", {
         class_id: classId,
-        records: Object.entries(changes).map(([student_id, status]) => ({
+        autosave: true,
+        records: entries.map(([student_id, change]) => ({
           student_id,
-          status,
-          note,
+          ...change,
         })),
       });
       await refresh();
-      setChanges({});
-      setNote("");
-      notify("تم حفظ سجل الحضور.");
+    },
+    staff && !!selected,
+  );
+  const statusFor = (id: string) =>
+    queue.values[id]?.status ??
+    records.find((a) => a.student_id === id)?.status ??
+    "";
+  function stage(ids: string[], status: string, comment: string) {
+    queue.enqueue(
+      Object.fromEntries(
+        ids.map((id) => [
+          id,
+          {
+            status,
+            note: comment,
+            expected_status:
+              records.find((r) => r.student_id === id)?.status ?? null,
+          },
+        ]),
+      ),
+    );
+  }
+  function choose(ids: string[], status: string) {
+    const changed = ids.filter((id) => statusFor(id) !== status);
+    if (!changed.length) return;
+    if (
+      changed.some((id) => records.some((r) => r.student_id === id)) &&
+      note.trim().length < 3
+    ) {
+      setReason("");
+      setCorrection({ students: changed, status });
+    } else stage(changed, status, note);
+  }
+  async function save() {
+    try {
+      if (queue.errorStatus === 409 || queue.errorStatus === 422) {
+        if (note.trim().length < 3) {
+          notify("راجع آخر سجل، وأضف سبب التعديل لإعادة الحفظ.", "error");
+          return;
+        }
+        const latest = await get<Data>("data", {
+          course_id: selected!.course_id,
+        });
+        queue.enqueue(
+          Object.fromEntries(
+            Object.entries(queue.values).map(([id, change]) => [
+              id,
+              {
+                ...change,
+                note,
+                expected_status:
+                  latest.attendance.find(
+                    (r) => r.class_id === classId && r.student_id === id,
+                  )?.status ?? null,
+              },
+            ]),
+          ),
+        );
+      }
+      if (await queue.flush()) notify("تم حفظ سجل الحضور.");
     } catch (e) {
       notify((e as Error).message, "error");
-    } finally {
-      setBusy(false);
     }
   }
   return (
@@ -267,14 +350,28 @@ export function AttendancePage() {
       {staff && selected && (
         <AttendanceAutomation key={selected.id} session={selected} />
       )}
+      {staff && selected && (
+        <div
+          className={`alert ${queue.error ? "alert-error" : ""}`}
+          role="status"
+          aria-live="polite"
+        >
+          {queue.error ||
+            (queue.saving || queue.dirty
+              ? "جارٍ حفظ تغييرات الحضور… أبقِ الصفحة مفتوحة حتى تأكيد الحفظ."
+              : queue.savedAt
+                ? "تم حفظ جميع تغييرات الحضور."
+                : "يُحفظ تحديد الحضور تلقائيًا. تعديل سجل محفوظ يتطلب سببًا.")}
+        </div>
+      )}
       <Panel>
         <div className="attendance-toolbar">
           <Field label="اختر الحصة التدريبية">
             <select
               value={classId}
-              onChange={(e) => {
-                setClassId(e.target.value);
-                setChanges({});
+              onChange={async (e) => {
+                const next = e.target.value;
+                if (await queue.flush()) onClassChange(next);
               }}
             >
               {data.classes.map((c) => (
@@ -333,7 +430,13 @@ export function AttendancePage() {
                           className={
                             statusFor(s.id) === k ? `selected ${k}` : ""
                           }
-                          onClick={() => setChanges({ ...changes, [s.id]: k })}
+                          onClick={() => choose([s.id], k)}
+                          disabled={
+                            !!queue.values[s.id] ||
+                            (!!selected &&
+                              new Date(selected.starts_at).getTime() >
+                                Date.now() + 900000)
+                          }
                           key={k}
                           aria-label={`${s.name}: ${l}`}
                           aria-pressed={statusFor(s.id) === k}
@@ -349,11 +452,15 @@ export function AttendancePage() {
                   )}
                 </td>
                 <td>
-                  {records.find((a) => a.student_id === s.id)
-                    ? date(
-                        records.find((a) => a.student_id === s.id)!.updated_at,
-                      )
-                    : "لم يُرصد بعد"}
+                  {queue.values[s.id] ? (
+                    <Badge tone={queue.error ? "red" : "amber"}>
+                      {queue.error ? "لم يؤكد الحفظ" : "جارٍ الحفظ"}
+                    </Badge>
+                  ) : records.find((a) => a.student_id === s.id) ? (
+                    date(records.find((a) => a.student_id === s.id)!.updated_at)
+                  ) : (
+                    "لم يُرصد بعد"
+                  )}
                 </td>
               </tr>
             ))}
@@ -379,25 +486,52 @@ export function AttendancePage() {
             </Field>
             <Button
               variant="secondary"
+              disabled={queue.dirty || queue.saving}
               onClick={() =>
-                setChanges(
-                  Object.fromEntries(students.map((s) => [s.id, "present"])),
+                choose(
+                  students.map((s) => s.id),
+                  "present",
                 )
               }
             >
               <CheckCircle size={18} />
               تحديد الجميع حاضرًا
             </Button>
-            <Button
-              disabled={!Object.keys(changes).length || busy}
-              onClick={save}
-            >
-              {busy ? "جارٍ الحفظ…" : "حفظ سجل الحضور"}
+            <Button disabled={!queue.dirty || queue.saving} onClick={save}>
+              {queue.saving
+                ? "جارٍ الحفظ…"
+                : queue.error
+                  ? "إعادة محاولة الحفظ"
+                  : "حفظ سجل الحضور"}
               <CheckCircle size={18} />
             </Button>
           </div>
         )}
       </Panel>
+      {correction && (
+        <Modal title="سبب تعديل الحضور" onClose={() => setCorrection(null)}>
+          <Form
+            submitLabel="تأكيد التعديل وحفظه"
+            onSubmit={async () => {
+              if (reason.trim().length < 3) return;
+              stage(correction.students, correction.status, reason);
+              setCorrection(null);
+            }}
+          >
+            <p>هذا سجل محفوظ. أضف سببًا واضحًا لتوثيق التعديل قبل اعتماده.</p>
+            <Field label="سبب التعديل">
+              <input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                minLength={3}
+                maxLength={500}
+                required
+                autoFocus
+              />
+            </Field>
+          </Form>
+        </Modal>
+      )}
       <div className="alert">
         <LockKey size={19} />
         رصد الحضور متاح قبل بداية الحصة بـ١٥ دقيقة. التعديلات محفوظة باسم

@@ -84,6 +84,11 @@ export interface Attempt {
   total: number;
   questions?: Question[];
 }
+export interface QuizDraft {
+  answers: (number | null)[];
+  revision: number;
+  saved_at: string | null;
+}
 export interface ClassSession {
   attendance_automation?: {
     enabled: boolean;

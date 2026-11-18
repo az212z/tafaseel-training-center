@@ -32,6 +32,7 @@ type Connection = {
   configured: boolean;
   has_password: boolean;
   daily_limit: number;
+  daily_limit_max?: number;
   used_24h: number;
   last_accept: string | null;
   worker_last_run: string | null;
@@ -240,7 +241,7 @@ function EmailConnection({
                   name="daily_limit"
                   type="number"
                   min={1}
-                  max={80}
+                  max={connection.daily_limit_max ?? 80}
                   defaultValue={connection.daily_limit}
                   required
                 />

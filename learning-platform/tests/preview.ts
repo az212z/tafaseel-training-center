@@ -153,10 +153,20 @@ await test("attempt DTO excludes answer keys", async () => {
   const a = await api<any>("quiz.attempt", undefined, { id: started.id });
   assert.equal(a.attempt.questions[0].correct, undefined);
 });
-await test("quiz computes score from submitted answers", async () => {
+await test("preview restores saved answers without changing the deadline", async () => {
+  const before = await api<any>("quiz.attempt", undefined, { id: started.id });
+  await api("quiz.answers.save", { id: started.id, changes: [{ question: 0, answer: 0 }] });
+  await api("logout", {});
+  await role("student");
+  const restored = await api<any>("quiz.attempt", undefined, { id: started.id });
+  assert.deepEqual(restored.draft.answers, [0]);
+  assert.equal(restored.attempt.expires_at, before.attempt.expires_at);
+});
+await test("preview grades the saved draft instead of contradictory client answers", async () => {
   const result = await api<any>("quiz.submit", {
     id: started.id,
-    answers: [0],
+    use_saved_answers: true,
+    answers: [1],
     score: 999,
   });
   assert.equal(result.score, 1);

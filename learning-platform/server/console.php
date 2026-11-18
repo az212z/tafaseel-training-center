@@ -333,10 +333,29 @@ if (in_array($command, ["demo", "migrate"], true)) {
     exit();
 }
 if ($command === "worker") {
-    $attendance = automaticAbsences();
-    $result = dispatchNotifications(25);
+    $channel = $argv[2] ?? "all";
+    if (!in_array($channel, ["all", "sms", "email"], true)) {
+        throw new RuntimeException("Choose worker channel: all, sms or email.");
+    }
+    $deadline = microtime(true) + 45;
+    $attendance =
+        $channel !== "email"
+            ? automaticAbsences(100, min($deadline, microtime(true) + 10))
+            : [];
+    $result =
+        $channel !== "email"
+            ? dispatchNotifications(
+                null,
+                min(
+                    $deadline,
+                    microtime(true) + ($channel === "all" ? 25 : 45),
+                ),
+            )
+            : [];
     $result["attendance"] = $attendance;
-    $result["email"] = dispatchEmails(5);
+    if ($channel !== "sms") {
+        $result["email"] = dispatchEmails(null, $deadline);
+    }
     echo json_encode($result, JSON_UNESCAPED_UNICODE), PHP_EOL;
     exit();
 }

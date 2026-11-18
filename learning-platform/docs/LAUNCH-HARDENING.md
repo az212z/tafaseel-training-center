@@ -1,0 +1,13 @@
+# Persistence and delivery release
+
+Quiz answers now save as encrypted, owned server drafts. Refreshing resumes the same timed attempt. Requests patch only changed questions; serialized client requests and versioned pending edits preserve changes made during a slow response. Unconfirmed edits remain in the current browser tab's session storage, retry on reconnection, and warn before navigation. At expiry the server grades only previously saved answers. A learner cannot add late answers or supply a score.
+
+Attendance selections save automatically. Repeating an acknowledged status is harmless; changing a confirmed status requires a reason. A stale decision receives a conflict instead of overwriting another user's update. Existing attendance remains protected from the twenty-minute absence worker. Pending changes must save before changing classes.
+
+Administrator service settings now accept encrypted Moyasar, Zoom, Bunny Stream and S3 credentials with password reauthentication. Secret values never return to the browser. Saving configuration is explicitly distinguished from an actual provider transaction or successful live meeting/video.
+
+Delivery settings expose queue depth, oldest waiting message and provider-qualified SMS drain estimates. Account/service mail has priority over campaigns; a configurable daily share is reserved for essential messages. Hostinger's current free trial was checked in hPanel: 100 outbound messages per rolling day. The application remains at 80 until the paid plan is actually upgraded. Selecting a plan in Tafaseel does not purchase it. Taqnyat requests run in bounded parallel batches, with an atomic shared rolling-minute allowance and per-recipient accepted/retry/uncertain outcomes. Workers have bounded execution time and optional independent email/SMS lanes.
+
+Validation includes fresh authenticated-client draft restoration, timer continuity, concurrent patches, encryption, answer-key privacy, ownership/CSRF, server-only grading at expiry, attendance corrections/conflicts, notification deduplication, mail priority/reserve, provider credential redaction, daily limits, concurrent SMS workers and mixed network outcomes. Loopback SMS timing is a software regression result, not actual carrier delivery or hosting capacity.
+
+Real SMS requires an active funded account and approved sender, with an authorized guardian's test number. Payment requires the center's merchant account and activation. Zoom requires an authorized account/application and webhook. Cloud video requires an owned library, signed playback and real authorized videos. Content drafts require instructor review and center-approved course facts before publication.

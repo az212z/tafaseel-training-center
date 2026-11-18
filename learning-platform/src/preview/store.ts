@@ -1,10 +1,11 @@
 import type { PreviewExtras } from "./extended";
-import type { Data, Profile, Question, Role, User } from "../types";
+import type { Data, Profile, Question, QuizDraft, Role, User } from "../types";
 import catalog from "../../server/catalog.json";
 export interface PreviewState extends Omit<Data, "user" | "demo" | "mfa"> {
   version: 1;
   extensions?: PreviewExtras;
   learningReads?: Record<string, Record<string, string>>;
+  quizDrafts?: Record<string, QuizDraft>;
   users: User[];
   profiles: Record<string, Profile>;
   questions: Record<string, Question[]>;

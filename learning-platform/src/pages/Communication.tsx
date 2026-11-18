@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Bell,
   CheckCircle,
@@ -23,6 +24,8 @@ import {
 } from "../components/ui";
 import { useRemote, RemoteState, Pagination } from "../components/remote";
 import { SmsConnection } from "../components/SmsConnection";
+import { ServiceConnections } from "../components/ServiceConnections";
+import { DeliverySettings } from "../components/DeliverySettings";
 const notificationStatus: Record<string, string> = {
   blocked: "بانتظار تفعيل المزود",
   pending: "قيد الانتظار",
@@ -240,7 +243,7 @@ export function Integrations() {
     <>
       <PageHead
         title="الخدمات والتشغيل"
-        subtitle="حالة الإعداد ومتطلبات التفعيل. المفاتيح السرية تبقى خارج الواجهة."
+        subtitle="حسابات الخدمات وحالة إعدادها وتجارب التشغيل، من مكان واحد."
       >
         <Button variant="secondary" onClick={remote.reload}>
           تحديث الحالة
@@ -272,26 +275,36 @@ export function Integrations() {
                 : "بانتظار إعداد حساب المركز"}
             </Badge>
             <p>
-              {key === "moyasar"
-                ? "صفحة دفع مستضافة والتحقق من الفاتورة قبل تسجيل الطالب."
-                : key === "sms"
-                  ? "اسم مرسل معتمد ورصيد رسائل، مع تشغيل المهمة المجدولة للرسائل."
-                  : key === "zoom"
-                    ? "تطبيق Server-to-Server OAuth بصلاحيات اللقاءات وإشعارات الأحداث."
-                    : key === "video"
-                      ? "مكتبة فيديو مع تفعيل توقيع المشغل، وتقييد نطاق العرض."
-                      : "حاوية S3 خاصة مع منع الوصول العام ومفاتيح محدودة الصلاحية."}
+              {key === "email"
+                ? "رسائل الحساب والتدريب من بريد المركز، مع سجل قبول وفشل الإرسال."
+                : key === "moyasar"
+                  ? "صفحة دفع مستضافة والتحقق من الفاتورة قبل تسجيل الطالب."
+                  : key === "sms"
+                    ? "اسم مرسل معتمد ورصيد رسائل، مع تشغيل المهمة المجدولة للرسائل."
+                    : key === "zoom"
+                      ? "تطبيق Server-to-Server OAuth بصلاحيات اللقاءات وإشعارات الأحداث."
+                      : key === "video"
+                        ? "مكتبة فيديو مع تفعيل توقيع المشغل، وتقييد نطاق العرض."
+                        : "حاوية S3 خاصة مع منع الوصول العام ومفاتيح محدودة الصلاحية."}
             </p>
+            {key === "email" && (
+              <Link to="/communications">إعداد البريد ومتابعة الإرسال</Link>
+            )}
+            {key === "sms" && (
+              <Link to="/notifications">إعداد الرسائل ومتابعة الغياب</Link>
+            )}
           </Panel>
         ))}
       </div>
+      <ServiceConnections onSaved={remote.reload} />
+      <DeliverySettings />
       <Panel title="متطلبات بدء التشغيل">
         <div className="security-list">
           <p>
             <CheckCircle size={20} />
             <span>
-              إعداد حسابات الخدمات والمفاتيح يتم في ملف الإعداد الخاص على
-              الاستضافة. لا تُرسل المفاتيح في المحادثة ولا تُرفع إلى GitHub.
+              أدخل بيانات حسابات المركز في إعداد الخدمة مباشرة. تحفظ المفاتيح
+              مشفرة ولا تظهر بعد الحفظ.
             </span>
           </p>
           <p>

@@ -139,7 +139,7 @@ function automationClassDetails(array &$classes, bool $staff): void
     }
 }
 
-function automaticAbsences(int $limit = 100): array
+function automaticAbsences(int $limit = 100, ?float $deadline = null): array
 {
     $result = ["classes" => 0, "absent" => 0, "needs_review" => 0];
     $cutoff = gmdate("Y-m-d\TH:i:s\Z", time() - 1200);
@@ -150,6 +150,9 @@ function automaticAbsences(int $limit = 100): array
         [$cutoff, $oldestEnd],
     );
     foreach ($classes as $item) {
+        if ($deadline !== null && microtime(true) >= $deadline) {
+            break;
+        }
         $counts = tx(function () use ($item, $cutoff) {
             lockRow("classes", $item["id"]);
             $class = one(

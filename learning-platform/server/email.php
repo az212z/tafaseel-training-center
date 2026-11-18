@@ -446,8 +446,10 @@ function emailStillAllowed(array $n, array $u): bool
     }
     return true;
 }
-function dispatchEmails(int $limit = 5): array
+function dispatchEmails(?int $limit = null, ?float $deadline = null): array
 {
+    $limits = deliveryLimits();
+    $limit ??= (int) $limits["mail_per_minute"];
     setSetting("email_worker_last_run", now());
     tx(function () {
         lockRow("storage_locks", "email");
@@ -468,13 +470,16 @@ function dispatchEmails(int $limit = 5): array
     );
     foreach (
         rows(
-            "SELECT id FROM email_outbox WHERE status IN ('pending','retry','blocked') AND next_attempt_at<=? ORDER BY CASE WHEN kind='marketing' THEN 1 ELSE 0 END,next_attempt_at,id LIMIT " .
-                max(1, min(10, $limit)),
+            "SELECT id FROM email_outbox WHERE status IN ('pending','retry','blocked') AND next_attempt_at<=? ORDER BY CASE WHEN kind IN ('invitation','account','registration') THEN 0 WHEN kind NOT IN ('marketing','training','class_reminder','announcement') THEN 1 WHEN kind='class_reminder' THEN 2 WHEN kind='marketing' THEN 4 ELSE 3 END,next_attempt_at,id LIMIT " .
+                max(1, min(60, $limit)),
             [now()],
         )
         as $entry
     ) {
-        $claim = tx(function () use ($entry) {
+        if ($deadline !== null && microtime(true) >= $deadline) {
+            break;
+        }
+        $claim = tx(function () use ($entry, $limits) {
             lockRow("storage_locks", "email");
             lockRow("email_outbox", $entry["id"]);
             $n = one("SELECT * FROM email_outbox WHERE id=?", [$entry["id"]]);
@@ -505,16 +510,48 @@ function dispatchEmails(int $limit = 5): array
             }
             $day = gmdate("Y-m-d\TH:i:s\Z", time() - 86400);
             $minute = gmdate("Y-m-d\TH:i:s\Z", time() - 60);
+            $dailyUsed = (int) one(
+                "SELECT COUNT(*) n FROM email_attempts WHERE created_at>?",
+                [$day],
+            )["n"];
+            $minuteUsed = (int) one(
+                "SELECT COUNT(*) n FROM email_attempts WHERE created_at>?",
+                [$minute],
+            )["n"];
+            $dailyLimit = (int) emailConfig()["daily_limit"];
+            $reserved = (int) ceil(
+                ($dailyLimit * $limits["mail_reserved_percent"]) / 100,
+            );
+            $essential = !in_array(
+                $n["kind"],
+                ["marketing", "training", "class_reminder", "announcement"],
+                true,
+            );
             if (
-                (int) one(
-                    "SELECT COUNT(*) n FROM email_attempts WHERE created_at>?",
-                    [$day],
-                )["n"] >= (int) emailConfig()["daily_limit"] ||
-                (int) one(
-                    "SELECT COUNT(*) n FROM email_attempts WHERE created_at>?",
-                    [$minute],
-                )["n"] >= 5
+                $dailyUsed >= $dailyLimit ||
+                $minuteUsed >= (int) $limits["mail_per_minute"] ||
+                (!$essential && $dailyUsed >= $dailyLimit - $reserved)
             ) {
+                $next = time() + 61;
+                if (
+                    $dailyUsed >= $dailyLimit ||
+                    (!$essential && $dailyUsed >= $dailyLimit - $reserved)
+                ) {
+                    $first = one(
+                        "SELECT MIN(created_at) first_at FROM email_attempts WHERE created_at>?",
+                        [$day],
+                    );
+                    if ($first["first_at"]) {
+                        $next = max(
+                            $next,
+                            strtotime($first["first_at"]) + 86401,
+                        );
+                    }
+                }
+                run("UPDATE email_outbox SET next_attempt_at=? WHERE id=?", [
+                    gmdate("Y-m-d\TH:i:s\Z", $next),
+                    $n["id"],
+                ]);
                 return ["state" => "deferred"];
             }
             $token = uid();
@@ -861,6 +898,7 @@ function emailAction(string $action, string $method, array $d): ?array
         $c = emailConfig();
         unset($c["password"]);
         $c["configured"] = emailReady();
+        $c["daily_limit_max"] = deliveryLimits()["mail_daily_ceiling"];
         $c["has_password"] = emailConfig()["password"] !== "";
         $c["worker_last_run"] = setting("email_worker_last_run");
         $c["last_accept"] = setting("email_last_accept");
@@ -904,7 +942,11 @@ function emailAction(string $action, string $method, array $d): ?array
             "address" => $address,
             "name" => str($d["name"] ?? "مركز تفاصيل للتدريب", 100),
             "password" => $password ?: $c["password"],
-            "daily_limit" => number($d["daily_limit"] ?? 80, 1, 80),
+            "daily_limit" => number(
+                $d["daily_limit"] ?? 80,
+                1,
+                deliveryLimits()["mail_daily_ceiling"],
+            ),
         ];
         if ($c["enabled"] && !$c["password"]) {
             fail(422, "أدخل كلمة مرور البريد لإتمام الربط.");
