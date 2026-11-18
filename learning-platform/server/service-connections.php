@@ -149,6 +149,7 @@ function serviceConnectionAction(
         fail(422, "كلمة مرور الإدارة غير صحيحة.");
     }
     $config = integrationConfig($name);
+    $previousSdkId = $config["sdk_client_id"] ?? "";
     $config["enabled"] = ($data["enabled"] ?? false) === true;
     $values = $data["values"] ?? [];
     if (!is_array($values)) {
@@ -193,8 +194,15 @@ function serviceConnectionAction(
     ) {
         fail(422, "أدخل بريدًا صحيحًا للمضيف.");
     }
-    if ($name === "zoom" && ($config["sdk_client_id"] === "") !== ($config["sdk_client_secret"] === "")) {
-        fail(422, "أكمل معرّف تطبيق Meeting SDK ومفتاحه السري.");
+    if ($name === "zoom") {
+        if ($config["sdk_client_id"] === "") {
+            $config["sdk_client_secret"] = "";
+        } elseif (
+            $config["sdk_client_secret"] === "" ||
+            ($config["sdk_client_id"] !== $previousSdkId && trim($values["sdk_client_secret"] ?? "") === "")
+        ) {
+            fail(422, "أدخل المفتاح السري المطابق لمعرّف تطبيق Meeting SDK.");
+        }
     }
     if (
         $name === "video" &&
