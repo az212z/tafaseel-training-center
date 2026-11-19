@@ -118,10 +118,29 @@ with Sandbox() as s:
     with student.http.open(url) as response: restored=response.read();check(restored==media and response.headers['Content-Type'].startswith('video/mp4'),'Authenticated MP4 download exactly matches original after encryption/decryption')
     request=urllib.request.Request(url,headers={'Range':'bytes=0-99'})
     with student.http.open(request) as response:check(response.status==206 and response.read()==media[:100],'Video seeking returns correct HTTP byte range')
+    request=urllib.request.Request(url,headers={'Range':'bytes=-100'})
+    with student.http.open(request) as response:
+        check(response.status==206 and response.read()==media[-100:] and
+              response.headers['Content-Range']==f'bytes {len(media)-100}-{len(media)-1}/{len(media)}',
+              'Suffix range returns the final bytes without downloading the complete video to the browser')
+    downloads=s.sql("SELECT COUNT(*) n FROM audit WHERE action='file.downloaded' AND entity_id=?",[file['id']])
+    request=urllib.request.Request(url,method='HEAD',headers={'Range':'bytes=0-99'})
+    with student.http.open(request) as response:
+        check(response.status==200 and int(response.headers['Content-Length'])==len(media) and not response.read(),
+              'Authenticated HEAD returns the complete file metadata and no body')
+    for invalid_range in [f'bytes={len(media)}-', 'bytes=-0', 'bytes=3-2']:
+        request=urllib.request.Request(url,headers={'Range':invalid_range})
+        try: student.http.open(request);raise AssertionError('Unsatisfiable byte range accepted')
+        except urllib.error.HTTPError as e:
+            assert e.code==416 and e.headers['Content-Range']==f'bytes */{len(media)}' and not e.read()
+    check(s.sql("SELECT COUNT(*) n FROM audit WHERE action='file.downloaded' AND entity_id=?",[file['id']])==downloads,
+          'Metadata checks and rejected ranges do not record successful file downloads')
     second.get('lesson&id='+lesson)  # Batch enrollment above granted legitimate access.
     outsider=s.login('s3')
     try: outsider.http.open(url);raise AssertionError('Video privacy bypass')
     except urllib.error.HTTPError as e:check(e.code in (403,404),'Unenrolled learner cannot stream private video')
+    try: outsider.http.open(urllib.request.Request(url,method='HEAD'));raise AssertionError('Private video metadata disclosed')
+    except urllib.error.HTTPError as e:check(e.code in (403,404),'Unenrolled learner cannot read file metadata')
     stored=list((s.folder/'storage/files').iterdir())
     check(all(x.read_bytes()!=media for x in stored),'Video bytes remain encrypted outside public root')
     guest.get('learning.paths&page[]=1',422)

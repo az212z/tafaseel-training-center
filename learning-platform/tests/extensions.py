@@ -1,5 +1,7 @@
 """Real HTTP/PDO integration tests against isolated local provider doubles. No external requests or messages."""
 import os,sys,json,pathlib,tempfile,subprocess,socket,time,threading,http.server,urllib.request,urllib.error,http.cookiejar,hashlib,hmac,uuid,re
+import concurrent.futures
+import signal
 from datetime import datetime,timezone,timedelta
 ROOT=pathlib.Path(__file__).resolve().parents[1];ORIGIN='http://127.0.0.1:3117';checks=[]
 def check(value,label):
@@ -8,6 +10,9 @@ def check(value,label):
 def stamp(offset=0):return (datetime.now(timezone.utc)+timedelta(seconds=offset)).strftime('%Y-%m-%dT%H:%M:%SZ')
 class Mock(http.server.BaseHTTPRequestHandler):
  invoices={};meetings={};videos={};objects={};calls=[];sms_mode=201;invoice_mode=201
+ read_started=threading.Event()
+ release_read=threading.Event()
+ hold_read=False
  def log_message(self,*args):pass
  def reply(self,data,status=200):
   raw=json.dumps(data).encode();self.send_response(status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
@@ -29,6 +34,9 @@ class Mock(http.server.BaseHTTPRequestHandler):
   if self.path.startswith('/video/library/123/videos/'):return self.reply(self.videos.get(self.path.rsplit('/',1)[-1],{}))
   key=self.path.split('?')[0]
   if key in self.objects:
+   if self.hold_read:
+    self.read_started.set()
+    self.release_read.wait(timeout=10)
    raw=self.objects[key];self.send_response(200);self.send_header('Content-Length',str(len(raw)));self.send_header('Content-Type','application/octet-stream');self.end_headers();self.wfile.write(raw);return
   return self.reply({},404)
  def do_PUT(self):
@@ -71,7 +79,7 @@ with tempfile.TemporaryDirectory(prefix='tafaseel-v2-test-') as folder:
  seed=temp/'seed.php';password='Fictional-Integration-Password-93!';seed.write_text("<?php require "+repr(str(ROOT/'server/api.php'))+";foreach(['admin','instructor','other','student','second','guardian'] as $id){$role=in_array($id,['other'])?'instructor':($id==='second'?'student':$id);run('INSERT INTO users(id,name,email,password,role,created_at) VALUES(?,?,?,?,?,?)',[$id,$id,$id.'@example.test',password_hash('"+password+"',PASSWORD_DEFAULT),$role,now()]);}")
  php([str(seed)])
  with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
- log=open(temp/'server.log','w');server=subprocess.Popen(['php','-S',f'127.0.0.1:{port}','-t',str(ROOT/'public'),str(ROOT/'server/router.php')],env=env,stdout=log,stderr=log)
+ log=open(temp/'server.log','w');server=subprocess.Popen(['php','-S',f'127.0.0.1:{port}','-t',str(ROOT/'public'),str(ROOT/'server/router.php')],env={**env,'PHP_CLI_SERVER_WORKERS':'4'},stdout=log,stderr=log,start_new_session=True)
  try:
   base=f'http://127.0.0.1:{port}'
   for _ in range(50):
@@ -111,7 +119,26 @@ with tempfile.TemporaryDirectory(prefix='tafaseel-v2-test-') as folder:
   bag=trainer.post('bag.save',{'course_id':cid,'title':'حقيبة اختبار','version':'1.0','description':'دليل المتعلم وورقة العمل'})['id'];other.get('bags&course_id='+cid,403);check(True,'Learning bag isolated to assigned instructor or enrolled learner')
   pdf=b'%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n';f=trainer.upload(pdf,course=cid);check(bool(Mock.objects) and all(not b.startswith(b'%PDF') for b in Mock.objects.values()),'S3-compatible object storage receives encrypted bytes only')
   trainer.post('bag.item.save',{'bag_id':bag,'file_id':f['id'],'label':'دليل الطالب','sort_order':1});check(student.get('bags&course_id='+cid)['items'][0]['items'][0]['file_id']==f['id'],'Enrolled student can see bag and resource reference')
-  with student.http.open(base+'/api/index.php?action=file&id='+f['id']) as r: downloaded=r.read()
+  file_url=base+'/api/index.php?action=file&id='+f['id']
+  provider_calls=len(Mock.calls)
+  with student.http.open(urllib.request.Request(file_url,method='HEAD')) as response:
+   check(response.status==200 and int(response.headers['Content-Length'])==len(pdf) and
+         not response.read() and len(Mock.calls)==provider_calls,'Private file metadata is served without fetching the S3 object')
+  def retrieve_file():
+   with student.http.open(file_url,timeout=12) as response:
+    return response.read()
+  with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+   Mock.hold_read=True
+   pending_file=executor.submit(retrieve_file)
+   try:
+    assert Mock.read_started.wait(timeout=5),'S3 read never started'
+    account=executor.submit(student.get,'session').result(timeout=4)
+    check(account['user']['id']=='student' and not pending_file.done(),
+          'Same-session requests complete while a private file waits on cloud storage')
+   finally:
+    Mock.hold_read=False
+    Mock.release_read.set()
+   downloaded=pending_file.result(timeout=5)
   check(downloaded==pdf,'Private S3 file decrypts only after authorized API download')
   trainer.post('bag.item.save',{'bag_id':bag,'file_id':f['id'],'label':'مكرر'},409);trainer.post('bag.item.remove',{'bag_id':bag,'file_id':f['id']});check(not student.get('bags&course_id='+cid)['items'][0]['items'],'Removing bag reference preserves the stored resource')
   child=admin.post('user.save',{'role':'student','name':'طفل تجريبي','email':'child@example.test','password':password,'birth_date':'2015-01-01','city':'تبوك','phone':'','guardian_name':'ولي تجريبي','guardian_phone':'0500000002','guardian_id':'guardian','consent':True})['id'];admin.post('enroll',{'course_id':cid2,'student_id':child})
@@ -183,6 +210,6 @@ with tempfile.TemporaryDirectory(prefix='tafaseel-v2-test-') as folder:
  except Exception:
   log.flush();print((temp/'server.log').read_text()[-5000:],file=sys.stderr);raise
  finally:
-  server.terminate();server.wait();log.close()
+  os.killpg(server.pid,signal.SIGTERM);server.wait();log.close()
   if mysql_socket:subprocess.run(['mariadb','--no-defaults','--socket='+mysql_socket,'-u','root','-e','DROP DATABASE '+db_name],check=True)
 provider.shutdown()

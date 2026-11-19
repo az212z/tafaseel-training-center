@@ -497,7 +497,10 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         "learning.updates",
         "sms.connection",
     ];
-    if ($method !== (in_array($action, $gets, true) ? "GET" : "POST")) {
+    if (
+        $method !== (in_array($action, $gets, true) ? "GET" : "POST") &&
+        !($action === "file" && $method === "HEAD")
+    ) {
         fail(405, "طريقة الطلب غير مسموحة.");
     }
     if ($action === "health") {
@@ -2003,17 +2006,26 @@ function uploadFile(array $u): array
         $student = $u["id"];
     }
     $f = $_FILES["file"] ?? null;
+    $limit = (int) (cfg()["max_upload_bytes"] ?? 31457280);
+    if (
+        in_array(
+            $f["error"] ?? null,
+            [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE],
+            true,
+        ) ||
+        ($f && $f["error"] === UPLOAD_ERR_OK && (int) $f["size"] > $limit)
+    ) {
+        fail(413, "حجم الملف أكبر من الحد المسموح. اختر ملفًا أصغر.");
+    }
     if (
         !$f ||
         $f["error"] !== UPLOAD_ERR_OK ||
+        (int) $f["size"] < 1 ||
         !is_uploaded_file($f["tmp_name"])
     ) {
-        fail(422, "تعذّر رفع الملف. الحد ٣٠ ميجابايت.");
+        fail(422, "تعذّر رفع الملف. تأكد من سلامته وحاول مجددًا.");
     }
     $size = (int) $f["size"];
-    if ($size < 1 || $size > (int) (cfg()["max_upload_bytes"] ?? 31457280)) {
-        fail(413, "حجم الملف يجب ألا يتجاوز ٣٠ ميجابايت.");
-    }
     $mime = (new finfo(FILEINFO_MIME_TYPE))->file($f["tmp_name"]);
     $allowed = [
         "application/pdf" => ["pdf"],
@@ -2036,6 +2048,7 @@ function uploadFile(array $u): array
     $name = str(basename($f["name"]), 180);
     $id = uid();
     reserveUpload($id, $size);
+    session_write_close();
     $storage = null;
     try {
         $storage = storeEncryptedObject(
@@ -2103,10 +2116,46 @@ function downloadFile(array $u, string $id, bool $preview = false): never
     if (!$f || !fileAccess($u, $f)) {
         fail(404, "الملف غير متاح.");
     }
-    $content = dec(encryptedObject($f["storage_name"]));
-    audit($u, "file.downloaded", $id);
     session_write_close();
     $isVideo = $f["mime"] === "video/mp4";
+    $len = (int) $f["bytes"];
+    $head = $_SERVER["REQUEST_METHOD"] === "HEAD";
+    $start = 0;
+    $end = $len - 1;
+    $partial =
+        !$head &&
+        $isVideo &&
+        !isset($_SERVER["HTTP_IF_RANGE"]) &&
+        preg_match(
+            '/^bytes=(\d*)-(\d*)$/iD',
+            $_SERVER["HTTP_RANGE"] ?? "",
+            $range,
+        ) &&
+        $range[1] . $range[2] !== "";
+    if ($partial) {
+        if ($range[1] === "") {
+            $start = max(0, $len - (int) $range[2]);
+        } else {
+            $start = (int) $range[1];
+            $end = $range[2] === "" ? $end : min((int) $range[2], $end);
+        }
+        if ($start > $end) {
+            http_response_code(416);
+            header("Accept-Ranges: bytes");
+            header("Content-Range: bytes */$len");
+            header("Content-Length: 0");
+            exit();
+        }
+    }
+    if (!$head) {
+        $content = dec(encryptedObject($f["storage_name"]));
+        if (strlen($content) !== $len) {
+            throw new RuntimeException(
+                "Stored file length differs from metadata",
+            );
+        }
+        audit($u, "file.downloaded", $id);
+    }
     $inline =
         $isVideo ||
         ($preview &&
@@ -2127,26 +2176,19 @@ function downloadFile(array $u, string $id, bool $preview = false): never
     );
     header("Cache-Control: no-store");
     header("Content-Security-Policy: default-src 'none'; sandbox");
-    $len = strlen($content);
     if ($isVideo) {
         header("Accept-Ranges: bytes");
-        if (
-            isset($_SERVER["HTTP_RANGE"]) &&
-            preg_match('/^bytes=(\d+)-(\d*)$/', $_SERVER["HTTP_RANGE"], $m)
-        ) {
-            $start = (int) $m[1];
-            $end = $m[2] !== "" ? min((int) $m[2], $len - 1) : $len - 1;
-            if ($start > $end || $start >= $len) {
-                http_response_code(416);
-                header("Content-Range: bytes */$len");
-                exit();
-            }
-            http_response_code(206);
-            header("Content-Range: bytes $start-$end/$len");
-            $content = substr($content, $start, $end - $start + 1);
+    }
+    if ($partial) {
+        http_response_code(206);
+        header("Content-Range: bytes $start-$end/$len");
+        header("Content-Length: " . ($end - $start + 1));
+        echo substr($content, $start, $end - $start + 1);
+    } else {
+        header("Content-Length: $len");
+        if (!$head) {
+            echo $content;
         }
     }
-    header("Content-Length: " . strlen($content));
-    echo $content;
     exit();
 }
