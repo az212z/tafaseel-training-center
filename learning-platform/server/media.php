@@ -204,9 +204,12 @@ function videoPlayback(array $u, string $lessonId): array
         "expires_at" => $expiry,
     ];
 }
-function reserveUpload(string $id, int $bytes): void
-{
-    tx(function () use ($id, $bytes) {
+function reserveUpload(
+    string $id,
+    int $bytes,
+    ?callable $onReserved = null,
+): void {
+    tx(function () use ($id, $bytes, $onReserved) {
         lockRow("storage_locks", "files");
         run("DELETE FROM upload_reservations WHERE expires_at<?", [now()]);
         $used = (int) one("SELECT COALESCE(SUM(bytes),0) n FROM files")["n"];
@@ -219,9 +222,13 @@ function reserveUpload(string $id, int $bytes): void
         ) {
             fail(409, "بلغت الملفات سعة التخزين المعتمدة في إعدادات المركز.");
         }
+        $expiry = gmdate("Y-m-d\TH:i:s\Z", time() + 3600);
         run(
             "INSERT INTO upload_reservations(id,bytes,expires_at) VALUES(?,?,?)",
-            [$id, $bytes, gmdate("Y-m-d\TH:i:s\Z", time() + 3600)],
+            [$id, $bytes, $expiry],
         );
+        if ($onReserved) {
+            $onReserved($expiry);
+        }
     });
 }

@@ -725,9 +725,6 @@ export function FilesPage() {
               }}
             />
           )}
-          <p className="muted">
-            للفيديوهات الطويلة استخدم رابط YouTube أو Vimeo في إضافة الدروس.
-          </p>
         </Modal>
       )}
     </>

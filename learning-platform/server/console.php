@@ -356,6 +356,9 @@ if ($command === "worker") {
     if ($channel !== "sms") {
         $result["email"] = dispatchEmails(null, $deadline);
     }
+    if ($channel !== "sms" && microtime(true) < $deadline) {
+        cleanExpiredLessonParts(min($deadline, microtime(true) + 6));
+    }
     echo json_encode($result, JSON_UNESCAPED_UNICODE), PHP_EOL;
     exit();
 }

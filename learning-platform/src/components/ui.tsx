@@ -14,6 +14,7 @@ import {
   UploadSimple,
 } from "@phosphor-icons/react";
 import { api } from "../api";
+import { uploadLessonVideo } from "../lessonVideoUpload";
 import { useApp } from "../context";
 export function Button({
   children,
@@ -337,19 +338,46 @@ export function FileUpload({
   onUploaded: (id: string, name: string) => void;
   accept?: string;
 }) {
-  const { notify } = useApp();
+  const { notify, data } = useApp();
   const [busy, setBusy] = useState(false);
+  const [percent, setPercent] = useState<number | null>(null);
   const [name, setName] = useState("");
+  const mib = 1024 * 1024;
+  const fileLimit = isStaticPreview
+    ? 10 * mib
+    : (data.file_limits?.regular ?? 30 * mib);
+  const canUploadVideo =
+    !isStaticPreview &&
+    purpose === "resource" &&
+    Boolean(courseId) &&
+    accept.includes(".mp4");
+  const videoLimit = canUploadVideo
+    ? (data.file_limits?.lesson_video ?? fileLimit)
+    : fileLimit;
+  const formatLimit = (bytes: number) =>
+    bytes >= 1024 * mib
+      ? (bytes / (1024 * mib)).toLocaleString("ar-SA") + " جيجابايت"
+      : (bytes / mib).toLocaleString("ar-SA") + " ميجابايت";
   return (
     <label className={`upload-zone ${busy ? "busy" : ""}`}>
       <UploadSimple size={26} />
       <strong>
-        {busy ? "جارٍ رفع الملف…" : name || "اختر ملفًا أو مقطع فيديو"}
+        {busy
+          ? percent === null
+            ? "جارٍ رفع الملف…"
+            : "جارٍ رفع الفيديو " + percent.toLocaleString("ar-SA") + "٪"
+          : name || "اختر ملفًا"}
       </strong>
       <small>
         {isStaticPreview
           ? "PDF، صور، MP4 • حتى ١٠ ميجابايت • وهمية فقط"
-          : "PDF، صور، MP4 • حتى ٣٠ ميجابايت"}
+          : canUploadVideo
+            ? "فيديو MP4 حتى " +
+              formatLimit(videoLimit) +
+              (accept === ".mp4"
+                ? ""
+                : " • باقي الملفات حتى " + formatLimit(fileLimit))
+            : "حتى " + formatLimit(fileLimit)}
       </small>
       <input
         aria-label="رفع ملف"
@@ -359,13 +387,16 @@ export function FileUpload({
         onChange={async (e) => {
           const file = e.target.files?.[0];
           if (!file) return;
-          if (file.size > (isStaticPreview ? 10 : 30) * 1024 * 1024) {
+          const limit =
+            canUploadVideo && /\.mp4$/i.test(file.name)
+              ? videoLimit
+              : fileLimit;
+          if (file.size > limit) {
             notify(
-              isStaticPreview
-                ? "الحد الأقصى في العرض ١٠ ميجابايت."
-                : "الحد الأقصى للملف ٣٠ ميجابايت.",
+              "الحد الأقصى لهذا الملف " + formatLimit(limit) + ".",
               "error",
             );
+            e.target.value = "";
             return;
           }
           const form = new FormData();
@@ -374,11 +405,12 @@ export function FileUpload({
           if (courseId) form.set("course_id", courseId);
           if (studentId) form.set("student_id", studentId);
           setBusy(true);
+          setPercent(file.size > fileLimit ? 0 : null);
           try {
-            const r = await api<{ id: string; name: string }>(
-              "file.upload",
-              form,
-            );
+            const r =
+              file.size > fileLimit && courseId
+                ? await uploadLessonVideo(file, courseId, setPercent)
+                : await api<{ id: string; name: string }>("file.upload", form);
             setName(r.name);
             onUploaded(r.id, r.name);
             notify("تم رفع الملف وحفظه.");

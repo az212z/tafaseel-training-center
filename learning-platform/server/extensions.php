@@ -219,6 +219,7 @@ function extensionAction(
                     "driver" => integrationEnabled("s3") ? "s3" : "local",
                     "file_limit_bytes" =>
                         (int) (cfg()["max_upload_bytes"] ?? 31457280),
+                    "lesson_video_bytes" => lessonVideoLimit(),
                     "storage_quota_bytes" =>
                         (int) (cfg()["storage_quota_bytes"] ?? 2147483648),
                 ],
@@ -782,7 +783,9 @@ function extensionAction(
             $countScope = "";
             $countArgs = [];
             if ($u["role"] === "instructor") {
-                $countScope = " AND c.instructor_id=? AND " . recordAvailable("course", "c.id");
+                $countScope =
+                    " AND c.instructor_id=? AND " .
+                    recordAvailable("course", "c.id");
                 $countArgs = [$u["id"]];
                 $sql .=
                     " AND u.id IN (SELECT e.student_id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE c.instructor_id=? AND " .

@@ -12,6 +12,7 @@ require_once __DIR__ . "/sms-connection.php";
 require_once __DIR__ . "/quiz-drafts.php";
 require_once __DIR__ . "/service-connections.php";
 require_once __DIR__ . "/delivery.php";
+require_once __DIR__ . "/lesson-video.php";
 function quizFieldText(
     mixed $value,
     int $max,
@@ -308,6 +309,10 @@ function dataFor(array $u, array $scope = []): array
                 " ORDER BY a.created_at DESC LIMIT 100",
             $ids,
         ),
+        "file_limits" => [
+            "regular" => (int) (cfg()["max_upload_bytes"] ?? 31457280),
+            "lesson_video" => lessonVideoLimit(),
+        ],
         "settings" => setting("general", [
             "name" => "مركز تفاصيل للتدريب",
             "email" => "",
@@ -355,21 +360,25 @@ function dataFor(array $u, array $scope = []): array
     if ($u["role"] === "instructor") {
         $fileWhere =
             "f.purpose<>'identity' AND f.course_id IN (SELECT c.id FROM courses c WHERE c.instructor_id=? AND " .
-            recordAvailable("course", "c.id") . ")";
+            recordAvailable("course", "c.id") .
+            ")";
         $fileArgs = [$u["id"]];
     } elseif ($u["role"] === "student") {
         $fileWhere =
             "(f.owner_id=? OR (f.purpose IN ('identity','submission') AND f.student_id=?) OR (f.purpose='resource' AND f.course_id IS NOT NULL)) AND (f.course_id IS NULL OR f.course_id IN (SELECT e.course_id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.student_id=? AND c.status='published' AND " .
-            recordAvailable("course", "c.id") . "))";
+            recordAvailable("course", "c.id") .
+            "))";
         $fileArgs = [$u["id"], $u["id"], $u["id"]];
     } elseif ($u["role"] === "guardian") {
         $fileWhere =
             "(f.owner_id=? OR (f.purpose IN ('identity','submission') AND f.student_id IN (SELECT user_id FROM profiles WHERE guardian_id=?)) OR (f.purpose='resource' AND f.course_id IS NOT NULL)) AND (f.course_id IS NULL OR f.course_id IN (SELECT e.course_id FROM enrollments e JOIN profiles p ON p.user_id=e.student_id JOIN courses c ON c.id=e.course_id WHERE p.guardian_id=? AND c.status='published' AND " .
-            recordAvailable("course", "c.id") . "))";
+            recordAvailable("course", "c.id") .
+            "))";
         $fileArgs = [$u["id"], $u["id"], $u["id"]];
     }
     if ($studentId) {
-        $fileWhere .= " AND f.student_id=? AND f.purpose IN ('identity','submission')";
+        $fileWhere .=
+            " AND f.student_id=? AND f.purpose IN ('identity','submission')";
         $fileArgs[] = $studentId;
     }
     $out["files"] = rows(
@@ -395,7 +404,9 @@ function dataFor(array $u, array $scope = []): array
     if (!$staff) {
         foreach ($out["classes"] as &$class) {
             $class["zoom_status"] =
-                $u["role"] === "student" && $class["zoom_status"] === "ready" ? "ready" : null;
+                $u["role"] === "student" && $class["zoom_status"] === "ready"
+                    ? "ready"
+                    : null;
         }
         unset($class);
     }
@@ -1734,6 +1745,12 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         });
         return ["ok" => true];
     }
+    if ($action === "file.video.begin") {
+        return beginLessonVideo($u, $d);
+    }
+    if ($action === "file.video.part") {
+        return acceptLessonVideoPart($u, $d);
+    }
     if ($action === "file.upload") {
         return uploadFile($u);
     }
@@ -1928,12 +1945,16 @@ function certificateReason(string $course, string $student): ?string
     foreach (
         rows(
             "SELECT q.passing,MAX(100.0*a.score/NULLIF(a.total,0)) AS best_score FROM quizzes q LEFT JOIN attempts a ON a.quiz_id=q.id AND a.student_id=? AND a.submitted_at IS NOT NULL WHERE q.course_id=? AND " .
-                recordAvailable("quiz", "q.id") . " GROUP BY q.id,q.passing",
+                recordAvailable("quiz", "q.id") .
+                " GROUP BY q.id,q.passing",
             [$student, $course],
         )
         as $q
     ) {
-        if ($q["best_score"] === null || (float) $q["best_score"] < $q["passing"]) {
+        if (
+            $q["best_score"] === null ||
+            (float) $q["best_score"] < $q["passing"]
+        ) {
             return "يجب اجتياز اختبارات الدورة.";
         }
     }
@@ -1970,7 +1991,8 @@ function certificateReason(string $course, string $student): ?string
     if (
         one(
             "SELECT f.id FROM certificates f WHERE f.course_id=? AND f.student_id=? AND NOT (" .
-                recordAvailable("certificate", "f.id") . ")",
+                recordAvailable("certificate", "f.id") .
+                ")",
             [$course, $student],
         )
     ) {
@@ -2159,13 +2181,20 @@ function downloadFile(array $u, string $id, bool $preview = false): never
             exit();
         }
     }
-    if (!$head) {
+    $framed = in_array(
+        $f["storage_name"],
+        ["frames1:local", "frames1:s3"],
+        true,
+    );
+    if (!$head && !$framed) {
         $content = dec(encryptedObject($f["storage_name"]));
         if (strlen($content) !== $len) {
             throw new RuntimeException(
                 "Stored file length differs from metadata",
             );
         }
+    }
+    if (!$head) {
         audit($u, "file.downloaded", $id);
     }
     $inline =
@@ -2194,11 +2223,16 @@ function downloadFile(array $u, string $id, bool $preview = false): never
         http_response_code(206);
         header("Content-Range: bytes $start-$end/$len");
         header("Content-Length: " . ($end - $start + 1));
-        echo substr($content, $start, $end - $start + 1);
     } else {
         header("Content-Length: $len");
-        if (!$head) {
-            echo $content;
+    }
+    if (!$head) {
+        if ($framed) {
+            streamLessonVideo($f, $start, $end);
+        } else {
+            echo $partial
+                ? substr($content, $start, $end - $start + 1)
+                : $content;
         }
     }
     exit();

@@ -172,6 +172,7 @@ export interface Profile {
   guardian_id?: string | null;
 }
 export interface Data {
+  file_limits?: { regular: number; lesson_video: number };
   statistics?: {
     students: number;
     enrollments: number;

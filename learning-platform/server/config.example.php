@@ -13,7 +13,8 @@ return [
     "staff_mfa_enabled" => true,
     "registration_enabled" => true, // New requests stay disabled until an admin review.
     "max_upload_bytes" => 31457280,
-    "storage_quota_bytes" => 2147483648, // Set an explicit quota appropriate to your plan.
+    "lesson_video_bytes" => 1073741824,
+    "storage_quota_bytes" => 268435456000, // Set an explicit quota appropriate to your plan.
     "max_video_upload_bytes" => 10737418240,
     "integrations" => [
         "moyasar" => ["enabled" => false, "mode" => "test", "secret_key" => ""],

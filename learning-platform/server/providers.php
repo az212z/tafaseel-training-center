@@ -291,6 +291,7 @@ function migrateSchema(): void
             "schema-v8.sql",
             "schema-v9.sql",
             "schema-v10.sql",
+            "schema-v11.sql",
         ]
         as $name
     ) {

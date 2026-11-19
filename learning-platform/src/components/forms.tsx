@@ -486,8 +486,8 @@ export function LessonForm({
         </div>
         {kind === "video" && (
           <Field
-            label="رابط الفيديو"
-            hint="YouTube أو Vimeo. أو ارفع MP4 أدناه؛ للمقاطع الطويلة استخدم استضافة فيديو."
+            label="رابط الفيديو (اختياري)"
+            hint="ارفع ملف MP4 أدناه، أو أدخل رابط YouTube أو Vimeo."
           >
             <input
               name="video_url"
