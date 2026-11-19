@@ -14,33 +14,96 @@ function websiteContent(bool $private = false): array
         : setting("website", []);
     $content = array_replace($default, $stored);
     $content["site"] = array_replace($default["site"], $stored["site"] ?? []);
+    if ($content["site"]["name"] === "مركز تفاصيل للتدريب") {
+        $content["site"]["name"] = "منصة تفاصيل";
+    }
     $live = rows(
-        "SELECT c.id,c.title,c.duration,c.status,o.price_minor,o.enrollment_open FROM courses c LEFT JOIN course_commerce o ON o.course_id=c.id",
+        "SELECT c.id,c.title,c.description,c.category,c.image,c.duration,c.instructor_id,o.price_minor,o.enrollment_open FROM courses c LEFT JOIN course_commerce o ON o.course_id=c.id WHERE c.status='published' AND " .
+            recordAvailable("course", "c.id") .
+            " ORDER BY c.created_at DESC,c.id",
     );
+    $byId = array_column($live, null, "id");
+    $byTitle = [];
+    foreach ($live as $course) {
+        $byTitle[$course["title"]] ??= $course;
+    }
+    $listed = [];
+    $publicTrainerNames = [];
+    foreach ($content["trainers"] as $trainer) {
+        if ($trainer["visible"] && !empty($trainer["account_id"])) {
+            $publicTrainerNames[$trainer["account_id"]] = $trainer["name"];
+        }
+    }
+    $availability = fn($course) => [
+        "id" => $course["id"],
+        "duration" => (int) $course["duration"],
+        "price_minor" => isset($course["price_minor"])
+            ? (int) $course["price_minor"]
+            : null,
+        "open" => (bool) $course["enrollment_open"],
+    ];
     foreach ($content["programs"] as &$p) {
-        $p["availability"] = null;
-        foreach ($live as $c) {
-            $matches = !empty($p["course_id"])
-                ? $p["course_id"] === $c["id"]
-                : $p["title"] === $c["title"];
-            if ($matches && $c["status"] === "published") {
-                $p["availability"] = [
-                    "id" => $c["id"],
-                    "duration" => (int) $c["duration"],
-                    "price_minor" => isset($c["price_minor"])
-                        ? (int) $c["price_minor"]
-                        : null,
-                    "open" => (bool) $c["enrollment_open"],
-                ];
-                break;
-            }
+        $course = !empty($p["course_id"])
+            ? $byId[$p["course_id"]] ?? null
+            : $byTitle[$p["title"]] ?? null;
+        $p["availability"] = $course ? $availability($course) : null;
+        if ($course) {
+            $listed[$course["id"]] = true;
         }
         if (!$private) {
             unset($p["course_id"]);
+            $p["trainer_name"] = $course
+                ? $publicTrainerNames[$course["instructor_id"]] ?? ""
+                : "";
         }
     }
     unset($p);
     if (!$private) {
+        $content["trainers"] = array_values(
+            array_filter($content["trainers"], fn($t) => $t["visible"]),
+        );
+        foreach ($content["trainers"] as &$trainer) {
+            unset($trainer["account_id"]);
+        }
+        unset($trainer);
+        $usedSlugs = array_fill_keys(
+            array_column($content["programs"], "slug"),
+            true,
+        );
+        foreach ($live as $course) {
+            if (isset($listed[$course["id"]])) {
+                continue;
+            }
+            $slug = "course-" . $course["id"];
+            while (isset($usedSlugs[$slug])) {
+                $slug .= "-course";
+            }
+            $usedSlugs[$slug] = true;
+            $category = $course["category"];
+            foreach ($content["categories"] as $g) {
+                if ($g["title"] === $category) {
+                    $category = $g["id"];
+                }
+            }
+            $content["programs"][] = [
+                "slug" => $slug,
+                "category" => $category,
+                "title" => $course["title"],
+                "description" => $course["description"],
+                "overview" => $course["description"],
+                "image" => $course["image"],
+                "imageAlt" => $course["title"],
+                "visible" => true,
+                "featured" => false,
+                "audience" => "",
+                "prerequisites" => "",
+                "topics" => [],
+                "outcomes" => [],
+                "availability" => $availability($course),
+                "trainer_name" =>
+                    $publicTrainerNames[$course["instructor_id"]] ?? "",
+            ];
+        }
         $content["programs"] = array_values(
             array_filter($content["programs"], fn($p) => $p["visible"]),
         );
@@ -60,7 +123,12 @@ function websiteTextList(mixed $items, int $max = 12): array
 }
 function websiteAction(string $action, string $method, array $d): ?array
 {
-    $gets = ["website", "website.admin", "website.inquiries"];
+    $gets = [
+        "website",
+        "website.admin",
+        "website.inquiries",
+        "website.trainer.photo",
+    ];
     $posts = [
         "website.save",
         "website.inquiry",
@@ -79,6 +147,33 @@ function websiteAction(string $action, string $method, array $d): ?array
     }
     if ($action === "website") {
         return websiteContent();
+    }
+    if ($action === "website.trainer.photo") {
+        $id = str($d["id"] ?? "", 64);
+        $content = websiteContent(true);
+        $index = array_search(
+            $id,
+            array_column($content["trainers"], "id"),
+            true,
+        );
+        if ($index === false) {
+            fail(404, "الصورة غير متاحة.");
+        }
+        $trainer = $content["trainers"][$index];
+        if (!$trainer["visible"]) {
+            auth(["admin"]);
+        }
+        if (!str_starts_with($trainer["image"], "/api/")) {
+            fail(404, "الصورة غير متاحة.");
+        }
+        $photo = setting("trainer_photo_" . $id, "");
+        if (!$photo) {
+            fail(404, "الصورة غير متاحة.");
+        }
+        header("Content-Type: image/jpeg");
+        header("Cache-Control: private, no-store");
+        echo base64_decode($photo, true);
+        exit();
     }
     if ($action === "website.inquiry") {
         rate("website-inquiry:" . ($_SERVER["REMOTE_ADDR"] ?? ""), 5, 3600);
@@ -269,6 +364,75 @@ function websiteAction(string $action, string $method, array $d): ?array
                 $site["email"] = email($site["email"]);
             }
             $content["site"] = $site;
+        } elseif ($section === "trainer") {
+            $id = str($d["id"] ?? "", 64, false);
+            $index = array_search(
+                $id,
+                array_column($content["trainers"], "id"),
+                true,
+            );
+            if ($id && $index === false) {
+                fail(404, "المدرب غير موجود.");
+            }
+            if (!$id && count($content["trainers"]) >= 200) {
+                fail(422, "بلغ الدليل الحد المسموح.");
+            }
+            $trainer = $id
+                ? $content["trainers"][$index]
+                : ["id" => uid(), "image" => "", "example" => false];
+            $id = $trainer["id"];
+            $trainer["name"] = str($v["name"] ?? "", 100);
+            $trainer["specialty"] = str($v["specialty"] ?? "", 120);
+            $trainer["bio"] = str($v["bio"] ?? "", 600);
+            $trainer["visible"] = ($v["visible"] ?? false) === true;
+            $trainer["account_id"] = str($v["account_id"] ?? "", 40, false);
+            if (
+                $trainer["account_id"] &&
+                !one(
+                    "SELECT u.id FROM users u WHERE u.id=? AND u.role='instructor' AND u.active=1 AND " .
+                        recordAvailable("account", "u.id"),
+                    [$trainer["account_id"]],
+                )
+            ) {
+                fail(422, "اختر حساب مدرب نشط.");
+            }
+            if ($trainer["account_id"]) {
+                foreach ($content["trainers"] as $existing) {
+                    if (
+                        $existing["id"] !== $id &&
+                        ($existing["account_id"] ?? "") ===
+                            $trainer["account_id"]
+                    ) {
+                        fail(409, "لهذا الحساب بطاقة مدرب بالفعل.");
+                    }
+                };
+            }
+            if (!empty($v["photo"])) {
+                $photo = base64_decode($v["photo"], true);
+                $info = $photo ? @getimagesizefromstring($photo) : false;
+                if (
+                    !$info ||
+                    strlen($photo) > 44000 ||
+                    $info[2] !== IMAGETYPE_JPEG ||
+                    max($info[0], $info[1]) > 640
+                ) {
+                    fail(422, "تعذّر قراءة صورة المدرب.");
+                }
+                setSetting("trainer_photo_" . $id, base64_encode($photo));
+                $trainer["image"] =
+                    "/api/index.php?action=website.trainer.photo&id=" .
+                    $id .
+                    "&v=" .
+                    substr(hash("sha256", $photo), 0, 12);
+            }
+            if (!$trainer["image"] && $trainer["visible"]) {
+                fail(422, "أضف صورة المدرب قبل النشر.");
+            }
+            if ($index === false) {
+                $content["trainers"][] = $trainer;
+            } else {
+                $content["trainers"][$index] = $trainer;
+            }
         } elseif ($section === "program") {
             $slug = str($d["slug"] ?? "", 100);
             $index = array_search(

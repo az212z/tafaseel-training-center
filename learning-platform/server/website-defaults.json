@@ -1,7 +1,7 @@
 {
   "revision": 1,
   "site": {
-    "name": "مركز تفاصيل للتدريب",
+    "name": "منصة تفاصيل",
     "tagline": "معرفة تفهمها. مهارة تستخدمها.",
     "hero_title": "دورات تناسب أهدافك",
     "hero_description": "برامج في الاختبارات واللغة والمهارات المهنية والفنون. اختر دورتك، وسجّل حسابك، وتابع دروسك وواجباتك من مكان واحد.",
@@ -857,5 +857,34 @@
         ]
       ]
     }
-  }
+  },
+  "trainers": [
+    {
+      "id": "example-quant",
+      "name": "سعود القحطاني",
+      "specialty": "القدرات الكمية",
+      "bio": "يركّز على تحليل المسألة واختيار طريقة الحل، من النسب والتناسب إلى قراءة الرسوم البيانية.",
+      "image": "/images/trainers/quant.webp",
+      "visible": true,
+      "example": true
+    },
+    {
+      "id": "example-english",
+      "name": "نورة العتيبي",
+      "specialty": "اللغة الإنجليزية",
+      "bio": "تشرح مهارات القراءة والاستماع وتبني تدريبات قصيرة تساعد المتعلم على الاستعداد للاختبارات.",
+      "image": "/images/trainers/english.webp",
+      "visible": true,
+      "example": true
+    },
+    {
+      "id": "example-design",
+      "name": "عمر الدوسري",
+      "specialty": "الرسم والتصميم",
+      "bio": "يشرح تكوين اللوحة واختيار الألوان من خلال تمارين عملية في الرسم والتصميم.",
+      "image": "/images/trainers/design.webp",
+      "visible": true,
+      "example": true
+    }
+  ]
 }

@@ -297,9 +297,7 @@ function Login({
       <div className="login-art">
         <div className="login-brand">
           <img src={asset("/brand/logo.webp")} alt="شعار تفاصيل" />
-          <div>
-            تفاصيل<span>مركز تفاصيل للتدريب</span>
-          </div>
+          <div>منصة تفاصيل</div>
         </div>
         <div className="login-art-copy">
           <span className="login-pill">
@@ -328,7 +326,7 @@ function Login({
           </div>
         </div>
         <small className="login-art-foot">
-          مركز تفاصيل للتدريب <span>تعلّم يفتح لك آفاقًا جديدة</span>
+          منصة تفاصيل <span>تعلّم يفتح لك آفاقًا جديدة</span>
         </small>
       </div>
       <main className="login-main">
@@ -518,7 +516,7 @@ function Login({
           )}
         </div>
         <footer>
-          © {new Date().getFullYear()} مركز تفاصيل للتدريب. جميع الحقوق محفوظة.
+          © {new Date().getFullYear()} منصة تفاصيل. جميع الحقوق محفوظة.
         </footer>
       </main>
     </div>
@@ -696,7 +694,7 @@ function Shell({
             <GraduationCap size={22} weight="duotone" />
           </span>
           <div>
-            <strong>مركز تفاصيل للتدريب</strong>
+            <strong>منصة تفاصيل</strong>
             <small>{roles[user.role]}</small>
           </div>
           <span className="workspace-dot" />
@@ -1155,7 +1153,7 @@ function SessionApp() {
       navigate(returnProgram || "/dashboard", { replace: true });
   }, [user, data, routeLocation.pathname, navigate, returnProgram]);
   useEffect(() => {
-    document.title = "تفاصيل | المنصة التعليمية";
+    document.title = "منصة تفاصيل | المساحة التعليمية";
     document
       .querySelector('meta[name="robots"]')
       ?.setAttribute("content", "noindex,nofollow");

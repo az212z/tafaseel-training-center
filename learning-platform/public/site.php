@@ -23,7 +23,8 @@ try {
         "UTF-8",
     );
     $labels = [
-        "/" => "مركز تفاصيل للتدريب | برامجك ومساحتك التعليمية",
+        "/" => "منصة تفاصيل | الدورات والمدربون",
+        "/trainers" => "مدربو منصة تفاصيل",
         "/programs" => "الدورات والبرامج",
         "/tracks" => "مجالات التعلّم",
         "/learning-paths" => "مسارات التعلم",
@@ -108,9 +109,7 @@ try {
             ($article["title"] ??
                 ($category["title"] ??
                     ($labels[$path] ??
-                        ($platform
-                            ? "المنصة التعليمية"
-                            : "الصفحة غير موجودة")))));
+                        ($platform ? "منصة تفاصيل" : "الصفحة غير موجودة")))));
     $description =
         ($policyKey ? $c["pages"][$policyKey]["intro"] : null) ??
         ($program["description"] ??
@@ -121,7 +120,7 @@ try {
     $html = preg_replace(
         "#<title>.*?</title>#s",
         "<title>" .
-            $e($title . ($path === "/" ? "" : " | تفاصيل")) .
+            $e($title . ($path === "/" ? "" : " | منصة تفاصيل")) .
             "</title>",
         $html,
     );
@@ -152,7 +151,7 @@ try {
         '"><meta name="twitter:card" content="summary_large_image">';
     $html = str_replace("</head>", $head . "</head>", $html);
     $body =
-        '<div class="site"><main class="site-container"><header class="site-heading"><a href="/">تفاصيل — الرئيسية</a><h1>' .
+        '<div class="site"><main class="site-container"><header class="site-heading"><a href="/">منصة تفاصيل — الرئيسية</a><h1>' .
         $e($title) .
         "</h1><p>" .
         $e($description) .
@@ -197,6 +196,22 @@ try {
             $body .= "<h2>" . $e($f["q"]) . "</h2><p>" . $e($f["a"]) . "</p>";
         }
     }
+    if ($path === "/" || $path === "/trainers") {
+        $body .= "<section><h2>مدربو المنصة</h2>";
+        foreach ($c["trainers"] as $t) {
+            $body .=
+                "<article><h3>" .
+                $e($t["name"]) .
+                "</h3><p>" .
+                $e($t["specialty"]) .
+                "</p><p>" .
+                $e($t["bio"]) .
+                "</p>" .
+                ($t["example"] ? "<small>ملف توضيحي</small>" : "") .
+                "</article>";
+        }
+        $body .= "</section>";
+    }
     if (!$platform && !$program && !$article) {
         $body .=
             '<nav aria-label="دورات المركز"><h2>اكتشف دورات تفاصيل</h2><ul>';
@@ -213,7 +228,7 @@ try {
         $body .= "</ul></nav>";
     }
     $body .=
-        '<nav aria-label="روابط المركز"><a href="/programs">الدورات</a> · <a href="/about">عن تفاصيل</a> · <a href="/contact">تواصل معنا</a> · <a href="/help">المساعدة</a> · <a href="/login">تسجيل الدخول</a></nav></main></div>';
+        '<nav aria-label="روابط المركز"><a href="/programs">الدورات</a> · <a href="/trainers">المدربون</a> · <a href="/about">عن تفاصيل</a> · <a href="/contact">تواصل معنا</a> · <a href="/help">المساعدة</a> · <a href="/login">تسجيل الدخول</a></nav></main></div>';
     // Readable initial HTML is replaced by the interactive application on load.
     $html = str_replace(
         '<div id="root"></div>',

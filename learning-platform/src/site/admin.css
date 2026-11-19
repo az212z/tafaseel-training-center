@@ -243,3 +243,43 @@
   justify-content: end;
   margin-bottom: 20px;
 }
+
+.trainer-admin {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(0, 2.2fr);
+  gap: 30px;
+}
+.trainer-admin aside,
+.trainer-admin form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-self: start;
+}
+.trainer-admin aside > button:not(.btn) {
+  border: 1px solid #dce3ea;
+  background: white;
+  border-radius: 8px;
+  text-align: start;
+  padding: 12px;
+  display: grid;
+  gap: 3px;
+}
+.trainer-admin aside > button[aria-pressed="true"] {
+  background: #edf4ff;
+  border-color: #5976a1;
+}
+.trainer-admin aside small {
+  color: #55667b;
+}
+.trainer-portrait-preview {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+@media (max-width: 650px) {
+  .trainer-admin {
+    grid-template-columns: 1fr;
+  }
+}

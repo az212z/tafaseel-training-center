@@ -17,7 +17,6 @@ import {
   Certificate,
   Check,
   CheckCircle,
-  GraduationCap,
   Buildings,
   ChalkboardTeacher,
   MagnifyingGlass,
@@ -29,11 +28,6 @@ import {
   ArrowRight,
   MapPin,
   Clock,
-  ChartLineUp,
-  Palette,
-  Translate,
-  Brain,
-  UsersThree,
 } from "@phosphor-icons/react";
 import { api, get } from "../api";
 import { asset, isStaticPreview } from "../environment";
@@ -45,6 +39,7 @@ import "./site.css";
 
 const nav = [
   ["/programs", "الدورات والبرامج"],
+  ["/trainers", "المدربون"],
   ["/about", "عن تفاصيل"],
   ["/business", "للجهات"],
   ["/library", "المكتبة"],
@@ -53,6 +48,7 @@ const nav = [
 const publicPaths = [
   "/",
   "/programs",
+  "/trainers",
   "/tracks",
   "/learning-paths",
   "/about",
@@ -83,14 +79,6 @@ const money = (n: number) =>
     currency: "SAR",
     maximumFractionDigits: 2,
   }).format(n / 100);
-const icons = [
-  Brain,
-  Translate,
-  GraduationCap,
-  ChartLineUp,
-  Palette,
-  UsersThree,
-];
 function SiteLink({
   to,
   children,
@@ -135,7 +123,9 @@ function ProgramCard({ p, c }: { p: SiteProgram; c: SiteContent }) {
           width="600"
           height="400"
         />
-        <span>{c.categories.find((x) => x.id === p.category)?.title}</span>
+        <span>
+          {c.categories.find((x) => x.id === p.category)?.title || p.category}
+        </span>
       </Link>
       <div className="site-course-copy">
         <div className="site-course-state">
@@ -152,12 +142,13 @@ function ProgramCard({ p, c }: { p: SiteProgram; c: SiteContent }) {
           <Link to={`/programs/${p.slug}`}>{p.title}</Link>
         </h3>
         <p>{p.description}</p>
+        {p.trainer_name && <small>{p.trainer_name}</small>}
         <div className="site-course-foot">
           {p.availability?.open && p.availability.price_minor !== null && (
             <span>{money(p.availability.price_minor)}</span>
           )}
           <Link to={`/programs/${p.slug}`} aria-label={`تفاصيل ${p.title}`}>
-            <ArrowUpLeft size={23} />
+            عرض الدورة <ArrowUpLeft size={17} />
           </Link>
         </div>
       </div>
@@ -213,7 +204,8 @@ export default function PublicSite() {
     const p = content.programs.find((p) => path === `/programs/${p.slug}`);
     const a = content.articles.find((a) => path === `/library/${a.id}`);
     const labels: Record<string, string> = {
-      "/": "مركز تفاصيل للتدريب | برامجك ومساحتك التعليمية",
+      "/": "منصة تفاصيل | الدورات والمدربون",
+      "/trainers": "مدربو المنصة",
       "/programs": "الدورات والبرامج",
       "/learning-paths": "مسارات التعلم",
       "/about": "عن مركز تفاصيل",
@@ -233,7 +225,7 @@ export default function PublicSite() {
     };
     document.title =
       (p?.title || a?.title || labels[path] || "برامج تفاصيل") +
-      (path === "/" ? "" : " | تفاصيل");
+      (path === "/" ? "" : " | منصة تفاصيل");
     const desc = p?.description || a?.intro || content.site.hero_description;
     document
       .querySelector('meta[name="description"]')
@@ -299,9 +291,7 @@ export default function PublicSite() {
               width="55"
               height="55"
             />
-            <span>
-              تفاصيل<small>مركز تفاصيل للتدريب</small>
-            </span>
+            <span>منصة تفاصيل</span>
           </Link>
           <nav
             id="site-navigation"
@@ -335,6 +325,14 @@ export default function PublicSite() {
       <main id="site-main" tabIndex={-1}>
         <Routes>
           <Route path="/" element={<Home c={content} />} />
+          <Route
+            path="/trainers"
+            element={
+              <section className="site-container site-section">
+                <TrainerCards c={content} />
+              </section>
+            }
+          />
           <Route path="/programs" element={<Programs c={content} />} />
           <Route path="/learning-paths" element={<PublicPathDirectory />} />
           <Route path="/tracks" element={<Programs c={content} />} />
@@ -411,6 +409,7 @@ export default function PublicSite() {
               ["/about", "عن المركز"],
               ["/gallery", "صور المركز"],
               ["/business", "تدريب الجهات"],
+              ["/trainers", "مدربو المنصة"],
               ["/teach", "انضم كمدرب"],
             ].map(([to, l]) => (
               <Link key={to} to={to}>
@@ -458,114 +457,146 @@ export default function PublicSite() {
     </div>
   );
 }
+function TrainerCards({ c }: { c: SiteContent }) {
+  return (
+    <div className="trainer-showcase">
+      <div className="site-section-heading">
+        <h2>مدربو المنصة</h2>
+        <Link className="site-text-link" to="/teach">
+          انضم كمدرب <ArrowLeft size={18} />
+        </Link>
+      </div>
+      <div className="trainer-grid">
+        {c.trainers.map((t) => (
+          <article className="trainer-card" key={t.id}>
+            <div className="trainer-card-photo">
+              {t.image && (
+                <img
+                  src={asset(t.image)}
+                  loading="lazy"
+                  width={420}
+                  height={360}
+                  alt={t.name}
+                />
+              )}
+            </div>
+            <div className="trainer-card-copy">
+              <span>{t.specialty}</span>
+              <h3>{t.name}</h3>
+              <p>{t.bio}</p>
+              {t.example && <small>ملف توضيحي</small>}
+            </div>
+          </article>
+        ))}
+      </div>
+      {!c.trainers.length && <p>ستظهر هنا بطاقات المدربين عند نشرها.</p>}
+    </div>
+  );
+}
 function Home({ c }: { c: SiteContent }) {
-  const nav = useNavigate();
+  const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
+  const programs = c.programs
+    .filter(
+      (p) =>
+        (!category || p.category === category) &&
+        (!search.trim() ||
+          (
+            p.title +
+            " " +
+            p.description +
+            " " +
+            (p.trainer_name || "")
+          ).includes(search.trim())),
+    )
+    .sort(
+      (a, b) =>
+        Number(!!b.availability?.open) - Number(!!a.availability?.open) ||
+        Number(b.featured) - Number(a.featured),
+    );
   return (
     <>
-      <section className="site-hero site-container">
-        <div className="site-hero-copy">
-          <h1>
-            {c.site.hero_title.split("\n").map((t, i) => (
-              <span key={i}>{t}</span>
-            ))}
-          </h1>
+      <section className="discovery-hero site-container">
+        <div>
+          <h1>{c.site.hero_title}</h1>
           <p>{c.site.hero_description}</p>
-          <form
-            className="site-hero-search"
-            role="search"
-            onSubmit={(e) => {
-              e.preventDefault();
-              nav("/programs?q=" + encodeURIComponent(search));
-            }}
-          >
-            <MagnifyingGlass size={23} />
+          <div className="discovery-links">
+            <a href="#home-courses" className="site-button">
+              استكشف الدورات <ArrowLeft size={19} />
+            </a>
+            <Link to="/trainers">
+              تعرّف على المدربين <ArrowUpLeft size={18} />
+            </Link>
+          </div>
+        </div>
+        <img
+          src={asset("/images/facility/main-training-room.webp")}
+          alt="قاعة تدريب تفاصيل"
+          width="720"
+          height="480"
+          fetchPriority="high"
+        />
+      </section>
+      <section
+        id="home-courses"
+        className="site-section site-container course-showcase"
+      >
+        <header className="site-section-heading">
+          <div>
+            <h2>جميع الدورات</h2>
+          </div>
+          <label className="discovery-search">
+            <MagnifyingGlass size={20} />
             <input
-              aria-label="ابحث عن دورة أو مهارة"
-              placeholder="ما الذي ترغب بتعلّمه؟"
+              aria-label="ابحث في الدورات"
+              placeholder="ابحث باسم الدورة أو المدرب"
+              type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <button type="submit" aria-label="ابحث في الدورات">
-              <ArrowLeft size={23} />
-            </button>
-          </form>
-          <div className="site-hero-topics">
-            <span>ابدأ باهتمامك</span>
-            {c.categories.slice(0, 3).map((g) => (
-              <Link key={g.id} to={"/tracks/" + g.id}>
+          </label>
+        </header>
+        <div className="discovery-filters" aria-label="مجالات الدورات">
+          <button aria-pressed={!category} onClick={() => setCategory("")}>
+            الكل
+          </button>
+          {c.categories
+            .filter((g) => c.programs.some((p) => p.category === g.id))
+            .map((g) => (
+              <button
+                key={g.id}
+                aria-pressed={g.id === category}
+                onClick={() => setCategory(g.id)}
+              >
                 {g.title}
-                <ArrowUpLeft size={14} />
-              </Link>
+              </button>
             ))}
-          </div>
         </div>
-        <div className="site-hero-visual">
-          <div className="site-hero-picture">
-            <img
-              src={asset("/images/facility/main-training-room.webp")}
-              width="1448"
-              height="1086"
-              alt="قاعة مركز تفاصيل للتدريب بطاولات جماعية وكراسٍ زرقاء"
-              fetchPriority="high"
-            />
-            <span className="site-photo-caption">من داخل مركز تفاصيل</span>
-          </div>
-          <Link to="/programs" className="site-hero-note">
-            <BookOpen size={31} weight="duotone" />
-            <div>
-              <strong>دورات حضورية وعن بُعد</strong>
-              <span>تصفّح الدورات ومواعيد التسجيل</span>
-            </div>
-            <ArrowUpLeft size={23} />
-          </Link>
-        </div>
-      </section>
-      <section className="site-section site-container">
-        <div className="site-section-heading">
-          <div>
-            <h2>مجالات التدريب</h2>
-          </div>
-        </div>
-        <div className="site-tracks">
-          {c.categories.map((g, i) => {
-            const Icon = icons[i] || BookOpen;
-            return (
-              <Link key={g.id} to={"/tracks/" + g.id}>
-                <Icon size={33} weight="duotone" />
-                <div>
-                  <h3>{g.title}</h3>
-                  <p>{g.description}</p>
-                </div>
-                <ArrowUpLeft size={22} />
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-      <section className="site-section site-container">
-        <div className="site-section-heading">
-          <div>
-            <h2>الدورات والبرامج</h2>
-          </div>
-          <Link className="site-text-link" to="/programs">
-            تصفّح جميع الدورات <ArrowLeft size={19} />
-          </Link>
-        </div>
-        <div className="site-course-grid">
-          {c.programs
-            .filter((p) => p.availability?.open || p.featured)
-            .sort(
-              (a, b) =>
-                Number(Boolean(b.availability?.open)) -
-                Number(Boolean(a.availability?.open)),
-            )
-            .slice(0, 4)
-            .map((p) => (
+        {programs.length ? (
+          <div className="site-course-grid discovery-grid">
+            {programs.map((p) => (
               <ProgramCard key={p.slug} p={p} c={c} />
             ))}
-        </div>
+          </div>
+        ) : (
+          <p role="status">
+            لم نجد دورة تطابق بحثك.{" "}
+            <button
+              onClick={() => {
+                setSearch("");
+                setCategory("");
+              }}
+            >
+              عرض جميع الدورات
+            </button>
+          </p>
+        )}
       </section>
+      {c.trainers.length > 0 && (
+        <section className="site-section site-container">
+          <TrainerCards c={c} />
+        </section>
+      )}
       <section className="site-section site-container site-audiences">
         <div>
           <Buildings size={35} weight="duotone" />
@@ -596,7 +627,7 @@ function Home({ c }: { c: SiteContent }) {
           loading="lazy"
         />
         <div>
-          <h2>مركز تفاصيل للتدريب</h2>
+          <h2>عن منصة تفاصيل</h2>
           <p>{c.site.about}</p>
           <Link className="site-text-link" to="/gallery">
             جولة في المركز <ArrowLeft size={20} />
@@ -773,10 +804,18 @@ function ProgramDetail({ c, user }: { c: SiteContent; user: User | null }) {
           <article className="site-prose">
             <h2>عن الدورة</h2>
             <p>{p.overview}</p>
-            <h2>لمن هذه الدورة؟</h2>
-            <p>{p.audience}</p>
-            <h2>قبل أن تبدأ</h2>
-            <p>{p.prerequisites}</p>
+            {p.audience && (
+              <>
+                <h2>لمن هذه الدورة؟</h2>
+                <p>{p.audience}</p>
+              </>
+            )}
+            {p.prerequisites && (
+              <>
+                <h2>قبل أن تبدأ</h2>
+                <p>{p.prerequisites}</p>
+              </>
+            )}
             {p.topics.length > 0 && (
               <>
                 <h2>محاور التعلّم</h2>

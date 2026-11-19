@@ -1,3 +1,4 @@
+import { TrainerEditor } from "./TrainerEditor";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -147,7 +148,11 @@ export default function WebsiteAdmin() {
         ...extra,
       });
       await load();
-      notify("حُفظ المحتوى ونُشر في الموقع.");
+      notify(
+        section === "trainer"
+          ? "حُفظت بطاقة المدرب."
+          : "حُفظ المحتوى ونُشر في الموقع.",
+      );
     } catch (e) {
       notify((e as Error).message, "error");
       throw e;
@@ -204,6 +209,7 @@ export default function WebsiteAdmin() {
           ["overview", "مركز الإدارة"],
           ["site", "محتوى الموقع"],
           ["programs", "دليل الدورات"],
+          ["trainers", "دليل المدربين"],
           ["library", "المكتبة"],
           ["faq", "الأسئلة الشائعة"],
           ["pages", "السياسات والصفحات"],
@@ -448,6 +454,9 @@ export default function WebsiteAdmin() {
             </div>
           </Form>
         </Panel>
+      )}
+      {tab === "trainers" && (
+        <TrainerEditor profiles={content.trainers} busy={busy} save={save} />
       )}
       {tab === "programs" && (
         <Panel
@@ -975,7 +984,7 @@ function ProgramEditor({
       </label>
       <label className="checkbox-field">
         <input type="checkbox" name="featured" defaultChecked={p.featured} />
-        ضمن الدورات المختارة في الرئيسية (تظهر أول أربع دورات مختارة)
+        تقديم الدورة في ترتيب بطاقات الرئيسية
       </label>
       <Link
         to={"/programs/" + p.slug}

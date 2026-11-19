@@ -1,4 +1,15 @@
+export interface SiteTrainer {
+  id: string;
+  name: string;
+  specialty: string;
+  bio: string;
+  image: string;
+  visible: boolean;
+  example: boolean;
+  account_id?: string;
+}
 export interface SiteProgram {
+  trainer_name?: string;
   slug: string;
   title: string;
   category: string;
@@ -35,6 +46,7 @@ export interface SiteContent {
   pages: Record<string, { title: string; intro: string; sections: string[][] }>;
   categories: { id: string; title: string; description: string }[];
   programs: SiteProgram[];
+  trainers: SiteTrainer[];
   faqs: { q: string; a: string }[];
   articles: SiteArticle[];
   questions: {
