@@ -365,13 +365,15 @@ function dataFor(array $u, array $scope = []): array
         $fileArgs = [$u["id"]];
     } elseif ($u["role"] === "student") {
         $fileWhere =
-            "(f.owner_id=? OR (f.purpose IN ('identity','submission') AND f.student_id=?) OR (f.purpose='resource' AND f.course_id IS NOT NULL)) AND (f.course_id IS NULL OR f.course_id IN (SELECT e.course_id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.student_id=? AND c.status='published' AND " .
+            "((f.purpose<>'identity' AND f.owner_id=?) OR (f.purpose IN ('identity','submission') AND f.student_id=?) OR (f.purpose='resource' AND f.course_id IS NOT NULL)) AND (f.course_id IS NULL OR f.course_id IN (SELECT e.course_id FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE e.student_id=? AND c.status='published' AND " .
             recordAvailable("course", "c.id") .
             "))";
         $fileArgs = [$u["id"], $u["id"], $u["id"]];
     } elseif ($u["role"] === "guardian") {
         $fileWhere =
-            "(f.owner_id=? OR (f.purpose IN ('identity','submission') AND f.student_id IN (SELECT user_id FROM profiles WHERE guardian_id=?)) OR (f.purpose='resource' AND f.course_id IS NOT NULL)) AND (f.course_id IS NULL OR f.course_id IN (SELECT e.course_id FROM enrollments e JOIN profiles p ON p.user_id=e.student_id JOIN courses c ON c.id=e.course_id WHERE p.guardian_id=? AND c.status='published' AND " .
+            "((f.purpose<>'identity' AND f.owner_id=?) OR (f.purpose IN ('identity','submission') AND f.student_id IN (SELECT p.user_id FROM profiles p WHERE p.guardian_id=? AND " .
+            recordAvailable("account", "p.user_id") .
+            ")) OR (f.purpose='resource' AND f.course_id IS NOT NULL)) AND (f.course_id IS NULL OR f.course_id IN (SELECT e.course_id FROM enrollments e JOIN profiles p ON p.user_id=e.student_id JOIN courses c ON c.id=e.course_id WHERE p.guardian_id=? AND c.status='published' AND " .
             recordAvailable("course", "c.id") .
             "))";
         $fileArgs = [$u["id"], $u["id"], $u["id"]];
@@ -570,6 +572,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             $_SESSION["mfa_challenge"] = [
                 "id" => $u["id"],
                 "expires" => time() + 300,
+                "version" => $u["auth_version"],
             ];
             return ["mfaRequired" => true];
         }
@@ -587,17 +590,35 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         $u = one("SELECT * FROM users WHERE id=? AND active=1", [
             $challenge["id"],
         ]);
-        $step = $u
-            ? totpStep(
-                dec($u["mfa_secret"]),
-                digits(str($d["code"] ?? "", 6)),
-                (int) $u["mfa_last"],
-            )
-            : 0;
+        if (
+            !$u ||
+            !$u["mfa_secret"] ||
+            $u["auth_version"] !== ($challenge["version"] ?? null)
+        ) {
+            unset($_SESSION["mfa_challenge"]);
+            fail(401, "تغيّرت بيانات الدخول. سجّل الدخول مجددًا.");
+        }
+        $step = totpStep(
+            dec($u["mfa_secret"]),
+            digits(str($d["code"] ?? "", 6)),
+            (int) $u["mfa_last"],
+        );
         if (!$step) {
             fail(401, "رمز التحقق غير صحيح أو استُخدم مسبقًا.");
         }
-        run("UPDATE users SET mfa_last=? WHERE id=?", [$step, $u["id"]]);
+        $consume = db()->prepare(
+            "UPDATE users SET mfa_last=? WHERE id=? AND active=1 AND auth_version=? AND mfa_last<? AND mfa_secret=?",
+        );
+        $consume->execute([
+            $step,
+            $u["id"],
+            $challenge["version"],
+            $step,
+            $u["mfa_secret"],
+        ]);
+        if ($consume->rowCount() !== 1) {
+            fail(401, "انتهى طلب التحقق. سجّل الدخول مجددًا.");
+        }
         return loginUser($u);
     }
     if ($action === "demo") {
@@ -1335,6 +1356,8 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         $feedback = str($d["feedback"] ?? "", 3000, false);
         return tx(function () use ($u, $s, $score, $feedback) {
             lockRow("courses", $s["course_id"]);
+            courseAccess($u, $s["course_id"], true);
+            guardActiveRecord("assignment", $s["assignment_id"]);
             run("UPDATE submissions SET score=?,feedback=? WHERE id=?", [
                 $score,
                 $feedback,
@@ -1488,11 +1511,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         if (!$a) {
             fail(404, "المحاولة غير موجودة.");
         }
-        $q = one(
-            "SELECT course_id FROM quizzes q WHERE id=? AND " .
-                recordAvailable("quiz", "q.id"),
-            [$a["quiz_id"]],
-        );
+        $q = attemptQuiz($a["quiz_id"]);
         courseAccess($u, $q["course_id"]);
         $questions = json_decode($a["questions"], true);
         $a["questions"] = array_map(function ($q) {
@@ -1528,11 +1547,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             if (!$a) {
                 fail(404, "المحاولة غير موجودة.");
             }
-            $q = one(
-                "SELECT * FROM quizzes q WHERE id=? AND " .
-                    recordAvailable("quiz", "q.id"),
-                [$a["quiz_id"]],
-            );
+            $q = attemptQuiz($a["quiz_id"]);
             courseAccess($u, $q["course_id"]);
             if ($a["submitted_at"]) {
                 return [

@@ -292,6 +292,7 @@ function migrateSchema(): void
             "schema-v9.sql",
             "schema-v10.sql",
             "schema-v11.sql",
+            "schema-v12.sql",
         ]
         as $name
     ) {
@@ -324,6 +325,14 @@ function migrateSchema(): void
                 );
             }
             db()->exec($statement);
+        }
+    }
+    if (db()->getAttribute(PDO::ATTR_DRIVER_NAME) === "mysql") {
+        $column = one(
+            "SELECT DATA_TYPE AS kind FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='files' AND COLUMN_NAME='bytes'",
+        );
+        if ($column && strtolower($column["kind"]) !== "bigint") {
+            db()->exec("ALTER TABLE files MODIFY bytes BIGINT NOT NULL");
         }
     }
     if (!one("SELECT id FROM storage_locks WHERE id=?", ["files"])) {

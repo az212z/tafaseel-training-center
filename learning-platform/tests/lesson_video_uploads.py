@@ -47,7 +47,7 @@ def test():
         args = dict(course_id='course', name='lesson.mp4', bytes=size)
         for client in (student,other):
             client.post('file.video.begin', args, 403)
-        teacher.post('file.video.begin', dict(args,bytes=1024*MIB+1), 413)
+        teacher.post('file.video.begin', dict(args,bytes=10*1024*MIB+1), 413)
         rec = teacher.post('file.video.begin', args)
         uid, block = rec['id'],rec['part_bytes']
         teacher.post('file.video.begin', args, 409)

@@ -750,12 +750,13 @@ function Shell({
           <div className="topbar-actions">
             <button
               className="global-search"
-              aria-label="ابحث في المنصة"
+              aria-label="ابحث في المنصة ⌘ K"
+              aria-keyshortcuts="Control+K Meta+K"
               onClick={() => setSearch(true)}
             >
               <MagnifyingGlass size={19} />
-              <span>ابحث في المنصة…</span>
-              <kbd>⌘ K</kbd>
+              <span>ابحث في المنصة</span>
+              <kbd aria-hidden="true">⌘ K</kbd>
             </button>
             <span className="topbar-divider" />
             {user.role === "student" ? (

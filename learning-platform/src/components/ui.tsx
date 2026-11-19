@@ -338,7 +338,7 @@ export function FileUpload({
   onUploaded: (id: string, name: string) => void;
   accept?: string;
 }) {
-  const { notify, data } = useApp();
+  const { notify, data, user } = useApp();
   const [busy, setBusy] = useState(false);
   const [percent, setPercent] = useState<number | null>(null);
   const [name, setName] = useState("");
@@ -372,8 +372,9 @@ export function FileUpload({
         {isStaticPreview
           ? "PDF، صور، MP4 • حتى ١٠ ميجابايت • وهمية فقط"
           : canUploadVideo
-            ? "فيديو MP4 حتى " +
+            ? "فيديو MP4 بجودته الأصلية حتى " +
               formatLimit(videoLimit) +
+              " • لاستكمال الرفع اختر الملف نفسه في هذا التبويب" +
               (accept === ".mp4"
                 ? ""
                 : " • باقي الملفات حتى " + formatLimit(fileLimit))
@@ -409,7 +410,7 @@ export function FileUpload({
           try {
             const r =
               file.size > fileLimit && courseId
-                ? await uploadLessonVideo(file, courseId, setPercent)
+                ? await uploadLessonVideo(file, courseId, user!.id, setPercent)
                 : await api<{ id: string; name: string }>("file.upload", form);
             setName(r.name);
             onUploaded(r.id, r.name);

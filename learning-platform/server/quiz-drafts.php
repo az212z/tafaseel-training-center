@@ -1,6 +1,19 @@
 <?php
 declare(strict_types=1);
 
+function attemptQuiz(string $id): array
+{
+    $quiz = one(
+        "SELECT * FROM quizzes q WHERE id=? AND " .
+            recordAvailable("quiz", "q.id"),
+        [$id],
+    );
+    if (!$quiz) {
+        fail(410, "أُغلق الاختبار. الإجابات المحفوظة باقية في سجل المحاولة.");
+    }
+    return $quiz;
+}
+
 function quizDraft(array $attempt): array
 {
     $row = one("SELECT * FROM quiz_answer_drafts WHERE attempt_id=?", [
@@ -36,11 +49,7 @@ function saveQuizAnswers(array $user, array $data): array
         if (!$attempt) {
             fail(404, "المحاولة غير موجودة.");
         }
-        $quiz = one(
-            "SELECT course_id FROM quizzes q WHERE id=? AND " .
-                recordAvailable("quiz", "q.id"),
-            [$attempt["quiz_id"]],
-        );
+        $quiz = attemptQuiz($attempt["quiz_id"]);
         courseAccess($user, $quiz["course_id"]);
         if ($attempt["submitted_at"]) {
             fail(409, "تم تسليم المحاولة؛ لا يمكن تغيير الإجابات.");

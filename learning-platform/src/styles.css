@@ -5389,7 +5389,8 @@ tr:hover > td {
 }
 .registration-trap {
   position: absolute;
-  left: -10000px;
+  clip-path: inset(50%);
+  inset-inline-start: 0;
   top: auto;
   width: 1px;
   height: 1px;

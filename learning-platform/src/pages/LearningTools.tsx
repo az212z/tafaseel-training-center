@@ -750,10 +750,12 @@ type Report = PageResult<ReportRow> & {
 };
 export function TrainingReport() {
   const { data } = useApp();
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [course, setCourse] = useState("");
   const [page, setPage] = useState(1);
   const remote = useRemote<Report>("training.report", {
     course_id: course,
+    include_archived: includeArchived ? "1" : "0",
     page: String(page),
   });
   const r = remote.result;
@@ -802,6 +804,18 @@ export function TrainingReport() {
           تصدير صفحة التقرير
         </Button>
       </PageHead>
+      <Field label="السجلات في التقرير">
+        <select
+          value={includeArchived ? "all" : "active"}
+          onChange={(e) => {
+            setIncludeArchived(e.target.value === "all");
+            setPage(1);
+          }}
+        >
+          <option value="active">السجلات الحالية</option>
+          <option value="all">الحالية والمؤرشفة</option>
+        </select>
+      </Field>
       <Field label="الدورة في التقرير">
         <select
           value={course}

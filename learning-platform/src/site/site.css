@@ -786,7 +786,7 @@
   font-size: 10px;
   border-top: 1px solid #d9dedc;
   padding-block: 21px;
-  color: #64748a;
+  color: #505f73;
 }
 .site-heading {
   padding-block: 62px 44px;
@@ -1199,7 +1199,8 @@
 }
 .site-trap {
   position: absolute !important;
-  inset-inline-start: -10000px !important;
+  clip-path: inset(50%);
+  inset-inline-start: 0 !important;
   width: 1px !important;
   height: 1px !important;
   overflow: hidden !important;

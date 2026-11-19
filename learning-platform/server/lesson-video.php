@@ -5,7 +5,7 @@ declare(strict_types=1);
 const LESSON_VIDEO_PART = 4194304;
 function lessonVideoLimit(): int
 {
-    return (int) (cfg()["lesson_video_bytes"] ?? 1073741824);
+    return (int) (cfg()["lesson_video_bytes"] ?? 10737418240);
 }
 function lessonPartName(string $id, int $index): string
 {

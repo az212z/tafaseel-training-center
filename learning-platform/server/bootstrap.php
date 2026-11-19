@@ -293,6 +293,25 @@ function setSetting(string $key, mixed $value): void
         );
     }
 }
+function pruneExpiredRateLimits(): void
+{
+    $cutoff = time();
+    $keys = array_column(
+        rows(
+            "SELECT bucket FROM rate_limits WHERE expires<? ORDER BY expires LIMIT 500",
+            [$cutoff],
+        ),
+        "bucket",
+    );
+    if ($keys) {
+        $marks = implode(",", array_fill(0, count($keys), "?"));
+        run("DELETE FROM rate_limits WHERE expires<? AND bucket IN ($marks)", [
+            $cutoff,
+            ...$keys,
+        ]);
+    }
+}
+
 function rate(string $key, int $max, int $seconds): void
 {
     $bucket = hash_hmac("sha256", $key, cfg()["key"]);
@@ -531,7 +550,7 @@ function fileAccess(array $u, array $f): bool
     if ($f["course_id"] && $u["role"] !== "admin") {
         courseAccess($u, $f["course_id"]);
     }
-    if ($u["role"] === "admin" || $f["owner_id"] === $u["id"]) {
+    if ($u["role"] === "admin") {
         return true;
     }
     if ($f["purpose"] === "identity") {
@@ -539,6 +558,9 @@ function fileAccess(array $u, array $f): bool
             return false;
         }
         studentAccess($u, $f["student_id"], true);
+        return true;
+    }
+    if ($f["owner_id"] === $u["id"]) {
         return true;
     }
     if ($f["purpose"] === "submission") {

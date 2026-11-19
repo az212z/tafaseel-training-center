@@ -529,7 +529,19 @@ function trainingReport(array $u, array $d): array
 {
     auth(["admin", "instructor"]);
     $cid = str($d["course_id"] ?? "", 40, false);
-    $where = "1=1";
+    $withArchived = ($d["include_archived"] ?? "") === "1";
+    $where = $withArchived
+        ? "1=1"
+        : "c.status<>'archived' AND " . recordAvailable("course", "c.id");
+    $lesson = $withArchived ? "1=1" : recordAvailable("lesson", "l.id");
+    $certificate = $withArchived
+        ? "1=1"
+        : recordAvailable("certificate", "f.id");
+    $assignment = $withArchived ? "1=1" : recordAvailable("assignment", "a.id");
+    $class = $withArchived ? "1=1" : recordAvailable("class", "cl.id");
+    $learner = $withArchived
+        ? "1=1"
+        : recordAvailable("account", "e.student_id");
     $args = [];
     if ($u["role"] === "instructor") {
         $where .= " AND c.instructor_id=?";
@@ -541,7 +553,7 @@ function trainingReport(array $u, array $d): array
         $args[] = $cid;
     }
     $out = pagedList(
-        "SELECT c.id,c.title,c.status,(SELECT COUNT(*) FROM enrollments e WHERE e.course_id=c.id) students,(SELECT COUNT(*) FROM lessons l WHERE l.course_id=c.id) lessons,(SELECT COUNT(*) FROM progress p JOIN lessons l ON l.id=p.lesson_id JOIN enrollments e ON e.course_id=l.course_id AND e.student_id=p.student_id WHERE l.course_id=c.id) completed,(SELECT COUNT(*) FROM certificates f WHERE f.course_id=c.id) certificates,(SELECT COUNT(*) FROM submissions s JOIN assignments a ON a.id=s.assignment_id WHERE a.course_id=c.id AND s.score IS NOT NULL) graded,(SELECT COUNT(*) FROM course_surveys s WHERE s.course_id=c.id) survey_responses,(SELECT AVG(experience_rating) FROM course_surveys s WHERE s.course_id=c.id) satisfaction FROM courses c WHERE " .
+        "SELECT c.id,c.title,c.status,(SELECT COUNT(*) FROM enrollments e WHERE e.course_id=c.id AND $learner) students,(SELECT COUNT(*) FROM lessons l WHERE l.course_id=c.id AND $lesson) lessons,(SELECT COUNT(*) FROM progress p JOIN lessons l ON l.id=p.lesson_id JOIN enrollments e ON e.course_id=l.course_id AND e.student_id=p.student_id WHERE l.course_id=c.id AND $lesson AND $learner) completed,(SELECT COUNT(*) FROM certificates f WHERE f.course_id=c.id AND $certificate) certificates,(SELECT COUNT(*) FROM submissions s JOIN assignments a ON a.id=s.assignment_id WHERE a.course_id=c.id AND s.score IS NOT NULL AND $assignment) graded,(SELECT COUNT(*) FROM course_surveys s WHERE s.course_id=c.id) survey_responses,(SELECT AVG(experience_rating) FROM course_surveys s WHERE s.course_id=c.id) satisfaction FROM courses c WHERE " .
             $where .
             " ORDER BY c.created_at DESC,c.id",
         "SELECT COUNT(*) n FROM courses c WHERE " . $where,
@@ -549,13 +561,13 @@ function trainingReport(array $u, array $d): array
         number($d["page"] ?? 1, 1, 1000000),
     );
     $out["attendance"] = rows(
-        "SELECT a.status,COUNT(*) records FROM attendance a JOIN classes cl ON cl.id=a.class_id JOIN courses c ON c.id=cl.course_id WHERE " .
+        "SELECT a.status,COUNT(*) records FROM attendance a JOIN classes cl ON cl.id=a.class_id JOIN courses c ON c.id=cl.course_id WHERE $class AND " .
             $where .
             " GROUP BY a.status",
         $args,
     );
     $out["summary"] = one(
-        "SELECT COUNT(DISTINCT e.student_id) students,COUNT(e.id) enrollments FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE " .
+        "SELECT COUNT(DISTINCT e.student_id) students,COUNT(e.id) enrollments FROM enrollments e JOIN courses c ON c.id=e.course_id WHERE $learner AND " .
             $where,
         $args,
     );

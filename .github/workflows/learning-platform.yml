@@ -50,6 +50,7 @@ jobs:
       - run: npm run test:delivery
       - run: python3 tests/experience_permissions.py
       - run: python3 tests/lesson_video_uploads.py
+      - run: python3 tests/audit_repairs.py
       - run: python3 tests/zoom_host_recovery.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -130,6 +131,7 @@ jobs:
       - run: npm run test:delivery
       - run: python3 tests/experience_permissions.py
       - run: python3 tests/lesson_video_uploads.py
+      - run: python3 tests/audit_repairs.py
       - run: python3 tests/zoom_host_recovery.py
       - run: npm run test:simulation
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
