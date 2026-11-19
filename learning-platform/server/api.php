@@ -368,10 +368,15 @@ function dataFor(array $u, array $scope = []): array
             recordAvailable("course", "c.id") . "))";
         $fileArgs = [$u["id"], $u["id"], $u["id"]];
     }
+    if ($studentId) {
+        $fileWhere .= " AND f.student_id=? AND f.purpose IN ('identity','submission')";
+        $fileArgs[] = $studentId;
+    }
     $out["files"] = rows(
         "SELECT f.id,f.owner_id,f.course_id,f.student_id,f.purpose,f.name,f.mime,f.bytes,f.created_at FROM files f WHERE ($fileWhere) AND " .
             recordAvailable("file", "f.id") .
-            " ORDER BY f.created_at DESC LIMIT 1000",
+            " ORDER BY f.created_at DESC" .
+            ($studentId ? "" : " LIMIT 1000"),
         $fileArgs,
     );
     if ($u["role"] === "admin") {
@@ -490,9 +495,11 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         "session",
         "data",
         "student",
+        "certificate.review",
         "quiz",
         "quiz.attempt",
         "file",
+        "file.info",
         "health",
         "learning.updates",
         "sms.connection",
@@ -1730,6 +1737,10 @@ function api(string $action, string $method, array $d, string $raw = ""): array
     if ($action === "file.upload") {
         return uploadFile($u);
     }
+    if ($action === "file.info") {
+        $f = accessibleFile($u, str($d["id"] ?? "", 40));
+        return array_intersect_key($f, array_flip(["id", "name", "mime"]));
+    }
     if ($action === "file") {
         downloadFile(
             $u,
@@ -1771,11 +1782,15 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             return ["id" => $id];
         });
     }
-    if ($action === "certificate.issue") {
+    if ($action === "certificate.review" || $action === "certificate.issue") {
         auth(["admin", "instructor"]);
         $course = str($d["course_id"] ?? "", 40);
         $student = str($d["student_id"] ?? "", 40);
         courseAccess($u, $course, true);
+        studentAccess($u, $student);
+        if ($action === "certificate.review") {
+            return ["reason" => certificateReason($course, $student)];
+        }
         return tx(function () use ($u, $course, $student) {
             lockRow("courses", $course);
             $reason = certificateReason($course, $student);
@@ -1886,59 +1901,46 @@ function certificateReason(string $course, string $student): ?string
         return "الطالب غير مسجل في الدورة.";
     }
     $lessons = rows(
-        "SELECT id FROM lessons l WHERE course_id=? AND " .
+        "SELECT p.id AS completion FROM lessons l LEFT JOIN progress p ON p.lesson_id=l.id AND p.student_id=? WHERE l.course_id=? AND " .
             recordAvailable("lesson", "l.id"),
-        [$course],
+        [$student, $course],
     );
     if (!$lessons) {
         return "أضف دروس الدورة قبل إصدار الشهادة.";
     }
     foreach ($lessons as $l) {
-        if (
-            !one("SELECT id FROM progress WHERE lesson_id=? AND student_id=?", [
-                $l["id"],
-                $student,
-            ])
-        ) {
+        if ($l["completion"] === null) {
             return "يجب إكمال جميع دروس الدورة.";
         }
     }
     foreach (
         rows(
-            "SELECT id,points FROM assignments a WHERE course_id=? AND " .
+            "SELECT a.points,s.score FROM assignments a LEFT JOIN submissions s ON s.assignment_id=a.id AND s.student_id=? WHERE a.course_id=? AND " .
                 recordAvailable("assignment", "a.id"),
-            [$course],
+            [$student, $course],
         )
         as $a
     ) {
-        $s = one(
-            "SELECT score FROM submissions WHERE assignment_id=? AND student_id=?",
-            [$a["id"], $student],
-        );
-        if (!$s || $s["score"] === null || $s["score"] / $a["points"] < 0.6) {
+        if ($a["score"] === null || $a["score"] / $a["points"] < 0.6) {
             return "يجب اجتياز واجبات الدورة وتقييمها بنسبة ٦٠٪ على الأقل.";
         }
     }
     foreach (
         rows(
-            "SELECT id,passing FROM quizzes q WHERE course_id=? AND " .
-                recordAvailable("quiz", "q.id"),
-            [$course],
+            "SELECT q.passing,MAX(100.0*a.score/NULLIF(a.total,0)) AS best_score FROM quizzes q LEFT JOIN attempts a ON a.quiz_id=q.id AND a.student_id=? AND a.submitted_at IS NOT NULL WHERE q.course_id=? AND " .
+                recordAvailable("quiz", "q.id") . " GROUP BY q.id,q.passing",
+            [$student, $course],
         )
         as $q
     ) {
-        $a = one(
-            "SELECT MAX(100.0*score/total) score FROM attempts WHERE quiz_id=? AND student_id=? AND submitted_at IS NOT NULL",
-            [$q["id"], $student],
-        );
-        if ($a["score"] === null || (float) $a["score"] < $q["passing"]) {
+        if ($q["best_score"] === null || (float) $q["best_score"] < $q["passing"]) {
             return "يجب اجتياز اختبارات الدورة.";
         }
     }
     $classes = rows(
-        "SELECT id,ends_at FROM classes k WHERE course_id=? AND " .
+        "SELECT k.ends_at,a.status FROM classes k LEFT JOIN attendance a ON a.class_id=k.id AND a.student_id=? WHERE k.course_id=? AND " .
             recordAvailable("class", "k.id"),
-        [$course],
+        [$student, $course],
     );
     $present = 0;
     $eligible = 0;
@@ -1946,18 +1948,14 @@ function certificateReason(string $course, string $student): ?string
         if (strtotime($c["ends_at"]) > time()) {
             return "لا تصدر الشهادة قبل انتهاء جميع حصص الدورة.";
         }
-        $a = one(
-            "SELECT status FROM attendance WHERE class_id=? AND student_id=?",
-            [$c["id"], $student],
-        );
-        if (!$a) {
+        if ($c["status"] === null) {
             return "أكمل رصد حضور الطالب في جميع حصص الدورة.";
         }
-        if ($a["status"] === "excused") {
+        if ($c["status"] === "excused") {
             continue;
         }
         $eligible++;
-        if (in_array($a["status"], ["present", "late"], true)) {
+        if (in_array($c["status"], ["present", "late"], true)) {
             $present++;
         }
     }
@@ -1968,6 +1966,15 @@ function certificateReason(string $course, string $student): ?string
                 (setting("general")["certificate_attendance"] ?? 75))
     ) {
         return "نسبة الحضور أقل من الحد المطلوب للشهادة.";
+    }
+    if (
+        one(
+            "SELECT f.id FROM certificates f WHERE f.course_id=? AND f.student_id=? AND NOT (" .
+                recordAvailable("certificate", "f.id") . ")",
+            [$course, $student],
+        )
+    ) {
+        return "الشهادة في سلة المحذوفات. يمكن للإدارة استعادتها.";
     }
     return null;
 }
@@ -2106,7 +2113,7 @@ function uploadFile(array $u): array
     audit($u, "file.uploaded", $id);
     return ["id" => $id, "name" => $name];
 }
-function downloadFile(array $u, string $id, bool $preview = false): never
+function accessibleFile(array $u, string $id): array
 {
     $f = one(
         "SELECT * FROM files f WHERE id=? AND " .
@@ -2116,6 +2123,11 @@ function downloadFile(array $u, string $id, bool $preview = false): never
     if (!$f || !fileAccess($u, $f)) {
         fail(404, "الملف غير متاح.");
     }
+    return $f;
+}
+function downloadFile(array $u, string $id, bool $preview = false): never
+{
+    $f = accessibleFile($u, $id);
     session_write_close();
     $isVideo = $f["mime"] === "video/mp4";
     $len = (int) $f["bytes"];
@@ -2159,7 +2171,6 @@ function downloadFile(array $u, string $id, bool $preview = false): never
     $inline =
         $isVideo ||
         ($preview &&
-            $f["purpose"] === "resource" &&
             in_array(
                 $f["mime"],
                 ["image/jpeg", "image/png", "image/webp"],

@@ -5,14 +5,14 @@ import { Upload } from "tus-js-client";
 import {
   FolderOpen,
   Plus,
-  DownloadSimple,
   VideoCamera,
   ArrowsClockwise,
   CheckCircle,
   Pause,
   Play,
 } from "@phosphor-icons/react";
-import { api, fileUrl } from "../api";
+import { api } from "../api";
+import { FileActions } from "../components/ResourcePreview";
 import { useApp, date } from "../context";
 import { isStaticPreview } from "../environment";
 import type { LearningBag, PageResult, VideoAsset } from "../types";
@@ -113,10 +113,14 @@ export function Bags() {
                       {item.name} • {(item.bytes / 1048576).toFixed(2)} MB
                     </small>
                   </div>
-                  <a href={fileUrl(item.file_id)} className="btn btn-secondary">
-                    <DownloadSimple size={18} />
-                    تنزيل
-                  </a>
+                  <FileActions
+                    id={item.file_id}
+                    file={{
+                      id: item.file_id,
+                      name: item.name,
+                      mime: item.mime,
+                    }}
+                  />
                   {staff && (
                     <button
                       className="text-link"

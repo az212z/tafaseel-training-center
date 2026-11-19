@@ -11,7 +11,8 @@ import {
   Eye,
   DownloadSimple,
 } from "@phosphor-icons/react";
-import { api, get, fileUrl } from "../api";
+import { api, get } from "../api";
+import { FileActions } from "../components/ResourcePreview";
 import { useApp, ar, date, downloadCsv } from "../context";
 import type { Assignment, Submission, Quiz, Question } from "../types";
 import {
@@ -168,7 +169,7 @@ export function Assignments() {
           courseId={course || undefined}
         />
       )}
-      {selected && (
+      {selected && !grade && (
         <Modal title={selected.title} onClose={() => setSelected(null)} wide>
           <div className="inline-badges">
             <Badge>{ar(selected.points)} درجة</Badge>
@@ -241,6 +242,14 @@ export function Assignments() {
                   <div>
                     <h3>تم تسليم واجبك</h3>
                     <p>{date(own.submitted_at)}</p>
+                    {own.file_id && (
+                      <FileActions
+                        id={own.file_id}
+                        file={data.files.find(
+                          (item) => item.id === own.file_id,
+                        )}
+                      />
+                    )}
                     {own.score !== null && (
                       <>
                         <strong>
@@ -305,6 +314,12 @@ export function Assignments() {
                       : `الدرجة ${ar(s.score)} / ${ar(selected.points)}`}
                   </p>
                   <p>{s.feedback}</p>
+                  {s.file_id && (
+                    <FileActions
+                      id={s.file_id}
+                      file={data.files.find((item) => item.id === s.file_id)}
+                    />
+                  )}
                 </div>
               ))}
               {!submissions.length && <p>لم يُسلم الواجب بعد.</p>}
@@ -314,12 +329,12 @@ export function Assignments() {
       )}
       {grade && selected && (
         <Modal title="تقييم تسليم الطالب" onClose={() => setGrade(null)}>
-          <div className="answer-preview">{grade.body}</div>
+          {grade.body && <div className="answer-preview">{grade.body}</div>}
           {grade.file_id && (
-            <a href={fileUrl(grade.file_id)} className="btn btn-secondary">
-              <DownloadSimple size={18} />
-              تنزيل مرفق الإجابة
-            </a>
+            <FileActions
+              id={grade.file_id}
+              file={data.files.find((item) => item.id === grade.file_id)}
+            />
           )}
           <Form
             submitLabel="حفظ التقييم"

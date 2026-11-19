@@ -1,4 +1,6 @@
 import { TrashButton } from "../components/TrashButton";
+import { FileActions } from "../components/ResourcePreview";
+import { StudentTrainingRecord } from "../components/StudentTrainingRecord";
 import { BatchEnrollment } from "./LearningTools";
 import { useRemote, RemoteState, Pagination } from "../components/remote";
 import type { PageResult } from "../types";
@@ -33,7 +35,7 @@ import {
   downloadCsv,
   roles,
 } from "../context";
-import { api, fileUrl } from "../api";
+import { api } from "../api";
 import type { Profile, Student, User } from "../types";
 import {
   PageHead,
@@ -183,13 +185,23 @@ export function StudentDetail() {
   const [error, setError] = useState("");
   const [modal, setModal] = useState("");
   useEffect(() => {
-    if (id)
+    let live = true;
+    setError("");
+    if (id) {
       fetchProfile(id)
-        .then(setResult)
-        .catch((e) => setError(e.message));
+        .then((profile) => {
+          if (live) setResult(profile);
+        })
+        .catch((e) => {
+          if (live) setError(e.message);
+        });
+    }
+    return () => {
+      live = false;
+    };
   }, [id, modal]);
   if (error) return <Empty title="الملف غير متاح" text={error} />;
-  if (!result)
+  if (!result || result.student.id !== id)
     return <div className="compact-empty">جارٍ تحميل ملف الطالب…</div>;
   const { s: student, p: profile } = { s: result.student, p: result.profile };
   const enrollments = data.enrollments.filter((e) => e.student_id === id);
@@ -258,14 +270,19 @@ export function StudentDetail() {
                 </div>
               )}
               <div>
-                <dt>
-                  <CalendarBlank size={17} />
-                  تاريخ الميلاد
-                </dt>
-                <dd>
-                  {profile.birth_date ? date(profile.birth_date) : "غير مضاف"}
-                </dd>
+                <dt>تاريخ إنشاء الحساب</dt>
+                <dd>{date(student.created_at)}</dd>
               </div>
+              {privateAccess && (
+                <div>
+                  <dt>
+                    <CalendarBlank size={17} /> تاريخ الميلاد
+                  </dt>
+                  <dd>
+                    {profile.birth_date ? date(profile.birth_date) : "غير مضاف"}
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt>المدينة</dt>
                 <dd>{profile.city || "غير مضافة"}</dd>
@@ -333,7 +350,7 @@ export function StudentDetail() {
                     data.certificates.filter((c) => c.student_id === id).length,
                   )}
                 </strong>
-                <span>شهادات مستحقة</span>
+                <span>شهادات صادرة</span>
               </div>
             </div>
           </Panel>
@@ -371,14 +388,14 @@ export function StudentDetail() {
                     (f) => f.student_id === id && f.purpose === "identity",
                   )
                   .map((f) => (
-                    <a key={f.id} href={fileUrl(f.id)}>
+                    <div key={f.id} className="bag-item">
                       <LockKey size={22} />
                       <div>
                         <h3>{f.name}</h3>
                         <p>{date(f.created_at)}</p>
                       </div>
-                      <DownloadSimple size={20} />
-                    </a>
+                      <FileActions id={f.id} file={f} />
+                    </div>
                   ))}
               </div>
               <FileUpload
@@ -394,6 +411,7 @@ export function StudentDetail() {
           )}
         </div>
       </div>
+      <StudentTrainingRecord studentId={student.id} courses={courses} />
       {["admin", "guardian"].includes(user.role) && (
         <GuardianPreference studentId={student.id} />
       )}

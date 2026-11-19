@@ -972,9 +972,25 @@ export async function previewApi<T>(
       result = { id };
       break;
     }
+    case "file.info": {
+      const file = s.files.find((item) => item.id === text(d.id));
+      if (!file || !fileAllowed(u, file)) throw new Error("الملف غير متاح.");
+      return { id: file.id, name: file.name, mime: file.mime } as T;
+    }
+    case "certificate.review":
     case "certificate.issue": {
+      actor(["admin", "instructor"]);
       const c = course(u, text(d.course_id), true);
       const sid = text(d.student_id);
+      if (!canStudent(u, sid)) throw new Error("ملف الطالب غير متاح لحسابك.");
+      if (action === "certificate.review") {
+        try {
+          checkCertificate(c.id, sid);
+          return { reason: null } as T;
+        } catch (error) {
+          return { reason: (error as Error).message } as T;
+        }
+      }
       checkCertificate(c.id, sid);
       const old = s.certificates.find(
         (v) => v.course_id === c.id && v.student_id === sid,

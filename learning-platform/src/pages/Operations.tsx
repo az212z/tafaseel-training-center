@@ -51,7 +51,7 @@ import {
   Avatar,
   Progress,
 } from "../components/ui";
-import { ClassForm, CourseSelect } from "../components/forms";
+import { ClassForm } from "../components/forms";
 import { AttendanceAutomation } from "../components/AttendanceAutomation";
 export function Schedule() {
   const { data, user } = useApp();
@@ -647,7 +647,8 @@ export function FilesPage() {
                 <td>{date(f.created_at)}</td>
                 <td>
                   <div className="table-actions">
-                    {staff && (
+                    {(user.role === "admin" ||
+                      (staff && f.purpose === "resource")) && (
                       <TrashButton kind="file" id={f.id} title={f.name} />
                     )}
                     {canPreview(f) && (
@@ -736,8 +737,7 @@ function ShieldNote() {
   return <LockKey size={19} />;
 }
 export function Certificates() {
-  const { data, user, refresh, notify } = useApp();
-  const [add, setAdd] = useState(false);
+  const { data, user } = useApp();
   const [selected, setSelected] = useState<Certificate | null>(null);
   const staff = ["admin", "instructor"].includes(user.role);
   return (
@@ -747,10 +747,9 @@ export function Certificates() {
         subtitle="توثيق للإنجاز، وذكرى لرحلة تعلّم تستحق الفخر."
       >
         {staff && (
-          <Button onClick={() => setAdd(true)}>
-            <Plus size={18} />
-            إصدار شهادة
-          </Button>
+          <Link className="btn btn-primary" to="/students">
+            <Plus size={18} /> مراجعة طالب وإصدار شهادة
+          </Link>
         )}
       </PageHead>
       {data.certificates.length ? (
@@ -794,39 +793,6 @@ export function Certificates() {
         <CertificateIcon size={20} />
         الشهادة توثّق إتمام دورة داخل المركز. لا يُعرض اعتماد خارجي دون توثيقه.
       </div>
-      {add && (
-        <Modal title="إصدار شهادة إتمام" onClose={() => setAdd(false)}>
-          <Form
-            submitLabel="التحقق من المتطلبات وإصدار الشهادة"
-            onCancel={() => setAdd(false)}
-            onSubmit={async (d) => {
-              await api("certificate.issue", d);
-              await refresh();
-              notify("تم إصدار الشهادة.");
-              setAdd(false);
-            }}
-          >
-            <Field label="الدورة">
-              <CourseSelect />
-            </Field>
-            <Field label="الطالب">
-              <select required name="student_id">
-                <option value="">اختر الطالب</option>
-                {data.students.map((s) => (
-                  <option value={s.id} key={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <div className="alert">
-              يُتحقق من إكمال الدروس، واجتياز الواجبات بنسبة ٦٠٪، واجتياز كل
-              اختبار، وحضور {ar(data.settings.certificate_attendance)}٪ من
-              الحصص.
-            </div>
-          </Form>
-        </Modal>
-      )}
       {selected && (
         <Modal
           title="شهادة إتمام الدورة"

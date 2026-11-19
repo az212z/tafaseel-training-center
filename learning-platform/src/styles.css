@@ -5471,7 +5471,8 @@ tr:hover > td {
   justify-content: center;
 }
 .file-preview canvas,
-.file-preview > img {
+.file-preview > img,
+.file-preview > video {
   display: block;
   max-width: 100%;
   height: auto;
@@ -5482,6 +5483,27 @@ tr:hover > td {
 }
 .file-preview canvas[hidden] {
   display: none;
+}
+.training-record {
+  display: grid;
+  gap: 12px;
+}
+.training-record-certificate,
+.training-record details {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.training-record summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.training-record details[open] > summary {
+  margin-block-end: 10px;
+}
+.result-attempts {
+  margin: 0;
+  padding-inline-start: 18px;
 }
 .pdf-links summary {
   cursor: pointer;

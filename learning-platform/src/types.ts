@@ -206,7 +206,12 @@ export interface Data {
   courses: Course[];
   students: Student[];
   instructors: { id: string; name: string }[];
-  enrollments: { id: string; course_id: string; student_id: string }[];
+  enrollments: {
+    id: string;
+    course_id: string;
+    student_id: string;
+    created_at?: string;
+  }[];
   lessons: Lesson[];
   assignments: Assignment[];
   submissions: Submission[];
@@ -214,7 +219,12 @@ export interface Data {
   attempts: Attempt[];
   classes: ClassSession[];
   attendance: Attendance[];
-  progress: { id: string; lesson_id: string; student_id: string }[];
+  progress: {
+    id: string;
+    lesson_id: string;
+    student_id: string;
+    completed_at?: string;
+  }[];
   files: FileRecord[];
   announcements: Announcement[];
   certificates: Certificate[];

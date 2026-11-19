@@ -1,6 +1,6 @@
 """Isolated regressions for course signup, role scoping, PDF delivery and recoverable removal."""
 from pathlib import Path
-import datetime, hashlib, json, urllib.request, urllib.error, os, time
+import base64, datetime, hashlib, json, urllib.request, urllib.error, os, time
 from sandbox import Sandbox, Client, ROOT
 
 checks=[]
@@ -111,6 +111,39 @@ with Sandbox() as s:
     teacher.post('trash.remove',{'kind':'file','id':f},409)
     check(True,'An attached file cannot be removed while a lesson still references it')
     admin.post('trash.restore',{'kind':'lesson','id':lesson})
+    png=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jAtkAAAAASUVORK5CYII=')
+    attachment=student.upload(png,'answer.png','image/png','own',purpose='submission')['id']
+    submission=student.post('submission.save',{'assignment_id':assignment,'body':'حل الواجب','file_id':attachment})['id']
+    info='file.info&id='+attachment
+    url=s.base+'/api/index.php?action=file&id='+attachment
+    check(teacher.get(info)=={'id':attachment,'name':'answer.png','mime':'image/png'},
+          'Assigned instructor receives submission metadata without storage or ownership details')
+    for preview in ('','&preview=1'):
+        with teacher.http.open(url+preview,timeout=10) as response:
+            check(response.status==200 and response.read()==png and
+                  response.headers['Content-Disposition'].startswith('inline' if preview else 'attachment'),
+                  'Authorized submission attachment supports inline preview and download')
+    other.get(info,403);second.get(info,403);guest.get(info,401)
+    try: other.http.open(url+'&preview=1',timeout=10);raise AssertionError('Unassigned teacher could preview attachment')
+    except urllib.error.HTTPError as e: check(e.code==403,'Preview and metadata enforce the same private file scope as downloads')
+    review='certificate.review&course_id=own&student_id=student'
+    student.get(review,403);other.get(review,403)
+    check('دروس' in teacher.get(review)['reason'],'Certificate review identifies incomplete lessons')
+    student.post('progress',{'lesson_id':lesson})
+    check('واجبات' in teacher.get(review)['reason'],'Certificate review identifies an ungraded assignment')
+    teacher.post('submission.grade',{'id':submission,'score':9,'feedback':'تطبيق جيد.'})
+    check('اختبارات' in teacher.get(review)['reason'],'Certificate review identifies a missing exam result')
+    attempt=student.post('quiz.start',{'id':q})['id']
+    student.post('quiz.submit',{'id':attempt,'answers':[1]})
+    s.sql("UPDATE classes SET starts_at='2026-01-01T10:00:00Z', ends_at='2026-01-01T11:00:00Z' WHERE id=?",[cl])
+    check('رصد' in teacher.get(review)['reason'],'Certificate review identifies pending attendance')
+    teacher.post('attendance.save',{'class_id':cl,'records':[{'student_id':'student','status':'late'}]})
+    scoped=teacher.get('data&student_id=student')
+    check(teacher.get(review)['reason'] is None and bool(scoped['progress']) and
+          [r['id'] for r in scoped['submissions']]==[submission] and scoped['submissions'][0]['score']==9 and
+          scoped['attempts'][0]['score']==1 and scoped['attendance'][0]['status']=='late' and
+          {r['id'] for r in scoped['files']}=={attachment},
+          'Student-scoped record carries progress, graded work, exam attempts, attendance and its own attachment together')
     # Resources lose prior instructor ownership permissions after reassignment.
     s.sql("UPDATE courses SET instructor_id='other' WHERE id='own'")
     req=urllib.request.Request(s.base+'/api/index.php?action=file&id='+f)
@@ -149,6 +182,10 @@ with Sandbox() as s:
     for kind,rid in [('path','archive-path'),('bag','archive-bag'),('video','archive-video'),('certificate','archive-cert'),('support','archive-support')]:
         admin.post('trash.remove',{'kind':kind,'id':rid})
         assert any(row['resource_id']==rid for row in admin.get('trash.list')['items'])
+        if kind=='certificate':
+            check('سلة المحذوفات' in teacher.get(review)['reason'],
+                  'An archived certificate is marked for restoration rather than issuance')
+            teacher.post('certificate.issue',{'course_id':'own','student_id':'student'},422)
         admin.post('trash.restore',{'kind':kind,'id':rid})
         assert not any(row['resource_id']==rid for row in admin.get('trash.list')['items'])
     check(True,'Paths, bags, unlinked cloud videos, certificates and support tickets can be removed and restored')

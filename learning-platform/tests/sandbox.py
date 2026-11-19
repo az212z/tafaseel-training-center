@@ -23,9 +23,9 @@ class Client:
         return result, {'milliseconds':round(elapsed,2),'bytes':len(raw),'status':status,'headers':dict(response_headers)}
     def get(self, action, expected=200): return self.call(action,expected=expected)[0]
     def post(self, action, body, expected=200, headers=None): return self.call(action,body,expected,headers)[0]
-    def upload(self, payload, filename, mime, course, expected=200):
+    def upload(self, payload, filename, mime, course, expected=200, purpose='resource'):
         boundary='tafaseel'+str(time.time_ns())
-        raw=b''.join(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode() for k,v in {'purpose':'resource','course_id':course}.items())
+        raw=b''.join(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode() for k,v in {'purpose':purpose,'course_id':course}.items())
         raw+=f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{filename}"\r\nContent-Type: {mime}\r\n\r\n'.encode()+payload+f'\r\n--{boundary}--\r\n'.encode()
         req=urllib.request.Request(self.base+'/api/index.php?action=file.upload',data=raw,headers={'Origin':ORIGIN,'X-CSRF-Token':self.csrf,'Content-Type':'multipart/form-data; boundary='+boundary})
         try:
@@ -54,9 +54,11 @@ class Sandbox:
         self.env={**os.environ,'TAFASEEL_CONFIG':str(self.config),'TAFASEEL_SIM_PASSWORD':self.password}
         self.php([str(ROOT/'server/console.php'),'migrate'])
         self.query=self.folder/'query.php'; self.query.write_text("<?php require "+repr(str(ROOT/'server/api.php'))+";$d=json_decode(stream_get_contents(STDIN),true);$s=db()->prepare($d['sql']);$s->execute($d['args']??[]);echo json_encode($s->fetchAll(PDO::FETCH_ASSOC));")
-        with socket.socket() as sock: sock.bind(('127.0.0.1',0)); port=sock.getsockname()[1]
+        port=int(os.environ.get('TAFASEEL_TEST_HTTP_PORT',0))
+        if not port:
+            with socket.socket() as sock: sock.bind(('127.0.0.1',0)); port=sock.getsockname()[1]
         self.base=f'http://127.0.0.1:{port}'; self.log=open(self.folder/'server.log','w')
-        self.server=subprocess.Popen(['php','-d','memory_limit=256M','-S',f'127.0.0.1:{port}','-t',str(ROOT/'dist'),str(ROOT/'server/preview-router.php')],env={**self.env,'PHP_CLI_SERVER_WORKERS':'8'},stdout=self.log,stderr=self.log,start_new_session=True)
+        self.server=subprocess.Popen(['php','-d','memory_limit=256M','-d','upload_max_filesize=30M','-d','post_max_size=32M','-S',f'127.0.0.1:{port}','-t',str(ROOT/'dist'),str(ROOT/'server/preview-router.php')],env={**self.env,'PHP_CLI_SERVER_WORKERS':'8'},stdout=self.log,stderr=self.log,start_new_session=True)
         for _ in range(100):
             try: Client(self.base); break
             except Exception: time.sleep(.1)
