@@ -1994,6 +1994,19 @@
   .site-brand span {
     font-size: 23px;
   }
+  .site-nav .site-brand {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .site-nav .site-brand img,
+  .site-nav .site-menu,
+  .site-nav .site-account {
+    flex-shrink: 0;
+  }
+  .site-nav .site-brand span {
+    font-size: clamp(16px, 4.2vw, 21px);
+    text-wrap: balance;
+  }
   .site-brand small {
     font-size: 8px;
   }
