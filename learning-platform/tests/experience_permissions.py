@@ -78,6 +78,27 @@ with Sandbox() as s:
     guest.post('account.invite.accept',{'token':token,'password':s.password,'confirm':s.password,'consent':True})
     delegate=Client(s.base);delegate.post('login',{'email':request['email'],'password':s.password})
     check(delegate.get('data')['user']['role']=='admin','The invited administrator can verify email and sign in')
+    supervisor_request={**request,'role':'supervisor','email':'supervisor@example.test'}
+    student.post('user.save',supervisor_request,403)
+    teacher.post('user.save',supervisor_request,403)
+    admin.post('user.save',{**supervisor_request,'current_password':'wrong'},422)
+    supervisor_id=admin.post('user.save',{**supervisor_request,'current_password':s.password})['id']
+    row=next(x for x in admin.get('users.list')['items'] if x['id']==supervisor_id)
+    check(row['role']=='admin' and int(row['is_supervisor'])==1 and not row['active'],
+          'Supervisor invitation uses admin permissions and records the distinct designation')
+    link=s.php(['-r',"""require 'server/api.php';echo dec(one("SELECT link_path FROM email_outbox WHERE user_id=? AND kind='invitation'",[$argv[1]])['link_path']);""",supervisor_id]).stdout
+    guest.post('account.invite.accept',{'token':link.split('#')[1],'password':s.password,'confirm':s.password,'consent':True})
+    supervisor=Client(s.base)
+    supervisor.post('login',{'email':supervisor_request['email'],'password':s.password})
+    identity=supervisor.get('data')['user']
+    check(identity['role']=='admin' and identity['is_supervisor'] and supervisor.get('users.list')['total'] and supervisor.get('website.admin'),
+          'Activated supervisor can sign in, administer users and access website management')
+    supervisor.post('trash.remove',{'kind':'account','id':'admin'},403)
+    supervisor.post('trash.remove',{'kind':'account','id':supervisor_id},403)
+    supervisor.post('trash.remove',{'kind':'account','id':delegated})
+    supervisor.post('trash.restore',{'kind':'account','id':delegated})
+    delegate.post('login',{'email':request['email'],'password':s.password})
+    check(True,'Supervisor can administer delegated admins while owner and current accounts remain protected')
     delegate.post('trash.remove',{'kind':'account','id':'admin'},403)
     admin.post('trash.remove',{'kind':'account','id':'admin'},403)
     check(True,'Owner and current administrator cannot be removed')
@@ -111,6 +132,25 @@ with Sandbox() as s:
     teacher.post('trash.remove',{'kind':'file','id':f},409)
     check(True,'An attached file cannot be removed while a lesson still references it')
     admin.post('trash.restore',{'kind':'lesson','id':lesson})
+    bag=teacher.post('bag.save',{'course_id':'own','title':'حقيبة مرفقات','version':'1.0','description':'ملفات الدروس'})['id']
+    teacher.post('bag.item.save',{'bag_id':bag,'file_id':f,'label':'تمرين','sort_order':1})
+    for client in (student,other):
+        client.post('trash.remove',{'kind':'file','id':f},403)
+    for _ in range(2):
+        supervisor.post('trash.remove',{'kind':'file','id':f})
+    hidden=student.get('data')
+    check(all(x['id']!=f for x in hidden['files']) and
+          next(x for x in hidden['lessons'] if x['id']==lesson)['file_id'] is None and
+          student.get('lesson&id='+lesson)['lesson']['file_id'] is None and
+          not student.get('bags&course_id=own')['items'][0]['items'],
+          'Admin can archive a linked file without leaving broken lesson or bag links')
+    student.get('file.info&id='+f,404)
+    student.get('file&id='+f,404)
+    check(any(x['resource_id']==f for x in admin.get('trash.list')['items']), 'Archived file appears in admin trash')
+    admin.post('trash.restore',{'kind':'file','id':f})
+    check(student.get('lesson&id='+lesson)['lesson']['file_id']==f and
+          student.get('bags&course_id=own')['items'][0]['items'][0]['file_id']==f,
+          'Restoring the file restores the original lesson and bag attachments')
     png=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jAtkAAAAASUVORK5CYII=')
     attachment=student.upload(png,'answer.png','image/png','own',purpose='submission')['id']
     submission=student.post('submission.save',{'assignment_id':assignment,'body':'حل الواجب','file_id':attachment})['id']
@@ -144,6 +184,13 @@ with Sandbox() as s:
           scoped['attempts'][0]['score']==1 and scoped['attendance'][0]['status']=='late' and
           {r['id'] for r in scoped['files']}=={attachment},
           'Student-scoped record carries progress, graded work, exam attempts, attendance and its own attachment together')
+    admin.post('trash.remove',{'kind':'file','id':attachment})
+    removed=next(x for x in teacher.get('data&student_id=student')['submissions'] if x['id']==submission)
+    check(removed['file_id'] is None and removed['score']==9 and removed['body']=='حل الواجب',
+          'Archiving a graded submission attachment preserves its text and score')
+    admin.post('trash.restore',{'kind':'file','id':attachment})
+    check(next(x for x in student.get('data')['submissions'] if x['id']==submission)['file_id']==attachment,
+          'Restoring a submission file restores the original attachment')
     # Resources lose prior instructor ownership permissions after reassignment.
     s.sql("UPDATE courses SET instructor_id='other' WHERE id='own'")
     req=urllib.request.Request(s.base+'/api/index.php?action=file&id='+f)

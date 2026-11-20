@@ -18,7 +18,7 @@ import {
   UsersThree,
   FolderLock,
 } from "@phosphor-icons/react";
-import { useApp, date, downloadCsv, roles } from "../context";
+import { useApp, date, downloadCsv, accountRoleLabel } from "../context";
 import { api } from "../api";
 import type { Support } from "../types";
 import {
@@ -240,7 +240,7 @@ export function Settings() {
               <div>
                 <dt>نوع الحساب</dt>
                 <dd>
-                  <Badge tone="green">{roles[user.role]}</Badge>
+                  <Badge tone="green">{accountRoleLabel(user)}</Badge>
                 </dd>
               </div>
               <div>

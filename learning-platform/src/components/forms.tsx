@@ -182,15 +182,18 @@ export function UserForm({
 }) {
   const { data, refresh, notify } = useApp();
   const [role, setRole] = useState(target?.role ?? defaultRole);
+  const management = role === "admin" || role === "supervisor";
   const [invite, setInvite] = useState(!target && !isStaticPreview);
   return (
     <Modal
       title={
         target
           ? "تعديل بيانات الحساب"
-          : role === "admin"
-            ? "دعوة مدير جديد"
-            : "إضافة حساب جديد"
+          : role === "supervisor"
+            ? "إنشاء حساب مشرف"
+            : role === "admin"
+              ? "دعوة مدير جديد"
+              : "إضافة حساب جديد"
       }
       onClose={onClose}
       wide
@@ -206,7 +209,7 @@ export function UserForm({
               id: target?.id,
               role,
               consent: d.consent === "on",
-              send_invite: !target && (invite || role === "admin"),
+              send_invite: !target && (invite || management),
             },
           );
           await refresh();
@@ -235,7 +238,12 @@ export function UserForm({
               <option value="student">طالب</option>
               <option value="instructor">معلم / مدرب</option>
               <option value="guardian">ولي أمر</option>
-              {!isStaticPreview && <option value="admin">إدارة</option>}
+              {!isStaticPreview && (
+                <>
+                  <option value="admin">مدير المنصة</option>
+                  <option value="supervisor">مشرف المنصة</option>
+                </>
+              )}
             </select>
           </Field>
           <Field label="الاسم الكامل">
@@ -256,10 +264,14 @@ export function UserForm({
               autoComplete="off"
             />
           </Field>
-          {role === "admin" && !target && (
+          {management && !target && (
             <Field
               label="كلمة مرور حسابك الحالي"
-              hint="تُرسل دعوة إلى بريد المدير الجديد لتوثيق حسابه."
+              hint={
+                role === "supervisor"
+                  ? "يملك المشرف صلاحيات المدير. تصله دعوة على بريده لتفعيل حسابه."
+                  : "تُرسل دعوة إلى بريد المدير الجديد لتوثيق حسابه."
+              }
             >
               <input
                 name="current_password"
@@ -269,7 +281,7 @@ export function UserForm({
               />
             </Field>
           )}
-          {!isStaticPreview && !target && role !== "admin" && (
+          {!isStaticPreview && !target && !management && (
             <Field label="إكمال تسجيل الحساب">
               <select
                 value={invite ? "invite" : "password"}
@@ -286,7 +298,7 @@ export function UserForm({
               </small>
             </Field>
           )}
-          {!isStaticPreview && role !== "admin" && (!invite || !!target) && (
+          {!isStaticPreview && !management && (!invite || !!target) && (
             <>
               <Field
                 label={target ? "كلمة مرور جديدة (اختياري)" : "كلمة المرور"}

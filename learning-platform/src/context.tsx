@@ -30,6 +30,11 @@ export const roles = {
   student: "طالب",
   guardian: "ولي أمر",
 };
+export function accountRoleLabel(user: User) {
+  return user.role === "admin" && Number(user.is_supervisor) === 1
+    ? "مشرف المنصة"
+    : roles[user.role];
+}
 export function progressPercent(
   data: Data,
   courseId: string,

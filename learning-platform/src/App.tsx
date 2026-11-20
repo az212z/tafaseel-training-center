@@ -56,7 +56,7 @@ import {
 import type { Icon } from "@phosphor-icons/react";
 import { api, get, setCsrf } from "./api";
 import { asset, isStaticPreview, githubTrialUrl } from "./environment";
-import { Context, roles } from "./context";
+import { Context, accountRoleLabel } from "./context";
 import type { Data, User, Role } from "./types";
 import { Avatar, Button, Modal, Search, Empty } from "./components/ui";
 import Dashboard from "./pages/Dashboard";
@@ -297,7 +297,7 @@ function Login({
       <div className="login-art">
         <div className="login-brand">
           <img src={asset("/brand/logo.webp")} alt="شعار تفاصيل" />
-          <div>منصة تفاصيل</div>
+          <div>منصة تفاصيل التعليمية</div>
         </div>
         <div className="login-art-copy">
           <span className="login-pill">
@@ -326,7 +326,7 @@ function Login({
           </div>
         </div>
         <small className="login-art-foot">
-          منصة تفاصيل <span>تعلّم يفتح لك آفاقًا جديدة</span>
+          منصة تفاصيل التعليمية <span>تعلّم يفتح لك آفاقًا جديدة</span>
         </small>
       </div>
       <main className="login-main">
@@ -516,7 +516,8 @@ function Login({
           )}
         </div>
         <footer>
-          © {new Date().getFullYear()} منصة تفاصيل. جميع الحقوق محفوظة.
+          © {new Date().getFullYear()} منصة تفاصيل التعليمية. جميع الحقوق
+          محفوظة.
         </footer>
       </main>
     </div>
@@ -694,8 +695,8 @@ function Shell({
             <GraduationCap size={22} weight="duotone" />
           </span>
           <div>
-            <strong>منصة تفاصيل</strong>
-            <small>{roles[user.role]}</small>
+            <strong>منصة تفاصيل التعليمية</strong>
+            <small>{accountRoleLabel(user)}</small>
           </div>
           <span className="workspace-dot" />
         </div>
@@ -725,7 +726,7 @@ function Shell({
           <Avatar name={user.name} />
           <div>
             <strong>{user.name}</strong>
-            <small>{roles[user.role]}</small>
+            <small>{accountRoleLabel(user)}</small>
           </div>
           <GearSix size={19} />
         </button>
@@ -1154,7 +1155,7 @@ function SessionApp() {
       navigate(returnProgram || "/dashboard", { replace: true });
   }, [user, data, routeLocation.pathname, navigate, returnProgram]);
   useEffect(() => {
-    document.title = "منصة تفاصيل | المساحة التعليمية";
+    document.title = "منصة تفاصيل التعليمية | المساحة التعليمية";
     document
       .querySelector('meta[name="robots"]')
       ?.setAttribute("content", "noindex,nofollow");

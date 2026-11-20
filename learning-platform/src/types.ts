@@ -4,6 +4,7 @@ export interface User {
   name: string;
   email: string;
   username?: string;
+  is_supervisor?: boolean | number;
   invitation_status?: "pending" | "expired" | "revoked";
   role: Role;
   active: number;

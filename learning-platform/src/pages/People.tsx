@@ -33,7 +33,7 @@ import {
   progressPercent,
   attendancePercent,
   downloadCsv,
-  roles,
+  accountRoleLabel,
 } from "../context";
 import { api } from "../api";
 import type { Profile, Student, User } from "../types";
@@ -395,6 +395,9 @@ export function StudentDetail() {
                         <p>{date(f.created_at)}</p>
                       </div>
                       <FileActions id={f.id} file={f} />
+                      {user.role === "admin" && (
+                        <TrashButton kind="file" id={f.id} title={f.name} />
+                      )}
                     </div>
                   ))}
               </div>
@@ -438,7 +441,11 @@ export function Users() {
   const [add, setAdd] = useState<string | null>(null);
   const [inviting, setInviting] = useState("");
   useEffect(() => {
-    if (createRole === "student" || createRole === "instructor") {
+    if (
+      createRole === "student" ||
+      createRole === "instructor" ||
+      (!isStaticPreview && createRole === "supervisor")
+    ) {
       setAdd(createRole);
       setParams({}, { replace: true });
     }
@@ -460,8 +467,8 @@ export function Users() {
           <UserPlus size={18} /> إنشاء حساب طالب
         </Button>
         {!isStaticPreview && (
-          <Button variant="secondary" onClick={() => setAdd("admin")}>
-            دعوة مدير جديد
+          <Button variant="secondary" onClick={() => setAdd("supervisor")}>
+            <UserPlus size={18} /> إنشاء حساب مشرف
           </Button>
         )}
       </PageHead>
@@ -500,7 +507,7 @@ export function Users() {
                 </div>
               </td>
               <td dir="ltr">{u.email}</td>
-              <td>{roles[u.role]}</td>
+              <td>{accountRoleLabel(u)}</td>
               <td>
                 <Badge
                   tone={

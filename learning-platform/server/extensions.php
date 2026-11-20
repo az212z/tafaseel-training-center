@@ -394,7 +394,9 @@ function extensionAction(
             );
             foreach ($bags as &$b) {
                 $b["items"] = rows(
-                    "SELECT i.*,f.name,f.mime,f.bytes FROM bag_items i JOIN files f ON f.id=i.file_id WHERE i.bag_id=? ORDER BY i.sort_order,i.id",
+                    "SELECT i.*,f.name,f.mime,f.bytes FROM bag_items i JOIN files f ON f.id=i.file_id WHERE i.bag_id=? AND " .
+                        recordAvailable("file", "f.id") .
+                        " ORDER BY i.sort_order,i.id",
                     [$b["id"]],
                 );
             }
@@ -690,7 +692,9 @@ function extensionAction(
             });
         case "lesson":
             $l = one(
-                "SELECT * FROM lessons l WHERE id=? AND " .
+                "SELECT l.id,l.course_id,l.title,l.kind,l.video_url,l.body,l.duration,l.sort_order,l.created_at," .
+                    visibleFileId("l.file_id") .
+                    " FROM lessons l WHERE id=? AND " .
                     recordAvailable("lesson", "l.id"),
                 [$d["id"] ?? ""],
             );
@@ -729,7 +733,7 @@ function extensionAction(
                 $args[] = "%" . $search . "%";
             }
             $result = pagedList(
-                "SELECT id,name,email,role,active,created_at FROM users u WHERE " .
+                "SELECT id,name,email,role,active,created_at,EXISTS(SELECT 1 FROM account_supervisors sup WHERE sup.user_id=u.id) AS is_supervisor FROM users u WHERE " .
                     recordAvailable("account", "u.id") .
                     " AND " .
                     $where .

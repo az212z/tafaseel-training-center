@@ -39,7 +39,11 @@ export function TrashButton({
           }}
         >
           <p>{title}</p>
-          <p className="muted">يمكن للإدارة استعادته من سلة المحذوفات.</p>
+          <p className="muted">
+            {kind === "file" && user.role === "admin"
+              ? "سيختفي الملف من المكتبة ومن كل درس أو واجب أو حقيبة تستخدمه. يمكنك استعادته من سلة المحذوفات."
+              : "يمكن للإدارة استعادته من سلة المحذوفات."}
+          </p>
           {error && (
             <p className="alert alert-error" role="alert">
               {error}

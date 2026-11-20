@@ -23,7 +23,7 @@ class ApplicationBoundary extends React.Component<
         <main className="application-error" dir="rtl" role="alert">
           <img
             src={`${import.meta.env.BASE_URL}brand/logo.webp`}
-            alt="منصة تفاصيل"
+            alt="منصة تفاصيل التعليمية"
           />
           <h1>تعذّر عرض الصفحة</h1>
           <p>

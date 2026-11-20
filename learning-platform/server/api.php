@@ -256,7 +256,9 @@ function dataFor(array $u, array $scope = []): array
     $sh = $sids ? implode(",", array_fill(0, count($sids), "?")) : "''";
     $staff = in_array($u["role"], ["admin", "instructor"], true);
     $lessons = rows(
-        "SELECT id,course_id,title,kind,video_url,file_id,'' AS body,duration,sort_order,created_at FROM lessons l WHERE course_id IN ($holders) AND " .
+        "SELECT id,course_id,title,kind,video_url," .
+            visibleFileId("l.file_id") .
+            ",'' AS body,duration,sort_order,created_at FROM lessons l WHERE course_id IN ($holders) AND " .
             recordAvailable("lesson", "l.id") .
             " ORDER BY sort_order,created_at",
         $ids,
@@ -331,7 +333,9 @@ function dataFor(array $u, array $scope = []): array
         ),
     ];
     $out["submissions"] = rows(
-        "SELECT s.* FROM submissions s JOIN assignments a ON a.id=s.assignment_id WHERE a.course_id IN ($holders) AND s.student_id IN ($sh) AND " .
+        "SELECT s.id,s.assignment_id,s.student_id,s.body,s.score,s.feedback,s.submitted_at," .
+            visibleFileId("s.file_id") .
+            " FROM submissions s JOIN assignments a ON a.id=s.assignment_id WHERE a.course_id IN ($holders) AND s.student_id IN ($sh) AND " .
             recordAvailable("assignment", "a.id"),
         [...$ids, ...$sids],
     );
@@ -800,6 +804,10 @@ function api(string $action, string $method, array $d, string $raw = ""): array
         $name = str($d["name"] ?? "", 120);
         $em = email($d["email"] ?? "");
         $role = $d["role"] ?? "student";
+        $supervisor = $role === "supervisor";
+        if ($supervisor) {
+            $role = "admin";
+        }
         if (
             !in_array(
                 $role,
@@ -902,6 +910,7 @@ function api(string $action, string $method, array $d, string $raw = ""): array
             $profile,
             $u,
             $invite,
+            $supervisor,
         ) {
             if ($existing) {
                 run("UPDATE users SET name=?,email=? WHERE id=?", [
@@ -962,6 +971,11 @@ function api(string $action, string $method, array $d, string $raw = ""): array
                         [...$profile, now(), $id],
                     );
                 }
+            }
+            if ($supervisor) {
+                run("INSERT INTO account_supervisors(user_id) VALUES(?)", [
+                    $id,
+                ]);
             }
             audit($u, $existing ? "user.updated" : "user.created", $id);
             if ($invite) {

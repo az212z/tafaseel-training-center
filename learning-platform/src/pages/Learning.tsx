@@ -258,13 +258,16 @@ export function LessonViewer({
             {cloudError ||
               (lesson.video_asset_id
                 ? "جارٍ تجهيز رابط التشغيل…"
-                : "أضف رابط تشغيل صالحًا للفيديو من إدارة الدورة.")}
+                : "الفيديو غير متاح حاليًا.")}
           </div>
         ))}
       {bodyError && (
         <div className="alert alert-error" role="alert">
           {bodyError}
         </div>
+      )}
+      {lesson.kind === "file" && !lesson.file_id && (
+        <p className="muted">ملف الدرس غير متاح حاليًا.</p>
       )}
       {lesson.kind === "file" && attachment && canPreview(attachment) && (
         <ResourcePreview file={attachment} />

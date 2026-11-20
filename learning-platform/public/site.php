@@ -23,8 +23,8 @@ try {
         "UTF-8",
     );
     $labels = [
-        "/" => "منصة تفاصيل | الدورات والمدربون",
-        "/trainers" => "مدربو منصة تفاصيل",
+        "/" => $c["site"]["name"],
+        "/trainers" => "مدرّبونا",
         "/programs" => "الدورات والبرامج",
         "/tracks" => "مجالات التعلّم",
         "/learning-paths" => "مسارات التعلم",
@@ -109,7 +109,9 @@ try {
             ($article["title"] ??
                 ($category["title"] ??
                     ($labels[$path] ??
-                        ($platform ? "منصة تفاصيل" : "الصفحة غير موجودة")))));
+                        ($platform
+                            ? $c["site"]["name"]
+                            : "الصفحة غير موجودة")))));
     $description =
         ($policyKey ? $c["pages"][$policyKey]["intro"] : null) ??
         ($program["description"] ??
@@ -120,7 +122,12 @@ try {
     $html = preg_replace(
         "#<title>.*?</title>#s",
         "<title>" .
-            $e($title . ($path === "/" ? "" : " | منصة تفاصيل")) .
+            $e(
+                $title .
+                    ($path === "/" || $platform
+                        ? ""
+                        : " | " . $c["site"]["name"]),
+            ) .
             "</title>",
         $html,
     );
@@ -151,7 +158,9 @@ try {
         '"><meta name="twitter:card" content="summary_large_image">';
     $html = str_replace("</head>", $head . "</head>", $html);
     $body =
-        '<div class="site"><main class="site-container"><header class="site-heading"><a href="/">منصة تفاصيل — الرئيسية</a><h1>' .
+        '<div class="site"><main class="site-container"><header class="site-heading"><a href="/">' .
+        $e($c["site"]["name"]) .
+        " — الرئيسية</a><h1>" .
         $e($title) .
         "</h1><p>" .
         $e($description) .
@@ -197,7 +206,7 @@ try {
         }
     }
     if ($path === "/" || $path === "/trainers") {
-        $body .= "<section><h2>مدربو المنصة</h2>";
+        $body .= $path === "/" ? "<section><h2>مدرّبونا</h2>" : "<section>";
         foreach ($c["trainers"] as $t) {
             $body .=
                 "<article><h3>" .
@@ -228,7 +237,7 @@ try {
         $body .= "</ul></nav>";
     }
     $body .=
-        '<nav aria-label="روابط المركز"><a href="/programs">الدورات</a> · <a href="/trainers">المدربون</a> · <a href="/about">عن تفاصيل</a> · <a href="/contact">تواصل معنا</a> · <a href="/help">المساعدة</a> · <a href="/login">تسجيل الدخول</a></nav></main></div>';
+        '<nav aria-label="روابط المركز"><a href="/programs">الدورات</a> · <a href="/trainers">مدرّبونا</a> · <a href="/about">عن تفاصيل</a> · <a href="/contact">تواصل معنا</a> · <a href="/help">المساعدة</a> · <a href="/login">تسجيل الدخول</a></nav></main></div>';
     // Readable initial HTML is replaced by the interactive application on load.
     $html = str_replace(
         '<div id="root"></div>',

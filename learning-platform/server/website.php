@@ -14,8 +14,14 @@ function websiteContent(bool $private = false): array
         : setting("website", []);
     $content = array_replace($default, $stored);
     $content["site"] = array_replace($default["site"], $stored["site"] ?? []);
-    if ($content["site"]["name"] === "مركز تفاصيل للتدريب") {
-        $content["site"]["name"] = "منصة تفاصيل";
+    if (
+        in_array(
+            $content["site"]["name"],
+            ["مركز تفاصيل للتدريب", "منصة تفاصيل"],
+            true,
+        )
+    ) {
+        $content["site"]["name"] = $default["site"]["name"];
     }
     $live = rows(
         "SELECT c.id,c.title,c.description,c.category,c.image,c.duration,c.instructor_id,o.price_minor,o.enrollment_open FROM courses c LEFT JOIN course_commerce o ON o.course_id=c.id WHERE c.status='published' AND " .
@@ -405,7 +411,7 @@ function websiteAction(string $action, string $method, array $d): ?array
                     ) {
                         fail(409, "لهذا الحساب بطاقة مدرب بالفعل.");
                     }
-                };
+                }
             }
             if (!empty($v["photo"])) {
                 $photo = base64_decode($v["photo"], true);

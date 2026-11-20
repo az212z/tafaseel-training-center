@@ -370,6 +370,10 @@ function publicUser(array $u): array
         array_flip(["id", "name", "email", "role", "active", "created_at"]),
     );
     if ($u["role"] === "admin") {
+        $public["is_supervisor"] = (bool) one(
+            "SELECT user_id FROM account_supervisors WHERE user_id=?",
+            [$u["id"]],
+        );
         $login = setting("admin_login", []);
         if (($login["user_id"] ?? "") === $u["id"]) {
             $public["username"] = $login["username"];

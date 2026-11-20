@@ -87,7 +87,9 @@ function learningToolsAction(string $action, string $method, array $d): ?array
             " FROM lesson_notes n JOIN lessons l ON l.id=n.lesson_id JOIN courses c ON c.id=l.course_id LEFT JOIN video_assets v ON v.lesson_id=l.id WHERE " .
             $where;
         $out = pagedList(
-            "SELECT l.id,l.course_id,l.title,l.kind,l.video_url,l.file_id,'' body,l.duration,l.sort_order,c.title course_title,n.body note_body,n.updated_at,v.id video_asset_id,v.status video_status" .
+            "SELECT l.id,l.course_id,l.title,l.kind,l.video_url," .
+                visibleFileId("l.file_id") .
+                ",'' body,l.duration,l.sort_order,c.title course_title,n.body note_body,n.updated_at,v.id video_asset_id,v.status video_status" .
                 $from .
                 " ORDER BY n.updated_at DESC,l.id",
             "SELECT COUNT(*) n" . $from,

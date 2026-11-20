@@ -31,6 +31,12 @@ function recordAvailable(string $kind, string $column): string
     return "NOT EXISTS (SELECT 1 FROM record_trash x WHERE x.kind='$kind' AND x.resource_id=$column)";
 }
 
+function visibleFileId(string $column): string
+{
+    $available = recordAvailable("file", $column);
+    return "CASE WHEN $available THEN $column ELSE NULL END AS file_id";
+}
+
 function guardActiveRecord(string $kind, string $id): void
 {
     if (
@@ -141,7 +147,9 @@ function recordTrashAction(string $action, string $method, array $d): ?array
             if (
                 $id === $owner ||
                 $id === $u["id"] ||
-                ($row["role"] === "admin" && $u["id"] !== $owner)
+                ($row["role"] === "admin" &&
+                    $u["id"] !== $owner &&
+                    empty($u["is_supervisor"]))
             ) {
                 fail(403, "لا يمكنك حذف هذا الحساب الإداري.");
             }
@@ -155,7 +163,7 @@ function recordTrashAction(string $action, string $method, array $d): ?array
             run("UPDATE $table SET status='archived' WHERE id=?", [$id]);
         } elseif ($kind === "video" && $row["lesson_id"]) {
             fail(409, "الفيديو مرتبط بدرس. افصله عن الدرس أولًا.");
-        } elseif ($kind === "file") {
+        } elseif ($kind === "file" && $u["role"] !== "admin") {
             if (
                 one("SELECT id FROM lessons WHERE file_id=? LIMIT 1", [$id]) ||
                 one("SELECT id FROM submissions WHERE file_id=? LIMIT 1", [

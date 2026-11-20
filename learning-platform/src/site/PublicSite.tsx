@@ -39,7 +39,7 @@ import "./site.css";
 
 const nav = [
   ["/programs", "الدورات والبرامج"],
-  ["/trainers", "المدربون"],
+  ["/trainers", "مدرّبونا"],
   ["/about", "عن تفاصيل"],
   ["/business", "للجهات"],
   ["/library", "المكتبة"],
@@ -204,8 +204,8 @@ export default function PublicSite() {
     const p = content.programs.find((p) => path === `/programs/${p.slug}`);
     const a = content.articles.find((a) => path === `/library/${a.id}`);
     const labels: Record<string, string> = {
-      "/": "منصة تفاصيل | الدورات والمدربون",
-      "/trainers": "مدربو المنصة",
+      "/": content.site.name,
+      "/trainers": "مدرّبونا",
       "/programs": "الدورات والبرامج",
       "/learning-paths": "مسارات التعلم",
       "/about": "عن مركز تفاصيل",
@@ -225,7 +225,7 @@ export default function PublicSite() {
     };
     document.title =
       (p?.title || a?.title || labels[path] || "برامج تفاصيل") +
-      (path === "/" ? "" : " | منصة تفاصيل");
+      (path === "/" ? "" : " | " + content.site.name);
     const desc = p?.description || a?.intro || content.site.hero_description;
     document
       .querySelector('meta[name="description"]')
@@ -284,14 +284,18 @@ export default function PublicSite() {
       )}
       <header className="site-header">
         <div className="site-container site-nav">
-          <Link className="site-brand" to="/" aria-label="تفاصيل — الرئيسية">
+          <Link
+            className="site-brand"
+            to="/"
+            aria-label={s.name + " — الرئيسية"}
+          >
             <img
               src={asset("/brand/logo.webp")}
               alt=""
               width="55"
               height="55"
             />
-            <span>منصة تفاصيل</span>
+            <span>{s.name}</span>
           </Link>
           <nav
             id="site-navigation"
@@ -329,7 +333,7 @@ export default function PublicSite() {
             path="/trainers"
             element={
               <section className="site-container site-section">
-                <TrainerCards c={content} />
+                <TrainerCards c={content} heading="h1" />
               </section>
             }
           />
@@ -385,9 +389,7 @@ export default function PublicSite() {
                 width="55"
                 height="55"
               />
-              <span>
-                تفاصيل<small>{s.name}</small>
-              </span>
+              <span>{s.name}</span>
             </Link>
             <p>{s.tagline}</p>
             <a className="site-phone" href={`tel:${s.phone}`}>
@@ -409,7 +411,7 @@ export default function PublicSite() {
               ["/about", "عن المركز"],
               ["/gallery", "صور المركز"],
               ["/business", "تدريب الجهات"],
-              ["/trainers", "مدربو المنصة"],
+              ["/trainers", "مدرّبونا"],
               ["/teach", "انضم كمدرب"],
             ].map(([to, l]) => (
               <Link key={to} to={to}>
@@ -457,11 +459,17 @@ export default function PublicSite() {
     </div>
   );
 }
-function TrainerCards({ c }: { c: SiteContent }) {
+function TrainerCards({
+  c,
+  heading: Heading = "h2",
+}: {
+  c: SiteContent;
+  heading?: "h1" | "h2";
+}) {
   return (
     <div className="trainer-showcase">
       <div className="site-section-heading">
-        <h2>مدربو المنصة</h2>
+        <Heading>مدرّبونا</Heading>
         <Link className="site-text-link" to="/teach">
           انضم كمدرب <ArrowLeft size={18} />
         </Link>
@@ -627,7 +635,7 @@ function Home({ c }: { c: SiteContent }) {
           loading="lazy"
         />
         <div>
-          <h2>عن منصة تفاصيل</h2>
+          <h2>عن {c.site.name}</h2>
           <p>{c.site.about}</p>
           <Link className="site-text-link" to="/gallery">
             جولة في المركز <ArrowLeft size={20} />

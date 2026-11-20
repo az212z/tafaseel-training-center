@@ -214,7 +214,7 @@ export function Modal({
     >
       <div className="modal-head">
         <div>
-          <span className="tiny-label">منصة تفاصيل</span>
+          <span className="tiny-label">منصة تفاصيل التعليمية</span>
           <h2 id={id}>{title}</h2>
         </div>
         <button className="icon-btn" onClick={onClose} aria-label="إغلاق">

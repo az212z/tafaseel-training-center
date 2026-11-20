@@ -254,7 +254,7 @@ function emailTemplate(
         nl2br($escape($body)) .
         '</div><p style="margin:28px 0"><a href="' .
         $escape($url) .
-        '" style="display:inline-block;padding:13px 24px;background:#144d50;color:#fff;border-radius:8px;text-decoration:none">فتح منصة تفاصيل</a></p><p style="font-size:13px;line-height:1.8;color:#607478">للرد والاستفسارات: <a href="mailto:' .
+        '" style="display:inline-block;padding:13px 24px;background:#144d50;color:#fff;border-radius:8px;text-decoration:none">فتح منصة تفاصيل التعليمية</a></p><p style="font-size:13px;line-height:1.8;color:#607478">للرد والاستفسارات: <a href="mailto:' .
         $escape(emailConfig()["address"]) .
         '">' .
         $escape(emailConfig()["address"]) .
@@ -265,7 +265,7 @@ function emailTemplate(
         '">إدارة اشتراك البريد</a></td></tr></table></td></tr></table></body></html>';
     if ($invitation) {
         $html = str_replace(
-            "فتح منصة تفاصيل</a>",
+            "فتح منصة تفاصيل التعليمية</a>",
             "توثيق الحساب وإكمال التسجيل</a>",
             $html,
         );
@@ -283,7 +283,7 @@ function emailTemplate(
             $subject .
             "\n\n" .
             $body .
-            "\n\nمنصة تفاصيل: " .
+            "\n\nمنصة تفاصيل التعليمية: " .
             $url .
             "\n\n" .
             $footer .
@@ -974,7 +974,7 @@ function emailAction(string $action, string $method, array $d): ?array
             "test:" . $id,
             $u["id"],
             "test",
-            "تم ربط البريد الرسمي بمنصة تفاصيل",
+            "تم ربط البريد الرسمي بمنصة تفاصيل التعليمية",
             "هذه رسالة اختبار لربط البريد الرسمي. أصبحت المنصة جاهزة لإرسال تنبيهات التدريب واللقاءات والدعم وفق إعدادات المركز. لا تحتوي الرسالة على بيانات دخول.",
             "/communications",
         );
