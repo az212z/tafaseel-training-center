@@ -37,9 +37,12 @@ import type { SiteContent, SiteProgram } from "./types";
 import defaults from "./defaults.json";
 import "./site.css";
 
+const trainersHeading = "خبراء يرافقونك في رحلة التعلّم";
+const trainersIntro =
+  "تعلّم من مدرّبين يشاركونك خبراتهم من خلال أمثلة وتمارين عملية.";
 const nav = [
   ["/programs", "الدورات والبرامج"],
-  ["/trainers", "مدرّبونا"],
+  ["/trainers", "المدربون"],
   ["/about", "عن تفاصيل"],
   ["/business", "للجهات"],
   ["/library", "المكتبة"],
@@ -205,7 +208,7 @@ export default function PublicSite() {
     const a = content.articles.find((a) => path === `/library/${a.id}`);
     const labels: Record<string, string> = {
       "/": content.site.name,
-      "/trainers": "مدرّبونا",
+      "/trainers": trainersHeading,
       "/programs": "الدورات والبرامج",
       "/learning-paths": "مسارات التعلم",
       "/about": "عن مركز تفاصيل",
@@ -226,7 +229,10 @@ export default function PublicSite() {
     document.title =
       (p?.title || a?.title || labels[path] || "برامج تفاصيل") +
       (path === "/" ? "" : " | " + content.site.name);
-    const desc = p?.description || a?.intro || content.site.hero_description;
+    const desc =
+      p?.description ||
+      a?.intro ||
+      (path === "/trainers" ? trainersIntro : content.site.hero_description);
     document
       .querySelector('meta[name="description"]')
       ?.setAttribute("content", desc);
@@ -411,7 +417,7 @@ export default function PublicSite() {
               ["/about", "عن المركز"],
               ["/gallery", "صور المركز"],
               ["/business", "تدريب الجهات"],
-              ["/trainers", "مدرّبونا"],
+              ["/trainers", "المدربون"],
               ["/teach", "انضم كمدرب"],
             ].map(([to, l]) => (
               <Link key={to} to={to}>
@@ -469,7 +475,10 @@ function TrainerCards({
   return (
     <div className="trainer-showcase">
       <div className="site-section-heading">
-        <Heading>مدرّبونا</Heading>
+        <div>
+          <Heading>{trainersHeading}</Heading>
+          <p className="trainer-intro">{trainersIntro}</p>
+        </div>
         <Link className="site-text-link" to="/teach">
           انضم كمدرب <ArrowLeft size={18} />
         </Link>

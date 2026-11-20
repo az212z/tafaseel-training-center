@@ -22,9 +22,12 @@ try {
         ENT_QUOTES | ENT_SUBSTITUTE,
         "UTF-8",
     );
+    $trainersHeading = "خبراء يرافقونك في رحلة التعلّم";
+    $trainersIntro =
+        "تعلّم من مدرّبين يشاركونك خبراتهم من خلال أمثلة وتمارين عملية.";
     $labels = [
         "/" => $c["site"]["name"],
-        "/trainers" => "مدرّبونا",
+        "/trainers" => $trainersHeading,
         "/programs" => "الدورات والبرامج",
         "/tracks" => "مجالات التعلّم",
         "/learning-paths" => "مسارات التعلم",
@@ -116,7 +119,10 @@ try {
         ($policyKey ? $c["pages"][$policyKey]["intro"] : null) ??
         ($program["description"] ??
             ($article["intro"] ??
-                ($category["description"] ?? $c["site"]["hero_description"])));
+                ($category["description"] ??
+                    ($path === "/trainers"
+                        ? $trainersIntro
+                        : $c["site"]["hero_description"]))));
     $indexable = $found && !$platform && $path !== "/register";
     $html = file_get_contents(__DIR__ . "/index.html");
     $html = preg_replace(
@@ -206,7 +212,14 @@ try {
         }
     }
     if ($path === "/" || $path === "/trainers") {
-        $body .= $path === "/" ? "<section><h2>مدرّبونا</h2>" : "<section>";
+        $body .=
+            $path === "/"
+                ? "<section><h2>" .
+                    $e($trainersHeading) .
+                    "</h2><p>" .
+                    $e($trainersIntro) .
+                    "</p>"
+                : "<section>";
         foreach ($c["trainers"] as $t) {
             $body .=
                 "<article><h3>" .
@@ -237,7 +250,7 @@ try {
         $body .= "</ul></nav>";
     }
     $body .=
-        '<nav aria-label="روابط المركز"><a href="/programs">الدورات</a> · <a href="/trainers">مدرّبونا</a> · <a href="/about">عن تفاصيل</a> · <a href="/contact">تواصل معنا</a> · <a href="/help">المساعدة</a> · <a href="/login">تسجيل الدخول</a></nav></main></div>';
+        '<nav aria-label="روابط المركز"><a href="/programs">الدورات</a> · <a href="/trainers">المدربون</a> · <a href="/about">عن تفاصيل</a> · <a href="/contact">تواصل معنا</a> · <a href="/help">المساعدة</a> · <a href="/login">تسجيل الدخول</a></nav></main></div>';
     // Readable initial HTML is replaced by the interactive application on load.
     $html = str_replace(
         '<div id="root"></div>',
