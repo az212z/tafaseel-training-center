@@ -154,6 +154,15 @@ export function LessonViewer({
   const [busy, setBusy] = useState(false);
   const attachment = data.files.find((file) => file.id === lesson.file_id);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    if (!video || !lesson.file_id) return;
+    video.src = fileUrl(lesson.file_id);
+    return () => {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, [video, lesson.file_id]);
   const completed = data.progress.some(
     (p) => p.lesson_id === lesson.id && p.student_id === user.id,
   );
@@ -243,7 +252,6 @@ export function LessonViewer({
             ref={setVideo}
             controls
             preload="metadata"
-            src={fileUrl(lesson.file_id)}
           />
         ) : (
           <div className="alert">

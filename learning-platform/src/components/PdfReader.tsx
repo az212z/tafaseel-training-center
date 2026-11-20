@@ -29,6 +29,9 @@ export default function PdfReader({
     let active = true;
     const task = getDocument({
       url,
+      rangeChunkSize: 1048576,
+      disableAutoFetch: true,
+      disableStream: true,
       useWasm: false,
       enableXfa: false,
     });

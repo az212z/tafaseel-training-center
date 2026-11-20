@@ -29,21 +29,41 @@ function sealLessonPart(string $name, string $bytes): string
     }
     return $iv . $tag . $cipher;
 }
-function openLessonPart(string $name, string $encrypted): string
-{
-    $plain = openssl_decrypt(
-        substr($encrypted, 28),
-        "aes-256-gcm",
-        hex2bin(cfg()["key"]),
-        OPENSSL_RAW_DATA,
-        substr($encrypted, 0, 12),
-        substr($encrypted, 12, 16),
-        $name,
-    );
-    if ($plain === false) {
-        throw new RuntimeException("Invalid encrypted video frame");
+function readFileFrame(
+    string $key,
+    string $object,
+    int $offset,
+    int $len,
+    bool $packed,
+): string {
+    $stream = openEncryptedObject($object, $offset, $packed ? $len + 28 : null);
+    try {
+        $iv = stream_get_contents($stream, 12);
+        $tag = stream_get_contents($stream, 16);
+        $cipher = stream_get_contents($stream, $len);
+        if (
+            strlen($iv) !== 12 ||
+            strlen($tag) !== 16 ||
+            strlen($cipher) !== $len
+        ) {
+            throw new RuntimeException("Incomplete encrypted frame");
+        }
+        $plain = openssl_decrypt(
+            $cipher,
+            "aes-256-gcm",
+            hex2bin(cfg()["key"]),
+            OPENSSL_RAW_DATA,
+            $iv,
+            $tag,
+            $key,
+        );
+        if ($plain === false) {
+            throw new RuntimeException("Invalid encrypted file frame");
+        }
+        return $plain;
+    } finally {
+        fclose($stream);
     }
-    return $plain;
 }
 function beginLessonVideo(array $u, array $d): array
 {
@@ -186,35 +206,83 @@ function acceptLessonVideoPart(array $u, array $d): array
         return ["id" => $id, "name" => $upload["name"], "complete" => true];
     });
 }
-function streamLessonVideo(array $file, int $start, int $end): void
-{
+// Ordinary attachments use one private object containing independently authenticated frames.
+const ATTACHMENT_PART = 1048576;
+function storePackedAttachment(
+    string $id,
+    $source,
+    int $size,
+    ?bool $cloud = null,
+): string {
+    $packed = tmpfile();
+    if (!$packed) {
+        throw new RuntimeException("Cannot stage encrypted attachment");
+    }
+    try {
+        for (
+            $offset = 0, $i = 0;
+            $offset < $size;
+            $offset += ATTACHMENT_PART, $i++
+        ) {
+            $length = min(ATTACHMENT_PART, $size - $offset);
+            $plain = fread($source, $length);
+            if ($plain === false || strlen($plain) !== $length) {
+                throw new RuntimeException("Incomplete attachment input");
+            }
+            $frame = sealLessonPart(lessonPartName($id, $i), $plain);
+            if (fwrite($packed, $frame) !== strlen($frame)) {
+                throw new RuntimeException("Cannot stage attachment frame");
+            }
+        }
+        rewind($packed);
+        return storeEncryptedObject(uid() . ".pack1", $packed, $cloud);
+    } finally {
+        fclose($packed);
+    }
+}
+
+function readFileFrames(
+    array $file,
+    int $start,
+    int $end,
+    callable $consume,
+): void {
+    $packed = str_ends_with($file["storage_name"], ".pack1");
+    $part = $packed ? ATTACHMENT_PART : LESSON_VIDEO_PART;
     $prefix = $file["storage_name"] === "frames1:s3" ? "s3:" : "";
-    $last = intdiv($end, LESSON_VIDEO_PART);
-    for (
-        $index = intdiv($start, LESSON_VIDEO_PART);
-        $index <= $last;
-        $index++
-    ) {
-        if (connection_aborted()) {
+    $last = intdiv($end, $part);
+    for ($i = intdiv($start, $part); $i <= $last; $i++) {
+        $base = $i * $part;
+        $len = min($part, (int) $file["bytes"] - $base);
+        $key = lessonPartName($file["id"], $i);
+        $object = $packed ? $file["storage_name"] : $prefix . $key;
+        $plain = readFileFrame(
+            $key,
+            $object,
+            $packed ? $i * ($part + 28) : 0,
+            $len,
+            $packed,
+        );
+        $offset = max(0, $start - $base);
+        $length = min($len - $offset, $end - $base - $offset + 1);
+        if (
+            $consume(
+                $length === $len ? $plain : substr($plain, $offset, $length),
+            ) === false
+        ) {
             break;
         }
-        $base = $index * LESSON_VIDEO_PART;
-        $key = lessonPartName($file["id"], $index);
-        $bytes = openLessonPart($key, encryptedObject($prefix . $key));
-        if (
-            strlen($bytes) !==
-            min(LESSON_VIDEO_PART, (int) $file["bytes"] - $base)
-        ) {
-            throw new RuntimeException("Incomplete stored video frame");
-        }
-        $offset = max(0, $start - $base);
-        echo substr(
-            $bytes,
-            $offset,
-            min(strlen($bytes) - $offset, $end - $base - $offset + 1),
-        );
-        flush();
+        unset($plain);
     }
+}
+// Keep the existing streaming entry point for in-flight requests across releases.
+function streamLessonVideo(array $f, int $start, int $end): void
+{
+    readFileFrames($f, $start, $end, static function (string $chunk): bool {
+        echo $chunk;
+        flush();
+        return !connection_aborted();
+    });
 }
 // Reclaim abandoned uploads incrementally, including a possible last write before a rollback.
 function cleanExpiredLessonParts(float $deadline): void

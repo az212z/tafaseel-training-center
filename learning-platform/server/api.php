@@ -2095,10 +2095,22 @@ function uploadFile(array $u): array
     session_write_close();
     $storage = null;
     try {
-        $storage = storeEncryptedObject(
-            uid() . ".enc",
-            enc(file_get_contents($f["tmp_name"])),
-        );
+        if ($size >= ATTACHMENT_PART) {
+            $input = fopen($f["tmp_name"], "rb");
+            if (!$input) {
+                throw new RuntimeException("Cannot open uploaded file");
+            }
+            try {
+                $storage = storePackedAttachment($id, $input, $size);
+            } finally {
+                fclose($input);
+            }
+        } else {
+            $storage = storeEncryptedObject(
+                uid() . ".enc",
+                enc(file_get_contents($f["tmp_name"])),
+            );
+        }
         tx(function () use (
             $id,
             $u,
@@ -2168,12 +2180,14 @@ function downloadFile(array $u, string $id, bool $preview = false): never
     session_write_close();
     $isVideo = $f["mime"] === "video/mp4";
     $len = (int) $f["bytes"];
+    $packed = str_ends_with($f["storage_name"], ".pack1");
+    $acceptRanges = $isVideo || $packed;
     $head = $_SERVER["REQUEST_METHOD"] === "HEAD";
     $start = 0;
     $end = $len - 1;
     $partial =
         !$head &&
-        $isVideo &&
+        $acceptRanges &&
         !isset($_SERVER["HTTP_IF_RANGE"]) &&
         preg_match(
             '/^bytes=(\d*)-(\d*)$/iD',
@@ -2196,11 +2210,9 @@ function downloadFile(array $u, string $id, bool $preview = false): never
             exit();
         }
     }
-    $framed = in_array(
-        $f["storage_name"],
-        ["frames1:local", "frames1:s3"],
-        true,
-    );
+    $framed =
+        $packed ||
+        in_array($f["storage_name"], ["frames1:local", "frames1:s3"], true);
     if (!$head && !$framed) {
         $content = dec(encryptedObject($f["storage_name"]));
         if (strlen($content) !== $len) {
@@ -2231,7 +2243,7 @@ function downloadFile(array $u, string $id, bool $preview = false): never
     );
     header("Cache-Control: no-store");
     header("Content-Security-Policy: default-src 'none'; sandbox");
-    if ($isVideo) {
+    if ($acceptRanges) {
         header("Accept-Ranges: bytes");
     }
     if ($partial) {

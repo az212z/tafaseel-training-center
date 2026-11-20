@@ -42,10 +42,14 @@ function s3Client(): \Aws\S3\S3Client
     }
     return $client = new \Aws\S3\S3Client($options);
 }
-function storeEncryptedObject(string $name, string $encrypted): string
-{
-    if (integrationEnabled("s3")) {
-        $c = integrationConfig("s3");
+/** @param string|resource $encrypted Encrypted bytes or a rewound encrypted stream. */
+function storeEncryptedObject(
+    string $name,
+    mixed $encrypted,
+    ?bool $cloud = null,
+): string {
+    if ($cloud ?? integrationEnabled("s3")) {
+        $c = requireIntegration("s3");
         s3Client()->putObject([
             "Bucket" => $c["bucket"],
             "Key" => "tafaseel/files/" . $name,
@@ -58,27 +62,58 @@ function storeEncryptedObject(string $name, string $encrypted): string
     if (!is_dir($dir)) {
         mkdir($dir, 0700, true);
     }
-    if (file_put_contents($dir . "/" . $name, $encrypted, LOCK_EX) === false) {
+    $length = is_resource($encrypted)
+        ? fstat($encrypted)["size"]
+        : strlen($encrypted);
+    if (
+        file_put_contents($dir . "/" . $name, $encrypted, LOCK_EX) !== $length
+    ) {
+        @unlink($dir . "/" . $name);
         throw new RuntimeException("Cannot save file");
     }
     chmod($dir . "/" . $name, 0600);
     return $name;
 }
-function encryptedObject(string $name): string
+/** @return resource */
+function openEncryptedObject(string $name, int $offset = 0, ?int $length = null)
 {
     if (str_starts_with($name, "s3:")) {
         $c = requireIntegration("s3");
-        $r = s3Client()->getObject([
+        $request = [
             "Bucket" => $c["bucket"],
             "Key" => "tafaseel/files/" . substr($name, 3),
-        ]);
-        return (string) $r["Body"];
+        ];
+        if ($length !== null) {
+            $request["Range"] = "bytes=$offset-" . ($offset + $length - 1);
+        }
+        $result = s3Client()->getObject($request);
+        if ($length !== null && (int) $result["ContentLength"] !== $length) {
+            throw new RuntimeException("Incomplete storage range");
+        }
+        $stream = $result["Body"]->detach();
+    } else {
+        $stream = @fopen(cfg()["storage"] . "/files/" . $name, "rb");
+        if (!$stream) {
+            fail(404, "الملف غير موجود.");
+        }
+        if ($offset && fseek($stream, $offset) !== 0) {
+            fclose($stream);
+            throw new RuntimeException("Cannot seek in encrypted object");
+        }
     }
-    $path = cfg()["storage"] . "/files/" . $name;
-    if (!is_file($path)) {
-        fail(404, "الملف غير موجود.");
+    if (!is_resource($stream)) {
+        throw new RuntimeException("Cannot read encrypted object");
     }
-    return file_get_contents($path);
+    return $stream;
+}
+function encryptedObject(string $name): string
+{
+    $stream = openEncryptedObject($name);
+    try {
+        return stream_get_contents($stream);
+    } finally {
+        fclose($stream);
+    }
 }
 function discardObject(string $name): void
 {
