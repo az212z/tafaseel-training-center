@@ -113,6 +113,13 @@ with tempfile.TemporaryDirectory(prefix='tafaseel-v2-test-') as folder:
   check(student.get('orders')['items'][0]['status']=='paid','Verified paid state persisted in student ledger')
   student.post('checkout',{'course_id':cid},409)
   secondorder=second.post('checkout',{'course_id':cid})['order'];admin.post('enroll',{'course_id':cid,'student_id':stored['id']},409);check(True,'Pending payment reserves a seat against manual oversubscription')
+  for learner,own_order,foreign_order in [(student,first,secondorder),(second,secondorder,first)]:
+   ledger=learner.get('orders')
+   check({o['id'] for o in ledger['items']}=={own_order['id']} and ledger['total']==1 and learner.get('orders&search='+foreign_order['id'])['total']==0,'Learner sees only their order, including search and count')
+  check({o['id'] for o in admin.get('orders')['items']}=={first['id'],secondorder['id']},'Administrator can see both learners in the payment ledger')
+  trainer.get('orders',403)
+  trainer.post('payment.refresh',{'id':first['id']},403)
+  check(True,'Instructor cannot read or refresh payment records')
   free=student.post('checkout',{'course_id':cid2});check(free['enrolled'],'Free registration uses server transaction and capacity checks')
   Mock.invoice_mode=500;admin.post('commerce.save',{'course_id':cid2,'price_minor':25000,'enrollment_open':True});unknown=second.post('checkout',{'course_id':cid2})['order'];check(unknown['status']=='uncertain','Ambiguous invoice creation is held for reconciliation, never silently retried');count=len(Mock.invoices);second.post('checkout',{'course_id':cid2});check(len(Mock.invoices)==count,'Unknown payment outcome cannot trigger automatic duplicate invoice');Mock.invoice_mode=201
   orphan=next(v for v in Mock.invoices.values() if v['description'].endswith(unknown['id']));admin.post('payment.recover',{'id':unknown['id'],'provider_id':pid},409);orphan['status']='paid';admin.post('payment.recover',{'id':unknown['id'],'provider_id':orphan['id']});check(sql('SELECT status FROM orders WHERE id=?',[unknown['id']])[0]['status']=='paid','Recovery validates order reference and amount against provider before enrollment')

@@ -385,6 +385,7 @@ const statusNames: Record<string, string> = {
 };
 export function Payments() {
   const { user, notify, refresh } = useApp();
+  const admin = user.role === "admin";
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState("");
   const [recover, setRecover] = useState<Order | null>(null);
@@ -401,6 +402,22 @@ export function Payments() {
     page: String(page),
   });
   const ledger = !remote.loading && !remote.error ? remote.result : null;
+  const awaitingPayment = remote.result?.items.some((order) =>
+    ["creating", "pending", "uncertain"].includes(order.status),
+  );
+  const reload = remote.reload;
+  useEffect(() => {
+    if (!awaitingPayment || isStaticPreview) return;
+    const reloadVisible = () => {
+      if (document.visibilityState === "visible") reload();
+    };
+    const timer = window.setInterval(reloadVisible, 20000);
+    document.addEventListener("visibilitychange", reloadVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", reloadVisible);
+    };
+  }, [awaitingPayment, reload]);
   function filter(key: keyof typeof filters, value: string) {
     setFilters((previous) => ({ ...previous, [key]: value }));
     setPage(1);
@@ -438,8 +455,12 @@ export function Payments() {
   return (
     <>
       <PageHead
-        title="المدفوعات والتسجيل"
-        subtitle="سجل الرسوم وحالة التحقق من بوابة الدفع."
+        title={admin ? "المدفوعات" : "مدفوعاتي"}
+        subtitle={
+          admin
+            ? "سجل طلبات الدفع لجميع الطلاب."
+            : "طلبات دفع دوراتك وحالة كل طلب."
+        }
       >
         {user.role === "admin" && (
           <Button
@@ -483,61 +504,65 @@ export function Payments() {
           محاكاة فقط: لا توجد عمليات دفع حقيقية أو خصم مبالغ في نسخة GitHub.
         </div>
       )}
-      <Panel
-        title="تصفية سجل المدفوعات"
-        description="الفترة حسب تاريخ إنشاء الطلب بتوقيت الرياض. الملخص يشمل جميع النتائج المطابقة عبر الصفحات."
-      >
-        <div className="form-grid">
-          <Field label="الطالب أو الدورة أو رقم الطلب">
-            <input
-              type="search"
-              value={filters.search}
-              maxLength={100}
-              onChange={(e) => filter("search", e.target.value)}
-            />
-          </Field>
-          <Field label="حالة الدفع">
-            <select
-              value={filters.status}
-              onChange={(e) => filter("status", e.target.value)}
-            >
-              <option value="">جميع الحالات</option>
-              {Object.entries(statusNames)
-                .filter(([key]) => isStaticPreview || !key.startsWith("demo_"))
-                .map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-            </select>
-          </Field>
-          <Field label="من تاريخ">
-            <input
-              type="date"
-              value={filters.from}
-              onChange={(e) => filter("from", e.target.value)}
-            />
-          </Field>
-          <Field label="إلى تاريخ">
-            <input
-              type="date"
-              value={filters.to}
-              onChange={(e) => filter("to", e.target.value)}
-            />
-          </Field>
-        </div>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            setFilters({ search: "", status: "", from: "", to: "" });
-            setPage(1);
-          }}
+      {admin && (
+        <Panel
+          title="تصفية سجل المدفوعات"
+          description="الفترة حسب تاريخ إنشاء الطلب بتوقيت الرياض. الملخص يشمل جميع النتائج المطابقة عبر الصفحات."
         >
-          مسح التصفية
-        </Button>
-      </Panel>
+          <div className="form-grid">
+            <Field label="الطالب أو الدورة أو رقم الطلب">
+              <input
+                type="search"
+                value={filters.search}
+                maxLength={100}
+                onChange={(e) => filter("search", e.target.value)}
+              />
+            </Field>
+            <Field label="حالة الدفع">
+              <select
+                value={filters.status}
+                onChange={(e) => filter("status", e.target.value)}
+              >
+                <option value="">جميع الحالات</option>
+                {Object.entries(statusNames)
+                  .filter(
+                    ([key]) => isStaticPreview || !key.startsWith("demo_"),
+                  )
+                  .map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+            <Field label="من تاريخ">
+              <input
+                type="date"
+                value={filters.from}
+                onChange={(e) => filter("from", e.target.value)}
+              />
+            </Field>
+            <Field label="إلى تاريخ">
+              <input
+                type="date"
+                value={filters.to}
+                onChange={(e) => filter("to", e.target.value)}
+              />
+            </Field>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setFilters({ search: "", status: "", from: "", to: "" });
+              setPage(1);
+            }}
+          >
+            مسح التصفية
+          </Button>
+        </Panel>
+      )}
       <RemoteState {...remote} />
-      {user.role === "admin" && ledger && (
+      {admin && ledger && (
         <>
           <div className="stats-grid">
             {[
@@ -564,7 +589,7 @@ export function Payments() {
           <Table
             headers={[
               "الطلب",
-              "الطالب والدورة",
+              admin ? "الطالب والدورة" : "الدورة",
               "المبلغ",
               "الحالة",
               "تاريخ الطلب",
@@ -576,7 +601,9 @@ export function Payments() {
                 <td className="mono-cell">{o.id.slice(0, 10)}</td>
                 <td>
                   <strong>{o.course_title}</strong>
-                  <small className="block muted">{o.student_name}</small>
+                  {admin && (
+                    <small className="block muted">{o.student_name}</small>
+                  )}
                 </td>
                 <td>{money(o.amount)}</td>
                 <td>
@@ -652,7 +679,11 @@ export function Payments() {
           !remote.error && (
             <Empty
               title="لا توجد طلبات دفع"
-              text="لا توجد طلبات مطابقة للتصفية الحالية. تظهر طلبات التسجيل المدفوع بعد اختيار دورة من كتالوج التسجيل."
+              text={
+                admin
+                  ? "لا توجد طلبات مطابقة للتصفية الحالية."
+                  : "عندما تسجّل في دورة مدفوعة، يظهر طلبك هنا."
+              }
             />
           )
         )}

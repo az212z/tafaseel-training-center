@@ -12,6 +12,7 @@ import {
   Routes,
   Route,
   NavLink,
+  Navigate,
   useNavigate,
   useLocation,
   Link,
@@ -146,7 +147,7 @@ const navigation: Record<
       bags,
       announcements,
       attendance,
-      payments,
+      { ...payments, label: "مدفوعاتي" },
       settings,
       support,
     ],
@@ -919,9 +920,9 @@ function Shell({
                 path="/payments"
                 element={
                   ["admin", "student"].includes(user.role) ? (
-                    <Payments />
+                    <Payments key={user.id} />
                   ) : (
-                    <Empty title="هذا السجل للإدارة وصاحب الطلب" />
+                    <Navigate to="/dashboard" replace />
                   )
                 }
               />
