@@ -1,0 +1,41 @@
+{
+  "verified_at": "2026-11-18T06:09:45.760889+00:00",
+  "source_commit": "f6c0568c6f18a37add6da4ac2fe7d8c10dec4d2e",
+  "production_site": "https://tafaseel-learn.com",
+  "published": true,
+  "changed_runtime_files": 7,
+  "all_changed_file_hashes_match": true,
+  "ui_asset": "/assets/index-CIOr8CE3.js",
+  "local_checks": {
+    "quiz_sqlite": 21,
+    "quiz_mariadb": 21,
+    "core_sqlite": 68,
+    "core_mariadb": 68,
+    "preview": 42,
+    "total": 220,
+    "build": true,
+    "typecheck": true,
+    "php_syntax": true
+  },
+  "production_probe": {
+    "single_character_options_created": true,
+    "stored_questions_match": true,
+    "blank_option_rejected_with_field_label": true,
+    "php": "8.3",
+    "database": "11.8.9-MariaDB-log",
+    "external_messages_sent": false,
+    "transaction_rolled_back": true,
+    "synthetic_quiz_retained": false,
+    "verified_at": "2026-11-18T06:02:21.155203+00:00"
+  },
+  "access_cleanup": {
+    "verified_at": "2026-11-18T06:03:58.181120+00:00",
+    "temporary_key_removed": true,
+    "fresh_ssh_connection_rejected": true,
+    "local_private_key_deleted": true,
+    "mail_connection_untouched": true
+  },
+  "local_ui_screenshot": "output/quiz-short-options-saved-local.png",
+  "production_quiz_content_changed": false,
+  "hosting_capacity_claimed": false
+}

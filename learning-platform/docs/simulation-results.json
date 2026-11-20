@@ -1,0 +1,222 @@
+{
+  "database": "MariaDB",
+  "fixture_counts": {
+    "students": 5000,
+    "courses": 100,
+    "lessons": 1200,
+    "video_lessons": 400,
+    "enrollments": 50000,
+    "progress": 300000,
+    "attendance": 50000,
+    "submissions": 10000,
+    "attempts": 10000,
+    "orders": 5000
+  },
+  "passed": 19,
+  "failed": 0,
+  "checks": [
+    "Overview includes all 5000 learners and 50000 enrollments in accurate database counts",
+    "Large staff overview explicitly scopes details and stays below 150 KB",
+    "Course workspace includes every one of its 500 students, with bounded lesson progress payload",
+    "A student beyond the former 2000-record cutoff has complete profile learning records",
+    "Student pagination enumerates all 5000 records without gaps or duplicates",
+    "Paginated report reconciles exactly to 300000 lesson completions and 10000 graded submissions",
+    "Full financial ledger summary includes every page and reconciles synthetic paid/refunded totals",
+    "Scoped data and report filters cannot grant an unrelated instructor extra access",
+    "Guardian receives only the two linked student profiles at large scale",
+    "Forty learners sign in from one shared network with actual authentication and unchanged per-account brute-force protection",
+    "Forty concurrent learner journeys complete progress, project submission, timed quiz, notebook, discussion and private ledger",
+    "Instructor grades all forty new projects and replies to every new discussion",
+    "Forty complete training journeys meet lessons, project, quiz and attendance requirements before certificates and surveys; issuance retries are idempotent",
+    "Forty simultaneous enrollment requests allocate exactly thirty seats and refuse ten without overselling",
+    "All 1625 burst requests at 5, 20 and 40 concurrent local clients return correct authorized responses",
+    "Thirty-second sustained local workload completes more than 1000 authorized requests without unexpected failures",
+    "Disabling a learner immediately revokes their existing authenticated session under load",
+    "Restored MariaDB database matches row counts and complete row hashes for every table",
+    "Restored private configuration key and encrypted files reproduce the original document exactly"
+  ],
+  "overview": {
+    "milliseconds": 244.11,
+    "bytes": 55113,
+    "status": 200
+  },
+  "course_workspace": {
+    "milliseconds": 251.98,
+    "bytes": 588886,
+    "status": 200
+  },
+  "journeys": 40,
+  "load_phases": [
+    {
+      "clients": 5,
+      "requests": 125,
+      "seconds": 0.07,
+      "requests_per_second": 1908.13,
+      "p50_ms": 1.68,
+      "p95_ms": 6.32,
+      "p99_ms": 8.68,
+      "unexpected_failures": 0
+    },
+    {
+      "clients": 20,
+      "requests": 500,
+      "seconds": 0.22,
+      "requests_per_second": 2245.14,
+      "p50_ms": 6.77,
+      "p95_ms": 18.11,
+      "p99_ms": 24.13,
+      "unexpected_failures": 0
+    },
+    {
+      "clients": 40,
+      "requests": 1000,
+      "seconds": 0.4,
+      "requests_per_second": 2482.27,
+      "p50_ms": 13.71,
+      "p95_ms": 27.58,
+      "p99_ms": 38.6,
+      "unexpected_failures": 0
+    },
+    {
+      "profile": "sustained mixed reads with 100ms think time",
+      "clients": 40,
+      "requests": 11098,
+      "seconds": 30.08,
+      "requests_per_second": 368.99,
+      "p50_ms": 2.25,
+      "p95_ms": 19.12,
+      "p99_ms": 30.42,
+      "unexpected_failures": 0
+    }
+  ],
+  "measured_http_requests": 13881,
+  "per_action": {
+    "data": {
+      "requests": 2608,
+      "p50_ms": 12.83,
+      "p95_ms": 31.4,
+      "max_ms": 267.33
+    },
+    "students.list": {
+      "requests": 200,
+      "p50_ms": 6.93,
+      "p95_ms": 8.82,
+      "max_ms": 10.35
+    },
+    "training.report": {
+      "requests": 4,
+      "p50_ms": 75.86,
+      "p95_ms": 78.77,
+      "max_ms": 78.77
+    },
+    "orders": {
+      "requests": 2566,
+      "p50_ms": 1.59,
+      "p95_ms": 11.07,
+      "max_ms": 33.71
+    },
+    "progress": {
+      "requests": 320,
+      "p50_ms": 11.47,
+      "p95_ms": 27.78,
+      "max_ms": 42.33
+    },
+    "submission.save": {
+      "requests": 40,
+      "p50_ms": 12.24,
+      "p95_ms": 21.43,
+      "max_ms": 22.96
+    },
+    "quiz.start": {
+      "requests": 40,
+      "p50_ms": 12.21,
+      "p95_ms": 20.4,
+      "max_ms": 22.84
+    },
+    "quiz.attempt": {
+      "requests": 40,
+      "p50_ms": 8.96,
+      "p95_ms": 15.18,
+      "max_ms": 18.22
+    },
+    "quiz.submit": {
+      "requests": 80,
+      "p50_ms": 10.35,
+      "p95_ms": 17.74,
+      "max_ms": 22.07
+    },
+    "lesson.note.save": {
+      "requests": 40,
+      "p50_ms": 8.51,
+      "p95_ms": 14.67,
+      "max_ms": 17.77
+    },
+    "discussion.save": {
+      "requests": 80,
+      "p50_ms": 1.18,
+      "p95_ms": 13.7,
+      "max_ms": 16.82
+    },
+    "submission.grade": {
+      "requests": 40,
+      "p50_ms": 0.67,
+      "p95_ms": 0.94,
+      "max_ms": 1.38
+    },
+    "attendance.save": {
+      "requests": 40,
+      "p50_ms": 0.65,
+      "p95_ms": 0.94,
+      "max_ms": 1.43
+    },
+    "certificate.issue": {
+      "requests": 80,
+      "p50_ms": 1.08,
+      "p95_ms": 1.54,
+      "max_ms": 2.42
+    },
+    "survey.save": {
+      "requests": 40,
+      "p50_ms": 0.72,
+      "p95_ms": 1.02,
+      "max_ms": 1.47
+    },
+    "checkout": {
+      "requests": 30,
+      "p50_ms": 8.08,
+      "p95_ms": 13.21,
+      "max_ms": 13.44
+    },
+    "lesson": {
+      "requests": 2565,
+      "p50_ms": 1.22,
+      "p95_ms": 12.51,
+      "max_ms": 47.56
+    },
+    "catalog": {
+      "requests": 2543,
+      "p50_ms": 3.38,
+      "p95_ms": 13.57,
+      "max_ms": 38.24
+    },
+    "learning.paths": {
+      "requests": 2525,
+      "p50_ms": 2.2,
+      "p95_ms": 10.81,
+      "max_ms": 30.37
+    }
+  },
+  "restore": {
+    "performed": true,
+    "tables": 39,
+    "rows": 437784,
+    "dump_bytes": 28327670,
+    "seconds": 7.08,
+    "all_table_hashes_match": true,
+    "encrypted_file_decryption": true,
+    "production_data_used": false
+  },
+  "elapsed_seconds": 56.72,
+  "external_providers": "unconfigured; existing provider integration suite uses loopback doubles",
+  "scope": "Local isolated PHP CLI 8 workers and MariaDB. Not a production hosting capacity or video CDN bandwidth guarantee."
+}

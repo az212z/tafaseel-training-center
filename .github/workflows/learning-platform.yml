@@ -1,0 +1,145 @@
+name: Verify learning platform
+on:
+  pull_request:
+    paths:
+      - 'learning-platform/**'
+      - '.github/workflows/learning-platform.yml'
+      - '.devcontainer/learning-platform/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: learning-platform
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: learning-platform/package-lock.json
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, sqlite3, mbstring, openssl, fileinfo, curl
+          tools: composer:v2
+          coverage: none
+      - run: composer install --no-dev --prefer-dist --no-interaction
+      - run: composer audit --no-interaction
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run check:php
+      - run: npm test
+      - run: npm run test:extensions
+      - run: npm run test:trial
+      - run: npm run test:preview
+      - run: npm run build:preview
+      - run: npm run package
+      - run: npm run test:website
+      - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - run: npm run test:learning
+      - run: npm run test:email
+      - run: npm run test:accounts
+      - run: npm run test:quizzes
+      - run: npm run test:notifications
+      - run: php tests/database_connection.php
+      - run: npm run test:autosave
+      - run: npm run test:delivery
+      - run: python3 tests/experience_permissions.py
+      - run: python3 tests/lesson_video_uploads.py
+      - run: python3 tests/attachment_streaming.py
+      - run: python3 tests/audit_repairs.py
+      - run: python3 tests/zoom_host_recovery.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tafaseel-learning-hostinger
+          path: learning-platform/output/tafaseel-learning-hostinger.zip
+          retention-days: 14
+
+  trial-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Build the actual Codespaces runtime
+        run: docker build -t tafaseel-github-trial .devcontainer/learning-platform
+      - name: Verify installation and start a private trial runtime
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e CODESPACES=true -e CODESPACE_NAME=tafaseel-ci-test -e GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN=app.github.dev -v "$PWD:/workspace" -w /workspace/learning-platform tafaseel-github-trial sh -lc '
+            composer install --no-dev --prefer-dist --no-interaction &&
+            npm ci && npm run build &&
+            php server/codespaces-init.php init &&
+            npm run trial:start &&
+            curl --fail --silent "http://127.0.0.1:8080/api/index.php?action=health" &&
+            npm run test:trial
+          '
+
+  mariadb-regression:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 'yes'
+          MARIADB_ROOT_HOST: '%'
+        ports:
+          - 33306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    defaults:
+      run:
+        working-directory: learning-platform
+    env:
+      TAFASEEL_TEST_MYSQL_SOCKET: /tmp/tafaseel-ci-mariadb.sock
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: learning-platform/package-lock.json
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, openssl, fileinfo, curl
+          tools: composer:v2
+          coverage: none
+      - run: sudo apt-get update -qq && sudo apt-get install -y mariadb-client socat ffmpeg
+      - name: Connect the isolated test socket to the database service
+        run: |
+          socat UNIX-LISTEN:/tmp/tafaseel-ci-mariadb.sock,fork TCP:127.0.0.1:33306,nodelay &
+          for attempt in $(seq 1 30); do
+            if mariadb --no-defaults --socket=/tmp/tafaseel-ci-mariadb.sock -u root -e 'SELECT VERSION()'; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - run: composer install --no-dev --prefer-dist --no-interaction
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm run test:extensions
+      - run: npm run test:website
+      - run: npm run test:learning
+      - run: npm run test:email
+      - run: npm run test:accounts
+      - run: npm run test:quizzes
+      - run: npm run test:notifications
+      - run: php tests/database_connection.php
+      - run: npm run test:autosave
+      - run: npm run test:delivery
+      - run: python3 tests/experience_permissions.py
+      - run: python3 tests/lesson_video_uploads.py
+      - run: python3 tests/attachment_streaming.py
+      - run: python3 tests/audit_repairs.py
+      - run: python3 tests/zoom_host_recovery.py
+      - run: npm run test:simulation
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tafaseel-simulation-evidence
+          path: |
+            learning-platform/output/simulation-results.json
+            learning-platform/output/learning-tools-mariadb.json
+          retention-days: 14

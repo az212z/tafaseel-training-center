@@ -1,0 +1,52 @@
+{
+  "name": "tafaseel-learning",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "api": "php -S 127.0.0.1:8090 -t public server/router.php",
+    "setup": "php server/console.php demo",
+    "test": "python3 tests/integration.py",
+    "package": "npm run build && python3 scripts/package.py",
+    "start": "node scripts/dev.mjs",
+    "typecheck": "tsc -b",
+    "check:php": "python3 scripts/check_php.py",
+    "build:preview": "tsc -b && VITE_STATIC_PREVIEW=true vite build --base=/tafaseel-learning-preview/ --outDir=dist-preview && python3 scripts/prepare_preview.py",
+    "test:preview": "node scripts/test_preview.mjs",
+    "test:extensions": "python3 tests/extensions.py",
+    "trial:start": "node scripts/codespaces-start.mjs",
+    "trial:accounts": "php server/codespaces-init.php accounts",
+    "test:trial": "python3 tests/codespaces.py",
+    "test:website": "python3 tests/website.py",
+    "test:learning": "python3 tests/learning_tools.py",
+    "test:simulation": "python3 tests/simulation.py",
+    "test:email": "python3 tests/email_workflows.py",
+    "test:accounts": "python3 tests/account_invitations.py",
+    "test:quizzes": "python3 tests/quiz_validation.py",
+    "test:notifications": "python3 tests/learning_notifications.py",
+    "test:autosave": "python3 tests/autosave.py",
+    "test:delivery": "python3 tests/launch_configuration.py"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-sans-arabic": "5.3.0",
+    "@phosphor-icons/react": "2.1.10",
+    "pdfjs-dist": "6.5.438",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-router-dom": "^7.9.5",
+    "tus-js-client": "^4.3.1"
+  },
+  "devDependencies": {
+    "@prettier/plugin-php": "^0.26.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "6.3.0",
+    "fake-indexeddb": "^6.2.4",
+    "prettier": "^3.10.1",
+    "typescript": "~5.9.3",
+    "vite": "8.3.8"
+  }
+}

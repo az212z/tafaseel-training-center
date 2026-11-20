@@ -1,0 +1,73 @@
+{
+  "checked_at": "2026-11-17T13:32:31.425681+00:00",
+  "scope": [
+    "administrator own name and login email",
+    "filtered financial ledger and summary",
+    "current-page CSV export"
+  ],
+  "tests": {
+    "sqlite_core": 63,
+    "sqlite_extensions": 64,
+    "mariadb_core": 63,
+    "mariadb_extensions": 64,
+    "browser_preview": 42,
+    "codespaces": 20,
+    "failures": 0
+  },
+  "build": "passed",
+  "php_syntax": "passed",
+  "browser": {
+    "local_finance_pagination": "25 rows then 5 rows; totals unchanged",
+    "local_refund_filter": "5 rows; refunded total 580 SAR",
+    "csv_download": {
+      "file": "tafaseel-payments-page (1).csv",
+      "data_rows": 25,
+      "columns": 7,
+      "arabic_header": true,
+      "amounts_in_sar": true
+    },
+    "local_admin_profile_save": "name saved and reflected in navigation; original name restored",
+    "mobile_finance": {
+      "viewport": "390x844",
+      "document_width": 390,
+      "summary_cards": 4
+    },
+    "production_login": "administrator password accepted and routed to mandatory MFA enrollment; logged out after check",
+    "production_owner_mfa_enrolled_by_agent": false
+  },
+  "production": {
+    "domain": "tafaseel-learn.com",
+    "files": [
+      {
+        "path": "tafaseel-learning-private/api.php",
+        "matches": true
+      },
+      {
+        "path": "tafaseel-learning-private/extensions.php",
+        "matches": true
+      },
+      {
+        "path": "public_html/index.html",
+        "matches": true
+      },
+      {
+        "path": "public_html/assets/api-CJwDTuT5.js",
+        "matches": true
+      },
+      {
+        "path": "public_html/assets/index-CCgDNtjn.js",
+        "matches": true
+      },
+      {
+        "path": "public_html/assets/index-q5f77RYv.css",
+        "matches": true
+      }
+    ],
+    "private_config_unchanged": true,
+    "database_migration": false,
+    "public_files_matched": 45,
+    "private_paths_denied": 10,
+    "old_center_responses_unchanged": true
+  },
+  "external_providers_enabled": false
+}

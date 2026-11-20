@@ -1,0 +1,228 @@
+{
+  "programs": [
+    {
+      "id": "aptitude",
+      "title": "برنامج القدرات العامة",
+      "shortTitle": "القدرات العامة",
+      "slugs": [
+        "general-aptitude",
+        "aptitude-models"
+      ]
+    },
+    {
+      "id": "english",
+      "title": "دورات اللغة الإنجليزية",
+      "shortTitle": "اللغة الإنجليزية",
+      "slugs": [
+        "step",
+        "ielts",
+        "toefl"
+      ]
+    },
+    {
+      "id": "exams",
+      "title": "دورات قياس والاختبارات التعليمية",
+      "shortTitle": "قياس والاختبارات التعليمية",
+      "slugs": [
+        "educational-competencies",
+        "university-aptitude",
+        "cognitive-ability",
+        "achievement-test"
+      ]
+    },
+    {
+      "id": "development",
+      "title": "دورات التطوير الذاتي والمهني",
+      "shortTitle": "التطوير الذاتي والمهني",
+      "slugs": [
+        "self-development",
+        "professional-development"
+      ]
+    },
+    {
+      "id": "arts",
+      "title": "دورات الفنون والتصميم",
+      "shortTitle": "الفنون والتصميم",
+      "slugs": [
+        "arabic-calligraphy",
+        "interior-design",
+        "drawing-fine-arts",
+        "digital-art"
+      ]
+    },
+    {
+      "id": "children",
+      "title": "دورات خاصة بالأطفال",
+      "shortTitle": "دورات الأطفال",
+      "slugs": [
+        "children-public-speaking",
+        "children-arabic-handwriting",
+        "children-drawing-coloring",
+        "children-personality-building",
+        "children-focus"
+      ]
+    }
+  ],
+  "courses": [
+    {
+      "slug": "general-aptitude",
+      "title": "دورة القدرات التأسيسية",
+      "description": "دورة لطلاب وطالبات الثانوية للاستعداد للجزأين الكمي واللفظي، وفهم أنماط أسئلة القدرات وبناء أسلوب منظّم في الحل.",
+      "program_id": "aptitude",
+      "sort_order": 0,
+      "capacity": 20
+    },
+    {
+      "slug": "aptitude-models",
+      "title": "دورة النماذج الاحترافية",
+      "description": "دورة النماذج الاحترافية ضمن برنامج القدرات العامة.",
+      "program_id": "aptitude",
+      "sort_order": 1,
+      "capacity": 20
+    },
+    {
+      "slug": "achievement-test",
+      "title": "الاختبار التحصيلي",
+      "description": "دورة للمقبلين على الاختبار التحصيلي، تساعد على تنظيم المراجعة وربط المفاهيم الدراسية بطبيعة الأسئلة ومتطلبات الاختبار.",
+      "program_id": "exams",
+      "sort_order": 2,
+      "capacity": 20
+    },
+    {
+      "slug": "educational-competencies",
+      "title": "اختبار الرخصة المهنية",
+      "description": "دورة للمعلمين والمعلمات والخريجين الراغبين في الاستعداد لاختبار الرخصة المهنية.",
+      "program_id": "exams",
+      "sort_order": 3,
+      "capacity": 20
+    },
+    {
+      "slug": "university-aptitude",
+      "title": "دورة القدرات الجامعية",
+      "description": "دورة للراغبين في الاستعداد لاختبار القدرات الجامعية.",
+      "program_id": "exams",
+      "sort_order": 4,
+      "capacity": 20
+    },
+    {
+      "slug": "cognitive-ability",
+      "title": "دورة القدرات المعرفية",
+      "description": "دورة للراغبين في الاستعداد لاختبار القدرة المعرفية.",
+      "program_id": "exams",
+      "sort_order": 5,
+      "capacity": 20
+    },
+    {
+      "slug": "step",
+      "title": "الاستعداد لاختبار ستيب",
+      "description": "دورة للاستعداد لاختبار كفايات اللغة الإنجليزية STEP، للتعرّف على طبيعة الاختبار وتوجيه التحضير إلى المهارات اللغوية التي يقيسها.",
+      "program_id": "english",
+      "sort_order": 6,
+      "capacity": 20
+    },
+    {
+      "slug": "ielts",
+      "title": "الاستعداد لاختبار آيلتس",
+      "description": "دورة للمقبلين على اختبار IELTS، تجمع بين فهم طبيعة الاختبار والاستعداد لاستخدام الإنجليزية بما يخدم هدف الدراسة أو العمل.",
+      "program_id": "english",
+      "sort_order": 7,
+      "capacity": 20
+    },
+    {
+      "slug": "toefl",
+      "title": "الاستعداد لاختبار توفل",
+      "description": "دورة للاستعداد لاختبار TOEFL، موجهة للراغبين في تطوير جاهزيتهم لاستخدام الإنجليزية في الدراسة والمواقف الأكاديمية.",
+      "program_id": "english",
+      "sort_order": 8,
+      "capacity": 20
+    },
+    {
+      "slug": "self-development",
+      "title": "تطوير الذات",
+      "description": "دورات لتنمية المهارات الشخصية، تناسب من يرغب في فهم إمكاناته وتحديد أهدافه والتعامل بوعي أكبر مع متطلبات حياته وعمله.",
+      "program_id": "development",
+      "sort_order": 9,
+      "capacity": 20
+    },
+    {
+      "slug": "professional-development",
+      "title": "التطوير المهني",
+      "description": "دورات لتعزيز الجاهزية المهنية وتطوير المهارات في بيئة العمل، للخريجين والموظفين والمقبلين على مسؤوليات وظيفية جديدة.",
+      "program_id": "development",
+      "sort_order": 10,
+      "capacity": 20
+    },
+    {
+      "slug": "arabic-calligraphy",
+      "title": "الخط العربي",
+      "description": "دورات للمهتمين بجماليات الحرف العربي وتوازن تكوينه، لتنمية مهارة الخط ودقة الملاحظة والتعبير الفني بالحروف.",
+      "program_id": "arts",
+      "sort_order": 11,
+      "capacity": 20
+    },
+    {
+      "slug": "interior-design",
+      "title": "أساسيات الديكور والتصميم",
+      "description": "دورات تأسيسية في الديكور والتصميم، للتعرّف على العلاقة بين المساحات والألوان والعناصر البصرية وبناء ذائقة تصميمية واعية.",
+      "program_id": "arts",
+      "sort_order": 12,
+      "capacity": 20
+    },
+    {
+      "slug": "drawing-fine-arts",
+      "title": "أساسيات الرسم والفن التشكيلي",
+      "description": "دورات تأسيسية للمبتدئين في الرسم والفن التشكيلي، لتنمية الملاحظة البصرية واستكشاف التعبير بالأشكال والألوان.",
+      "program_id": "arts",
+      "sort_order": 13,
+      "capacity": 20
+    },
+    {
+      "slug": "digital-art",
+      "title": "الفن الرقمي",
+      "description": "دورات للمهتمين بالتعبير الفني باستخدام الأدوات الرقمية، لاستكشاف الرسم الرقمي وتطوير الأفكار إلى أعمال بصرية.",
+      "program_id": "arts",
+      "sort_order": 14,
+      "capacity": 20
+    },
+    {
+      "slug": "children-public-speaking",
+      "title": "الخطابة والإلقاء",
+      "description": "دورة خاصة بالأطفال لتنمية مهارات التعبير والخطابة والإلقاء.",
+      "program_id": "children",
+      "sort_order": 15,
+      "capacity": 20
+    },
+    {
+      "slug": "children-arabic-handwriting",
+      "title": "تحسين الخط العربي",
+      "description": "دورة خاصة بالأطفال للاهتمام بالكتابة وتحسين الخط العربي.",
+      "program_id": "children",
+      "sort_order": 16,
+      "capacity": 20
+    },
+    {
+      "slug": "children-drawing-coloring",
+      "title": "الرسم والتلوين",
+      "description": "دورة خاصة بالأطفال لاستكشاف اهتمامهم بالرسم والتلوين.",
+      "program_id": "children",
+      "sort_order": 17,
+      "capacity": 20
+    },
+    {
+      "slug": "children-personality-building",
+      "title": "بناء الشخصية",
+      "description": "دورة خاصة بالأطفال تهتم ببناء الشخصية وتنمية المهارات الشخصية.",
+      "program_id": "children",
+      "sort_order": 18,
+      "capacity": 20
+    },
+    {
+      "slug": "children-focus",
+      "title": "مهارة التركيز",
+      "description": "دورة خاصة بالأطفال تهتم بمهارة التركيز ضمن تجربة تعلّم.",
+      "program_id": "children",
+      "sort_order": 19,
+      "capacity": 20
+    }
+  ]
+}

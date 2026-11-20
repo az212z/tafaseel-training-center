@@ -1,0 +1,5 @@
+{"name":"tafaseel/learning","description":"Private integrations for Tafaseel Learning","type":"project","require":{
+        "php": "^8.3",
+        "aws/aws-sdk-php": "^3.0",
+        "phpmailer/phpmailer": "^7.0"
+    },"config":{"sort-packages":true,"platform":{"php":"8.3.0"},"allow-plugins":false},"autoload":{}}

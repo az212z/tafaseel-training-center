@@ -1,0 +1,53 @@
+{
+  "domain": "https://tafaseel-learn.com",
+  "deployed_files_verified": 91,
+  "static_files_verified": 67,
+  "public_routes_verified": 43,
+  "production_checks": 22,
+  "local_test_suites": {
+    "core-tests-website-sqlite": {
+      "passed": 68,
+      "failed": 0
+    },
+    "core-tests-website-mariadb": {
+      "passed": 68,
+      "failed": 0
+    },
+    "extension-tests-website-sqlite": {
+      "passed": 64,
+      "failed": 0
+    },
+    "extension-tests-website-mariadb": {
+      "passed": 64,
+      "failed": 0
+    },
+    "website-tests-sqlite": {
+      "passed": 35,
+      "failed": 0
+    },
+    "website-tests-mariadb": {
+      "passed": 35,
+      "failed": 0
+    },
+    "trial-tests-website": {
+      "passed": 20,
+      "failed": 0
+    }
+  },
+  "browser_preview_checks": 42,
+  "external_provider_transactions": 0,
+  "live_mfa": "disabled by owner request; password-only administration login verified",
+  "old_site_responses_unchanged": 2,
+  "source_generation_attribution_markers_found": 0,
+  "private_access_files_excluded_from_source": true,
+  "cdn_cache_purged_and_robots_verified": true,
+  "browser_verified": {
+    "desktop_width": 1280,
+    "mobile_width": 390,
+    "horizontal_overflow": false,
+    "production_admin_login_without_mfa": true,
+    "local_form_submission_and_admin_receipt": true,
+    "local_content_save_published": true
+  },
+  "temporary_ssh_access_revoked_and_private_key_deleted": true
+}

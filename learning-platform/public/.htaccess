@@ -1,0 +1,39 @@
+Options -Indexes
+DirectoryIndex site.php index.html
+<IfModule mod_mime.c>
+ AddType application/javascript .mjs
+</IfModule>
+<IfModule mod_rewrite.c>
+ RewriteEngine On
+ RewriteCond %{HTTP_HOST} !^tafaseel-learn\.com$ [NC,OR]
+ RewriteCond %{HTTPS} !=on
+ RewriteRule ^ https://tafaseel-learn.com%{REQUEST_URI} [R=301,L]
+ RewriteRule ^(?:server|storage|config(?:\.php)?|tafaseel-learning-private|\.deployment|\.env|\.git|\.local|reference|tests|scripts)(?:/|$) - [F,L,NC]
+ RewriteRule \.(?:sql|sqlite|db|log|bak|env|ini|zip)$ - [F,L,NC]
+ RewriteRule ^index\.html$ / [R=301,L]
+ RewriteRule ^sitemap\.xml$ site.php [L]
+ RewriteCond %{REQUEST_FILENAME} -f [OR]
+ RewriteCond %{REQUEST_FILENAME} -d
+ RewriteRule ^ - [L]
+ RewriteRule ^ site.php [L]
+</IfModule>
+<IfModule mod_headers.c>
+ Header always set X-Content-Type-Options "nosniff"
+ Header always set X-Frame-Options "DENY"
+ Header always set Referrer-Policy "strict-origin-when-cross-origin"
+ Header always set Strict-Transport-Security "max-age=31536000"
+ Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://video.bunnycdn.com; media-src 'self' blob:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://player.mediadelivery.net; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+ <Files "live-room.html">
+  Header always set Cache-Control "no-store, private"
+  Header always set Referrer-Policy "no-referrer"
+  Header always set Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=()"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://*.zoom.us https://dmogdx0jrul3u.cloudfront.net blob:; style-src 'self' 'unsafe-inline' https://source.zoom.us; img-src 'self' data: blob: https://*.zoom.us https://*.zoom.com; font-src 'self' data: https://*.zoom.us; connect-src 'self' https://zoom.us https://*.zoom.us wss://*.zoom.us https://zoom.com https://*.zoom.com wss://*.zoom.com https://dmogdx0jrul3u.cloudfront.net; worker-src 'self' blob: https://source.zoom.us; media-src 'self' blob: https://*.zoom.us; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
+ </Files>
+ <FilesMatch "^(index\.html|site\.php|robots\.txt)$">
+  Header set Cache-Control "no-store"
+ </FilesMatch>
+</IfModule>
+<FilesMatch "(^\.|\.(?:sql|sqlite|db|log|bak|env|ini|zip)$)">
+ Require all denied
+</FilesMatch>

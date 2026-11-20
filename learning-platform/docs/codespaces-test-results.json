@@ -1,0 +1,26 @@
+{
+  "passed": 20,
+  "failed": 0,
+  "checks": [
+    "Trial creates real server database without demo login",
+    "Codespaces origin derives from validated forwarding hostname",
+    "All four roles and usable fictional training records initialized",
+    "Accounts receive unique random passwords stored privately",
+    "Configuration and credentials restricted to workspace owner",
+    "Trial initialization does not overwrite ordinary local config or credentials",
+    "Restart preserves edited courses and does not reseed",
+    "Restart preserves encryption key and account credentials",
+    "Initialization output does not leak passwords",
+    "Untrusted forwarding domain rejected",
+    "Private trial router reaches actual PHP API",
+    "Public session exposes no demo entry or logged-in role",
+    "Forwarded HTTPS session retains secure host-bound cookies",
+    "Role-switch bypass unavailable in temporary GitHub backend",
+    "Trial router blocks private files, dotfiles, traversal and missing assets",
+    "Application routes serve production SPA with CSP",
+    "Trial student authenticates using actual password verification",
+    "Learner receives real scoped courses from server database",
+    "Trial lesson completion persists in server database",
+    "Production MFA remains enforced for trial staff"
+  ]
+}

@@ -1,0 +1,98 @@
+.learning-path-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+  gap: 22px;
+}
+.learning-path-grid h2 {
+  font-size: 22px;
+}
+.path-goals,
+.discussion-post p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.path-course-list {
+  padding-inline-start: 25px;
+  display: grid;
+  gap: 14px;
+}
+.path-course-list li {
+  padding: 10px;
+}
+.path-course-list small {
+  display: block;
+  color: var(--muted, #65716d);
+}
+.discussion-post {
+  padding: 20px 0;
+  border-bottom: 1px solid #e0e7e4;
+  margin-bottom: 18px;
+}
+.discussion-post h3 {
+  margin: 10px 0;
+}
+.lesson-notebook {
+  margin-top: 24px;
+  border-top: 1px solid #dce6e1;
+  padding-top: 18px;
+}
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.check-label input {
+  width: auto;
+}
+.workspace-filter {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0 0 22px;
+  padding: 16px 20px;
+  background: #f1f6f3;
+  border: 1px solid #dce8e1;
+  border-radius: 12px;
+}
+.workspace-filter select {
+  max-width: 420px;
+}
+.learning-directory {
+  padding-block: 60px;
+}
+.learning-directory > .learning-path-grid {
+  margin-top: 30px;
+}
+.site .learning-directory .panel {
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #dde5df;
+  border-radius: 16px;
+}
+.site .learning-directory button {
+  font: inherit;
+}
+.site .learning-directory .pagination {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-top: 30px;
+}
+.site .learning-directory .badge {
+  display: inline-block;
+  background: #e7f0eb;
+  padding: 5px 12px;
+  border-radius: 8px;
+}
+.site .learning-directory .panel p {
+  line-height: 1.9;
+}
+
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: inherit;
+  text-decoration: none;
+}
